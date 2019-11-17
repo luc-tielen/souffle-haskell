@@ -1,0 +1,56 @@
+name:                souffle
+version:             0.0.1
+homepage:            https://github.com/luc-tielen/souffle-haskell#README.md
+license:             MIT
+author:              Luc Tielen
+maintainer:          luc.tielen@gmail.com
+copyright:           2019 Luc Tielen
+category:            Web
+extra-source-files:
+- README.md
+- LICENSE
+
+dependencies:
+  - base >= 4.11.0 && < 5
+
+default-extensions:
+  - OverloadedStrings
+
+ghc-options:
+  - -Wall
+  - -Weverything
+  - -Wno-safe
+  - -Wno-unsafe
+  - -Wno-implicit-prelude
+  - -Wno-missed-specializations
+  - -Wno-all-missed-specializations
+  - -Wno-missing-import-lists
+  - -Wno-type-defaults
+  - -Wno-missing-local-signatures
+  - -Wno-monomorphism-restriction
+  - -Wno-missing-deriving-strategies
+  - -optP-Wno-nonportable-include-path
+  - -fhide-source-paths
+  - -fno-show-valid-hole-fits
+  - -fno-sort-valid-hole-fits
+
+library:
+  source-dirs:        lib
+
+# TODO remove
+executables:
+  souffle-exe:
+    source-dirs:      src
+    main:             Main.hs
+    dependencies:
+      - souffle
+
+tests:
+  souffle-test:
+    main:             test.hs
+    source-dirs:      tests
+    dependencies:
+      - hspec >= 2.6.1 && < 3.0.0
+      - neat-interpolation >= 0.3.2.4 && < 1
+      - souffle
+
