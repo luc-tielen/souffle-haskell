@@ -36,12 +36,16 @@ ghc-options:
 
 library:
   source-dirs:        lib
+  cxx-sources:        lib/c_src/*.cpp
+  cxx-options:        -Wall -O0 -D__EMBEDDED_SOUFFLE__ -D__EMBEDDED_SOUFFLE_MANUAL_INIT__
 
 # TODO remove
 executables:
   souffle-exe:
     source-dirs:      src
     main:             Main.hs
+    extra-libraries:    c++ #path
+    #extra-lib-dirs:     .
     dependencies:
       - souffle
 

@@ -5,6 +5,9 @@ build:
 configure:
 		@hpack --force && cabal configure --enable-tests
 
+clean:
+		@cabal clean
+
 lint:
 		@hlint .
 
@@ -14,4 +17,4 @@ hoogle:
 tests:
 		cabal test
 
-.PHONY: hoogle lint configure build tests
+.PHONY: hoogle lint clean configure build tests
