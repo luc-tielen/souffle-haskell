@@ -33,6 +33,8 @@ foreign import ccall unsafe "souffle_relation" getRelation
   :: Ptr Souffle -> CString -> IO (Ptr Relation)
 foreign import ccall unsafe "souffle_relation_iterator" getRelationIterator
   :: Ptr Relation -> IO (Ptr RelationIterator)
+foreign import ccall unsafe "souffle_relation_iterator_free" freeRelationIterator
+  :: Ptr RelationIterator -> IO ()
 foreign import ccall unsafe "souffle_relation_iterator_has_next" relationIteratorHasNext
   :: Ptr RelationIterator -> IO CBool
 foreign import ccall unsafe "souffle_relation_iterator_next" relationIteratorNext
@@ -66,12 +68,13 @@ addEdge prog (from, to) = do
   withCString to $ tuplePushString tuple
   addTuple edge tuple
   freeTuple tuple
-  print tuple
 
 gatherResults :: Ptr Relation -> IO [(String, String)]
 gatherResults relation = do
   iterator <- getRelationIterator relation
-  go [] iterator
+  results <- go [] iterator
+  freeRelationIterator iterator
+  pure results
   where
     go acc it = do
       (CBool hasNext) <- relationIteratorHasNext it
@@ -102,3 +105,4 @@ main = do
 
   free prog
   destroyPath  -- TODO remove hack
+
