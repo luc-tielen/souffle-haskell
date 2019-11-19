@@ -6,7 +6,6 @@ let
   inherit (haskell.lib) dontCheck;
   haskellPackages = haskell.packages.${compiler};
   hpack = haskellPackages.callPackage ./nix/hpack.nix { };
-  souffle-fork = callPackage ./nix/souffle.nix { };
   haskellPkgs = haskellPackages.override {
     overrides = self: super: {
       hpack = self.callCabal2nix "hpack" hpack { };
@@ -26,7 +25,7 @@ in {
   souffle-shell = haskellPkgs.shellFor {
     packages = p: [ drv ];
     buildInputs = with haskellPkgs; [
-      souffle-fork
+      souffle
       cabal-install
       hpack
       hlint
