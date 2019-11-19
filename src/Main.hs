@@ -1,4 +1,5 @@
 
+{-# LANGUAGE TemplateHaskell #-}
 module Main ( main ) where
 
 import Prelude hiding ( init )
@@ -7,15 +8,14 @@ import Foreign.C.Types
 import Foreign.Ptr
 import Foreign.Marshal.Alloc hiding ( free )
 import Foreign.Storable
+import Language.Haskell.TH.Syntax
+
+[] <$ qAddForeignFilePath LangCxx "path.cpp"
 
 data Souffle
 data Relation
 data RelationIterator
 data Tuple
-
--- TODO remove next 2, they are hacks..
-foreign import ccall unsafe "souffle_init_Sf_path" initPath :: IO ()
-foreign import ccall unsafe "souffle_destroy_Sf_path" destroyPath :: IO ()
 
 
 -- TODO move to correct module, then can be imported qualified
@@ -92,10 +92,9 @@ gatherResults relation = do
 
 main :: IO ()
 main = do
-  initPath  -- TODO remove hack
   prog <- withCString "path" init  -- TODO function that checks if it succeeded
 
-  addEdge prog ("a", "some_other_node")
+  addEdge prog ("d", "some_other_node")
 
   run prog
 
@@ -104,5 +103,4 @@ main = do
   _ <- traverse print results
 
   free prog
-  destroyPath  -- TODO remove hack
 

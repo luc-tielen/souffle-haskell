@@ -10,11 +10,21 @@ extra-source-files:
 - README.md
 - LICENSE
 
+custom-setup:
+  dependencies:
+    - base
+    - directory
+    - Cabal
+
 dependencies:
   - base >= 4.11.0 && < 5
+  - template-haskell >= 2.15 && < 3
 
 default-extensions:
   - OverloadedStrings
+
+cpp-options:
+  - -D__EMBEDDED_SOUFFLE__
 
 ghc-options:
   - -Wall
@@ -36,16 +46,17 @@ ghc-options:
 
 library:
   source-dirs:        lib
-  cxx-sources:        lib/c_src/*.cpp
-  cxx-options:        -Wall -O0 -D__EMBEDDED_SOUFFLE__ -D__EMBEDDED_SOUFFLE_MANUAL_INIT__
+  cxx-sources:        cbits/*.cpp
+  cxx-options:
+    - -Wall
+    - -O0
 
 # TODO remove
 executables:
   souffle-exe:
     source-dirs:      src
     main:             Main.hs
-    extra-libraries:    c++ #path
-    #extra-lib-dirs:     .
+    extra-libraries:    c++
     dependencies:
       - souffle
 
