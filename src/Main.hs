@@ -1,71 +1,24 @@
 
 {-# LANGUAGE TemplateHaskell #-}
+
 module Main ( main ) where
 
 import Prelude hiding ( init )
-import Foreign.C.String
-import Foreign.C.Types
+import Language.Datalog.Internal.API
 import Foreign.Ptr
-import Foreign.Marshal.Alloc hiding ( free )
-import Foreign.Storable
 import Language.Haskell.TH.Syntax
 
 [] <$ qAddForeignFilePath LangCxx "path.cpp"
 
-data Souffle
-data Relation
-data RelationIterator
-data Tuple
 
-
--- TODO move to correct module, then can be imported qualified
-foreign import ccall unsafe "souffle_init" init
-  :: CString -> IO (Ptr Souffle)
-foreign import ccall unsafe "souffle_free" free
-  :: Ptr Souffle -> IO ()
-foreign import ccall unsafe "souffle_run" run
-  :: Ptr Souffle -> IO ()
-foreign import ccall unsafe "souffle_load_all" loadAll
-  :: Ptr Souffle -> CString -> IO ()
-foreign import ccall unsafe "souffle_print_all" printAll
-  :: Ptr Souffle -> IO ()
-foreign import ccall unsafe "souffle_relation" getRelation
-  :: Ptr Souffle -> CString -> IO (Ptr Relation)
-foreign import ccall unsafe "souffle_relation_iterator" getRelationIterator
-  :: Ptr Relation -> IO (Ptr RelationIterator)
-foreign import ccall unsafe "souffle_relation_iterator_free" freeRelationIterator
-  :: Ptr RelationIterator -> IO ()
-foreign import ccall unsafe "souffle_relation_iterator_has_next" relationIteratorHasNext
-  :: Ptr RelationIterator -> IO CBool
-foreign import ccall unsafe "souffle_relation_iterator_next" relationIteratorNext
-  :: Ptr RelationIterator -> IO (Ptr Tuple)
-foreign import ccall unsafe "souffle_tuple_alloc" allocTuple
-  :: Ptr Relation -> IO (Ptr Tuple)
-foreign import ccall unsafe "souffle_tuple_free" freeTuple
-  :: Ptr Tuple -> IO ()
-foreign import ccall unsafe "souffle_tuple_add" addTuple
-  :: Ptr Relation -> Ptr Tuple -> IO ()
-foreign import ccall unsafe "souffle_tuple_push_int" tuplePushInt
-  :: Ptr Tuple -> CInt -> IO ()
-foreign import ccall unsafe "souffle_tuple_push_string" tuplePushString
-  :: Ptr Tuple -> CString -> IO ()
-foreign import ccall unsafe "souffle_tuple_pop_int" tuplePopInt
-  :: Ptr Tuple -> Ptr CInt -> IO ()
-foreign import ccall unsafe "souffle_tuple_pop_string" tuplePopString
-  :: Ptr Tuple -> Ptr CString -> IO ()
-
-
--- TODO better names
--- TODO foreign ptr construct
 -- TODO use ContT for better API
-
 
 addEdge :: Ptr Souffle -> (String, String) -> IO ()
 addEdge prog (from, to) = do
-  edge <- withCString "edge" $ getRelation prog
+  edge <- getRelation prog "edge"
   tuple <- allocTuple edge
-  withCString from $ tuplePushString tuple
-  withCString to $ tuplePushString tuple
+  tuplePushString tuple from
+  tuplePushString tuple to
   addTuple edge tuple
   freeTuple tuple
 
@@ -77,28 +30,24 @@ gatherResults relation = do
   pure results
   where
     go acc it = do
-      (CBool hasNext) <- relationIteratorHasNext it
-      if hasNext == 1
+      hasNext <- relationIteratorHasNext it
+      if hasNext
         then do
           tuple <- relationIteratorNext it
-          alloca $ \ptr1 ->
-            alloca $ \ptr2 -> do
-              tuplePopString tuple ptr1
-              tuplePopString tuple ptr2
-              str1 <- peek ptr1 >>= peekCString
-              str2 <- peek ptr2 >>= peekCString
-              go ((str1, str2):acc) it
+          str1 <- tuplePopString tuple
+          str2 <- tuplePopString tuple
+          go ((str1, str2):acc) it
         else pure acc
 
 main :: IO ()
 main = do
-  prog <- withCString "path" init  -- TODO function that checks if it succeeded
+  prog <- init "path"   -- TODO function that checks if it succeeded
 
   addEdge prog ("d", "some_other_node")
 
   run prog
 
-  reachable <- withCString "reachable" $ getRelation prog
+  reachable <- getRelation prog "reachable"
   results <- gatherResults reachable
   _ <- traverse print results
 
