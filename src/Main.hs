@@ -6,11 +6,11 @@ module Main ( main ) where
 import Prelude hiding ( init )
 import Data.Foldable ( traverse_ )
 import Language.Datalog.Internal.API
+import Language.Datalog.TH
 import Foreign.Ptr
 import Foreign.ForeignPtr
-import Language.Haskell.TH.Syntax
 
-[] <$ qAddForeignFilePath LangCxx "path.cpp"
+embedSouffleProgram "path.cpp"
 
 
 addEdge :: ForeignPtr Souffle -> (String, String) -> IO ()
