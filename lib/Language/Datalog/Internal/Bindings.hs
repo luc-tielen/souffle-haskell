@@ -37,8 +37,8 @@ data Tuple
 
 foreign import ccall unsafe "souffle_init" init
   :: CString -> IO (Ptr Souffle)
-foreign import ccall unsafe "souffle_free" free
-  :: Ptr Souffle -> IO ()
+foreign import ccall unsafe "&souffle_free" free
+  :: FunPtr (Ptr Souffle -> IO ())
 foreign import ccall unsafe "souffle_run" run
   :: Ptr Souffle -> IO ()
 foreign import ccall unsafe "souffle_load_all" loadAll
@@ -49,16 +49,16 @@ foreign import ccall unsafe "souffle_relation" getRelation
   :: Ptr Souffle -> CString -> IO (Ptr Relation)
 foreign import ccall unsafe "souffle_relation_iterator" getRelationIterator
   :: Ptr Relation -> IO (Ptr RelationIterator)
-foreign import ccall unsafe "souffle_relation_iterator_free" freeRelationIterator
-  :: Ptr RelationIterator -> IO ()
+foreign import ccall unsafe "&souffle_relation_iterator_free" freeRelationIterator
+  :: FunPtr (Ptr RelationIterator -> IO ())
 foreign import ccall unsafe "souffle_relation_iterator_has_next" relationIteratorHasNext
   :: Ptr RelationIterator -> IO CBool
 foreign import ccall unsafe "souffle_relation_iterator_next" relationIteratorNext
   :: Ptr RelationIterator -> IO (Ptr Tuple)
 foreign import ccall unsafe "souffle_tuple_alloc" allocTuple
   :: Ptr Relation -> IO (Ptr Tuple)
-foreign import ccall unsafe "souffle_tuple_free" freeTuple
-  :: Ptr Tuple -> IO ()
+foreign import ccall unsafe "&souffle_tuple_free" freeTuple
+  :: FunPtr (Ptr Tuple -> IO ())
 foreign import ccall unsafe "souffle_tuple_add" addTuple
   :: Ptr Relation -> Ptr Tuple -> IO ()
 foreign import ccall unsafe "souffle_tuple_push_int" tuplePushInt

@@ -4,30 +4,26 @@
 module Main ( main ) where
 
 import Prelude hiding ( init )
+import Data.Foldable ( traverse_ )
 import Language.Datalog.Internal.API
 import Foreign.Ptr
+import Foreign.ForeignPtr
 import Language.Haskell.TH.Syntax
 
 [] <$ qAddForeignFilePath LangCxx "path.cpp"
 
 
--- TODO use ContT for better API
-
-addEdge :: Ptr Souffle -> (String, String) -> IO ()
+addEdge :: ForeignPtr Souffle -> (String, String) -> IO ()
 addEdge prog (from, to) = do
   edge <- getRelation prog "edge"
   tuple <- allocTuple edge
-  tuplePushString tuple from
-  tuplePushString tuple to
+  withForeignPtr tuple $ \ptr -> do
+    tuplePushString ptr from
+    tuplePushString ptr to
   addTuple edge tuple
-  freeTuple tuple
 
 gatherResults :: Ptr Relation -> IO [(String, String)]
-gatherResults relation = do
-  iterator <- getRelationIterator relation
-  results <- go [] iterator
-  freeRelationIterator iterator
-  pure results
+gatherResults relation = getRelationIterator relation >>= go []
   where
     go acc it = do
       hasNext <- relationIteratorHasNext it
@@ -42,14 +38,9 @@ gatherResults relation = do
 main :: IO ()
 main = do
   prog <- init "path"   -- TODO function that checks if it succeeded
-
   addEdge prog ("d", "some_other_node")
-
   run prog
-
   reachable <- getRelation prog "reachable"
   results <- gatherResults reachable
-  _ <- traverse print results
-
-  free prog
+  traverse_ print results
 

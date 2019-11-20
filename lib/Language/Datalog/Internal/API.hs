@@ -3,19 +3,20 @@
 
 -- TODO module name?
 module Language.Datalog.Internal.API
-  ( init
-  , Bindings.free
-  , Bindings.run
+  ( Souffle
+  , Relation
+  , RelationIterator
+  , Tuple
+  , init
+  , run
   , loadAll
-  , Bindings.printAll
+  , printAll
   , getRelation
-  , Bindings.getRelationIterator
-  , Bindings.freeRelationIterator
+  , getRelationIterator
   , relationIteratorHasNext
-  , Bindings.relationIteratorNext
-  , Bindings.allocTuple
-  , Bindings.freeTuple
-  , Bindings.addTuple
+  , relationIteratorNext
+  , allocTuple
+  , addTuple
   , tuplePushInt
   , tuplePushString
   , tuplePopInt
@@ -23,54 +24,75 @@ module Language.Datalog.Internal.API
   ) where
 
 import Prelude hiding ( init )
-import Data.Functor ((<&>))
+import Data.Functor ( (<&>) )
 import Data.Int
 import Foreign.Marshal.Alloc
 import Foreign.Storable
 import Foreign.C.String
 import Foreign.C.Types
+import Foreign.ForeignPtr
 import Foreign.Ptr
 import qualified Language.Datalog.Internal.Bindings as Bindings
 import Language.Datalog.Internal.Bindings
   ( Souffle, Relation, RelationIterator, Tuple )
 
--- TODO foreign ptrs, also reexports
--- TODO with* construct for program, tuples, ...
 
-init :: String -> IO (Ptr Souffle)
-init prog = withCString prog Bindings.init
+init :: String -> IO (ForeignPtr Souffle)
+init prog =
+  withCString prog Bindings.init >>= newForeignPtr Bindings.free
 
-loadAll :: Ptr Souffle -> String -> IO ()
-loadAll prog str = withCString str $ Bindings.loadAll prog
+run :: ForeignPtr Souffle -> IO ()
+run prog = withForeignPtr prog Bindings.run
 
-getRelation :: Ptr Souffle -> String -> IO (Ptr Relation)
-getRelation prog relation =
-  withCString relation $ Bindings.getRelation prog
+loadAll :: ForeignPtr Souffle -> String -> IO ()
+loadAll prog str = withForeignPtr prog $ withCString str . Bindings.loadAll
 
-relationIteratorHasNext :: Ptr RelationIterator -> IO Bool
-relationIteratorHasNext iter =
-  Bindings.relationIteratorHasNext iter <&> \case
+printAll :: ForeignPtr Souffle -> IO ()
+printAll prog = withForeignPtr prog Bindings.printAll
+
+getRelation :: ForeignPtr Souffle -> String -> IO (Ptr Relation)
+getRelation prog relation = withForeignPtr prog $ \ptr ->
+  withCString relation $ Bindings.getRelation ptr
+
+getRelationIterator :: Ptr Relation -> IO (ForeignPtr RelationIterator)
+getRelationIterator relation =
+  Bindings.getRelationIterator relation >>= newForeignPtr Bindings.freeRelationIterator
+
+relationIteratorHasNext :: ForeignPtr RelationIterator -> IO Bool
+relationIteratorHasNext iter = withForeignPtr iter $ \ptr ->
+  Bindings.relationIteratorHasNext ptr <&> \case
     CBool 0 -> False
     CBool _ -> True
 
+relationIteratorNext :: ForeignPtr RelationIterator -> IO (Ptr Tuple)
+relationIteratorNext iter = withForeignPtr iter Bindings.relationIteratorNext
+
+allocTuple :: Ptr Relation -> IO (ForeignPtr Tuple)
+allocTuple relation =
+  Bindings.allocTuple relation >>= newForeignPtr Bindings.freeTuple
+
+addTuple :: Ptr Relation -> ForeignPtr Tuple -> IO ()
+addTuple relation tuple =
+  withForeignPtr tuple $ Bindings.addTuple relation
+
 tuplePushInt :: Ptr Tuple -> Int32 -> IO ()
-tuplePushInt t i = Bindings.tuplePushInt t (CInt i)
+tuplePushInt tuple i = Bindings.tuplePushInt tuple (CInt i)
 
 tuplePushString :: Ptr Tuple -> String -> IO ()
-tuplePushString t str =
-  withCString str $ Bindings.tuplePushString t
+tuplePushString tuple str =
+  withCString str $ Bindings.tuplePushString tuple
 
 tuplePopInt :: Ptr Tuple -> IO Int32
-tuplePopInt t = alloca $ \ptr -> do
-  Bindings.tuplePopInt t ptr
-  (CInt res) <- peek ptr
-  pure res
+tuplePopInt tuple = alloca $ \ptr -> do
+    Bindings.tuplePopInt tuple ptr
+    (CInt res) <- peek ptr
+    pure res
 
 tuplePopString :: Ptr Tuple -> IO String
-tuplePopString t = alloca $ \ptr -> do
-  Bindings.tuplePopString t ptr
-  cstr <- peek ptr
-  str <- peekCString cstr
-  free cstr
-  pure str
+tuplePopString tuple = alloca $ \ptr -> do
+    Bindings.tuplePopString tuple ptr
+    cstr <- peek ptr
+    str <- peekCString cstr
+    free cstr
+    pure str
 
