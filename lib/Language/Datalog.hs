@@ -39,8 +39,8 @@ instance Fact String where
   pop = API.tuplePopString
 
 
-init :: String -> IO Program
-init prog = Program <$> API.init prog
+init :: String -> IO (Maybe Program)
+init prog = fmap Program <$> API.init prog
 
 run :: Program -> IO ()
 run (Program prog) = API.run prog

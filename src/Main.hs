@@ -32,11 +32,14 @@ instance Fact Reachable where
 
 main :: IO ()
 main = do
-  prog <- init "path"   -- TODO function that checks if it succeeded
-  relation <- getRelation prog "edge"
-  addFact relation $ Edge "d" "some_other_node"
-  run prog
-  reachable <- getRelation prog "reachable"
-  results :: [Reachable] <- gatherResults reachable
-  traverse_ print results
+  maybeProg <- init "path"
+  case maybeProg of
+    Nothing -> putStrLn "Failed to load program."
+    Just prog -> do
+      relation <- getRelation prog "edge"
+      addFact relation $ Edge "d" "some_other_node"
+      run prog
+      reachable <- getRelation prog "reachable"
+      results :: [Reachable] <- gatherResults reachable
+      traverse_ print results
 

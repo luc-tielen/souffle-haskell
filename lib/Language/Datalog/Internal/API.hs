@@ -37,9 +37,12 @@ import Language.Datalog.Internal.Bindings
   ( Program, Relation, RelationIterator, Tuple )
 
 
-init :: String -> IO (ForeignPtr Program)
-init prog =
-  withCString prog Bindings.init >>= newForeignPtr Bindings.free
+init :: String -> IO (Maybe (ForeignPtr Program))
+init prog = do
+  ptr <- withCString prog Bindings.init
+  if ptr == nullPtr
+    then pure Nothing
+    else Just <$> newForeignPtr Bindings.free ptr
 
 run :: ForeignPtr Program -> IO ()
 run prog = withForeignPtr prog Bindings.run
