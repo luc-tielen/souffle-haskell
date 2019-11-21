@@ -1,5 +1,5 @@
 
-module Language.Datalog.TH ( embedProgram ) where
+module Language.Souffle.TH ( embedProgram ) where
 
 import Language.Haskell.TH.Syntax
 

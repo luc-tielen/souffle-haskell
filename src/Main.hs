@@ -5,8 +5,8 @@ module Main ( main ) where
 
 import Prelude hiding ( init )
 import Data.Foldable ( traverse_ )
-import Language.Datalog.TH
-import Language.Datalog
+import Language.Souffle.TH
+import Language.Souffle
 
 embedProgram "path.cpp"
 

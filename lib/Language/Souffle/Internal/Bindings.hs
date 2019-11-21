@@ -1,5 +1,5 @@
 
-module Language.Datalog.Internal.Bindings
+module Language.Souffle.Internal.Bindings
   ( Program
   , Relation
   , RelationIterator

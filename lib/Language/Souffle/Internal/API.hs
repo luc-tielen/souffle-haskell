@@ -2,7 +2,7 @@
 {-# Language LambdaCase #-}
 
 -- TODO module name?
-module Language.Datalog.Internal.API
+module Language.Souffle.Internal.API
   ( Program
   , Relation
   , RelationIterator
@@ -32,8 +32,8 @@ import Foreign.C.String
 import Foreign.C.Types
 import Foreign.ForeignPtr
 import Foreign.Ptr
-import qualified Language.Datalog.Internal.Bindings as Bindings
-import Language.Datalog.Internal.Bindings
+import qualified Language.Souffle.Internal.Bindings as Bindings
+import Language.Souffle.Internal.Bindings
   ( Program, Relation, RelationIterator, Tuple )
 
 

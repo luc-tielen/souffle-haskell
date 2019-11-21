@@ -1,7 +1,7 @@
 
 {-# Language FlexibleInstances, DerivingVia #-}
 
-module Language.Datalog
+module Language.Souffle
   ( Program
   , Fact(..)
   , init
@@ -23,19 +23,19 @@ import Data.Foldable ( traverse_ )
 import Foreign.ForeignPtr
 import Foreign.Ptr
 import Data.Int
-import qualified Language.Datalog.Internal.API as API
+import qualified Language.Souffle.Internal.API as API
 
 
--- TODO import Language.Datalog.Monad here, and dont use IO directly
+-- TODO import Language.Souffle.Monad here, and dont use IO directly
 
 newtype Program = Program (ForeignPtr API.Program)
 
 newtype MarshalT m a = MarshalT (ReaderT (Ptr API.Tuple) m a)
   deriving ( Functor, Applicative, Monad
            , MonadIO, MonadReader (Ptr API.Tuple), MonadWriter w
-           , MonadState s, MonadRWS (Ptr API.Tuple) w s, MonadError e)
-  via (ReaderT (Ptr API.Tuple) m)
-  deriving ( MonadTrans ) via (ReaderT (Ptr API.Tuple))
+           , MonadState s, MonadRWS (Ptr API.Tuple) w s, MonadError e )
+  via ( ReaderT (Ptr API.Tuple) m )
+  deriving ( MonadTrans ) via (ReaderT (Ptr API.Tuple) )
 
 runMarshalT :: MarshalT m a -> Ptr API.Tuple -> m a
 runMarshalT (MarshalT m) = runReaderT m
