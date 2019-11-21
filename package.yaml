@@ -10,14 +10,9 @@ extra-source-files:
 - README.md
 - LICENSE
 
-custom-setup:
-  dependencies:
-    - base
-    - directory
-    - Cabal
-
 dependencies:
   - base >= 4.11.0 && < 5
+  - mtl >= 2.2 && < 3
   - template-haskell >= 2.15 && < 3
 
 default-extensions:

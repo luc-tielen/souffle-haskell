@@ -15,6 +15,7 @@ module Language.Datalog
   ) where
 
 import Prelude hiding ( init )
+import Control.Monad.Reader
 import Foreign.ForeignPtr
 import Foreign.Ptr
 import Data.Int
@@ -26,17 +27,28 @@ import qualified Language.Datalog.Internal.API as API
 newtype Program = Program (ForeignPtr API.Program)
 newtype Relation = Relation (Ptr API.Relation)
 
+
+type MarshalM = ReaderT (Ptr API.Tuple)
+
 class Fact a where
-  push :: Ptr API.Tuple -> a -> IO ()
-  pop :: Ptr API.Tuple -> IO a
+  push :: MonadIO m => a -> MarshalM m ()
+  pop :: MonadIO m => MarshalM m a
 
 instance Fact Int32 where
-  push = API.tuplePushInt
-  pop = API.tuplePopInt
+  push int = do
+    tuple <- ask
+    liftIO $ API.tuplePushInt tuple int
+  pop = do
+    tuple <- ask
+    liftIO $ API.tuplePopInt tuple
 
 instance Fact String where
-  push = API.tuplePushString
-  pop = API.tuplePopString
+  push str = do
+    tuple <- ask
+    liftIO $ API.tuplePushString tuple str
+  pop = do
+    tuple <- ask
+    liftIO $ API.tuplePopString tuple
 
 
 init :: String -> IO (Maybe Program)
@@ -62,13 +74,13 @@ gatherResults (Relation relation) = API.getRelationIterator relation >>= go []
       if hasNext
         then do
           tuple <- API.relationIteratorNext it
-          result <- pop tuple
+          result <- runReaderT pop tuple
           go (result : acc) it
         else pure acc
 
 addFact :: Fact a => Relation -> a -> IO ()
 addFact (Relation relation) fact = do
   tuple <- API.allocTuple relation
-  withForeignPtr tuple $ flip push fact
+  withForeignPtr tuple $ runReaderT (push fact)
   API.addTuple relation tuple
 

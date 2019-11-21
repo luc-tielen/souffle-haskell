@@ -18,16 +18,16 @@ data Reachable = Reachable String String
   deriving (Eq, Show)
 
 instance Fact Edge where
-  push t (Edge x y) = do
-    push t x
-    push t y
-  pop t = Edge <$> pop t <*> pop t
+  push (Edge x y) = do
+    push x
+    push y
+  pop = Edge <$> pop <*> pop
 
 instance Fact Reachable where
-  push t (Reachable x y) = do
-    push t x
-    push t y
-  pop t = Reachable <$> pop t <*> pop t
+  push (Reachable x y) = do
+    push x
+    push y
+  pop = Reachable <$> pop <*> pop
 
 
 main :: IO ()
