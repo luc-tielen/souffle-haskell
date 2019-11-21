@@ -1,9 +1,12 @@
 
-{-# Language FlexibleInstances, DerivingVia #-}
+{-# LANGUAGE FlexibleInstances, FlexibleContexts, DataKinds #-}
+{-# LANGUAGE RankNTypes, TypeFamilies, DerivingVia, TypeFamilyDependencies #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Language.Souffle
   ( Souffle
   , Fact(..)
+  , Marshal(..)
   , init
   , run
   , loadFiles
@@ -22,11 +25,13 @@ import Control.Monad.RWS
 import Data.Foldable ( traverse_ )
 import Foreign.ForeignPtr
 import Foreign.Ptr
+import GHC.TypeLits
+import Data.Proxy
 import Data.Int
 import qualified Language.Souffle.Internal as Internal
 
-
 -- TODO import Language.Souffle.Monad here, and dont use IO directly
+
 
 newtype Souffle = Souffle (ForeignPtr Internal.Souffle)
 
@@ -43,11 +48,18 @@ runMarshalT :: MarshalT m a -> Tuple -> m a
 runMarshalT (MarshalT m) = runReaderT m
 
 
-class Fact a where
+class Marshal a => Fact a where
+  type FactName a = (s :: Symbol) | s -> a
+
+factName :: forall s a. (KnownSymbol s, FactName a ~ s)
+         => Proxy a -> String
+factName _ = symbolVal (Proxy :: Proxy (FactName a))
+
+class Marshal a where
   push :: MonadIO m => a -> MarshalT m ()
   pop :: MonadIO m => MarshalT m a
 
-instance Fact Int32 where
+instance Marshal Int32 where
   push int = do
     tuple <- ask
     liftIO $ Internal.tuplePushInt tuple int
@@ -55,7 +67,7 @@ instance Fact Int32 where
     tuple <- ask
     liftIO $ Internal.tuplePopInt tuple
 
-instance Fact String where
+instance Marshal String where
   push str = do
     tuple <- ask
     liftIO $ Internal.tuplePushString tuple str
@@ -76,8 +88,10 @@ loadFiles (Souffle prog) = Internal.loadAll prog
 writeFiles :: Souffle -> IO ()
 writeFiles (Souffle prog) = Internal.printAll prog
 
-getFacts :: Fact a => Souffle -> String -> IO [a]
-getFacts (Souffle prog) relationName = do
+getFacts :: forall a s. (Fact a, KnownSymbol s, FactName a ~ s)
+         => Souffle -> IO [a]
+getFacts (Souffle prog) = do
+  let relationName = factName (Proxy :: Proxy a)
   relation <- Internal.getRelation prog relationName
   Internal.getRelationIterator relation >>= go []
   where
@@ -90,13 +104,17 @@ getFacts (Souffle prog) relationName = do
           go (result : acc) it
         else pure acc
 
-addFact :: Fact a => Souffle -> String -> a -> IO ()
-addFact (Souffle prog) relationName fact = do
+addFact :: forall a s. (Fact a, KnownSymbol s, FactName a ~ s)
+        => Souffle -> a -> IO ()
+addFact (Souffle prog) fact = do
+  let relationName = factName (Proxy :: Proxy a)
   relation <- Internal.getRelation prog relationName
   addFact' relation fact
 
-addFacts :: Fact a => Souffle -> String -> [a] -> IO ()
-addFacts (Souffle prog) relationName facts = do
+addFacts :: forall a s. (Fact a, KnownSymbol s, FactName a ~ s)
+         => Souffle -> [a] -> IO ()
+addFacts (Souffle prog) facts = do
+  let relationName = factName (Proxy :: Proxy a)
   relation <- Internal.getRelation prog relationName
   traverse_ (addFact' relation) facts
 

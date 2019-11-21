@@ -1,5 +1,5 @@
 
-{-# LANGUAGE TemplateHaskell, ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell, ScopedTypeVariables, DataKinds, TypeFamilies #-}
 
 module Main ( main ) where
 
@@ -17,17 +17,23 @@ data Edge = Edge String String
 data Reachable = Reachable String String
   deriving (Eq, Show)
 
-instance Fact Edge where
+instance Marshal Edge where
   push (Edge x y) = do
     push x
     push y
   pop = Edge <$> pop <*> pop
 
-instance Fact Reachable where
+instance Fact Edge where
+  type FactName Edge = "edge"
+
+instance Marshal Reachable where
   push (Reachable x y) = do
     push x
     push y
   pop = Reachable <$> pop <*> pop
+
+instance Fact Reachable where
+  type FactName Reachable = "reachable"
 
 
 main :: IO ()
@@ -36,13 +42,14 @@ main = do
   case maybeProgram of
     Nothing -> putStrLn "Failed to load program."
     Just prog -> do
-      addFact prog "edge" $ Edge "d" "some_other_node"
-      addFacts prog "edge" [ Edge "e" "f"
-                           , Edge "f" "g"
-                           , Edge "f" "h"
-                           , Edge "g" "some_other_node"
-                           ]
+      addFact prog $ Edge "d" "some_other_node"
+      addFacts prog [ Edge "e" "f"
+                    , Edge "f" "g"
+                    , Edge "f" "h"
+                    , Edge "g" "some_other_node"
+                    ]
       run prog
-      results :: [Reachable] <- getFacts prog "reachable"
+      -- NOTE: change type param to fetch different relations
+      results :: [Reachable] <- getFacts prog
       traverse_ print results
 
