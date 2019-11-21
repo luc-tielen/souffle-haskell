@@ -1,5 +1,6 @@
 
-{-# LANGUAGE TemplateHaskell, ScopedTypeVariables, DataKinds, TypeFamilies #-}
+{-# LANGUAGE TemplateHaskell, TypeApplications, ScopedTypeVariables #-}
+{-# LANGUAGE DataKinds, TypeFamilies #-}
 
 module Main ( main ) where
 
@@ -11,7 +12,7 @@ import Language.Souffle
 embedProgram "path.cpp"
 
 
-data Path = Path
+data Path
 
 instance Program Path where
   type ProgramName Path = "path"
@@ -44,7 +45,7 @@ instance Fact Reachable where
 
 main :: IO ()
 main = do
-  maybeProgram <- init Path
+  maybeProgram <- init @Path
   case maybeProgram of
     Nothing -> putStrLn "Failed to load program."
     Just prog -> do

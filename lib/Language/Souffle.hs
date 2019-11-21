@@ -99,8 +99,8 @@ instance Marshal String where
     liftIO $ Internal.tuplePopString tuple
 
 init :: forall prog s. (KnownSymbol s, ProgramName prog ~ s)
-     => prog -> IO (Maybe (Souffle prog))
-init _ =
+     => IO (Maybe (Souffle prog))
+init =
   let progName = programName (Proxy :: Proxy prog)
    in fmap Souffle <$> Internal.init progName
 
