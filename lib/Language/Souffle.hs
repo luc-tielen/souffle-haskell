@@ -1,7 +1,9 @@
 
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# LANGUAGE FlexibleInstances, FlexibleContexts, DataKinds #-}
-{-# LANGUAGE RankNTypes, TypeFamilies, DerivingVia, TypeFamilyDependencies #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DerivingVia, TypeFamilyDependencies #-}
+{-# LANGUAGE ScopedTypeVariables, TypeOperators #-}
+{-# LANGUAGE UndecidableInstances, ConstraintKinds #-}
 
 module Language.Souffle
   ( Program(..)
@@ -28,13 +30,14 @@ import Foreign.ForeignPtr
 import Foreign.Ptr
 import GHC.TypeLits
 import Data.Proxy
+import Data.Kind
 import Data.Int
 import qualified Language.Souffle.Internal as Internal
 
 -- TODO import Language.Souffle.Monad here, and dont use IO directly
 
 
-newtype Souffle = Souffle (ForeignPtr Internal.Souffle)
+newtype Souffle prog = Souffle (ForeignPtr Internal.Souffle)
 
 type Tuple = Ptr Internal.Tuple
 
@@ -51,9 +54,25 @@ runMarshalT (MarshalT m) = runReaderT m
 
 class Program a where
   type ProgramName a = (s :: Symbol) | s -> a
+  type ProgramFacts a :: [Type]
+
+type family ContainsFact prog fact :: Constraint where
+  ContainsFact prog fact =
+    CheckContains prog (ProgramFacts prog) fact
+
+type family CheckContains prog facts fact :: Constraint where
+  CheckContains prog '[] fact =
+    (TypeError ('Text "Program of type '" ':<>: 'ShowType prog
+          ':<>: 'Text "' does not contain fact: '"
+          ':<>: 'ShowType fact ':<>: 'Text "'"))
+  CheckContains _ (a ': _) a = ()
+  CheckContains prog (_ ': as) b = CheckContains prog as b
+
 
 class Marshal a => Fact a where
   type FactName a = (s :: Symbol) | s -> a
+
+type KnownFactName a s = (Fact a, KnownSymbol s, FactName a ~ s)
 
 factName :: forall s a. (KnownSymbol s, FactName a ~ s)
          => Proxy a -> String
@@ -79,27 +98,29 @@ instance Marshal String where
     tuple <- ask
     liftIO $ Internal.tuplePopString tuple
 
-init :: forall a s. (KnownSymbol s, ProgramName a ~ s)
-     => a -> IO (Maybe Souffle)
+init :: forall prog s. (KnownSymbol s, ProgramName prog ~ s)
+     => prog -> IO (Maybe (Souffle prog))
 init _ =
-  let progName = programName (Proxy :: Proxy a)
+  let progName = programName (Proxy :: Proxy prog)
    in fmap Souffle <$> Internal.init progName
 
-programName :: forall a s. (KnownSymbol s, ProgramName a ~ s)
-            => Proxy a -> String
-programName _ = symbolVal (Proxy :: Proxy (ProgramName a))
+programName :: forall prog s. (KnownSymbol s, ProgramName prog ~ s)
+            => Proxy prog -> String
+programName _ = symbolVal (Proxy :: Proxy (ProgramName prog))
 
-run :: Souffle -> IO ()
+run :: Souffle prog -> IO ()
 run (Souffle prog) = Internal.run prog
 
-loadFiles :: Souffle -> String -> IO ()
+loadFiles :: Souffle prog -> String -> IO ()
 loadFiles (Souffle prog) = Internal.loadAll prog
 
-writeFiles :: Souffle -> IO ()
+writeFiles :: Souffle prog -> IO ()
 writeFiles (Souffle prog) = Internal.printAll prog
 
-getFacts :: forall a s. (Fact a, KnownSymbol s, FactName a ~ s)
-         => Souffle -> IO [a]
+getFacts ::
+  forall a s prog.
+  (ContainsFact prog a, KnownFactName a s) =>
+  Souffle prog -> IO [a]
 getFacts (Souffle prog) = do
   let relationName = factName (Proxy :: Proxy a)
   relation <- Internal.getRelation prog relationName
@@ -114,15 +135,19 @@ getFacts (Souffle prog) = do
           go (result : acc) it
         else pure acc
 
-addFact :: forall a s. (Fact a, KnownSymbol s, FactName a ~ s)
-        => Souffle -> a -> IO ()
+addFact ::
+  forall a s prog.
+  (ContainsFact prog a, KnownFactName a s) =>
+  Souffle prog -> a -> IO ()
 addFact (Souffle prog) fact = do
   let relationName = factName (Proxy :: Proxy a)
   relation <- Internal.getRelation prog relationName
   addFact' relation fact
 
-addFacts :: forall a s. (Fact a, KnownSymbol s, FactName a ~ s)
-         => Souffle -> [a] -> IO ()
+addFacts ::
+  forall a s prog.
+  (ContainsFact prog a, KnownFactName a s) =>
+  Souffle prog -> [a] -> IO ()
 addFacts (Souffle prog) facts = do
   let relationName = factName (Proxy :: Proxy a)
   relation <- Internal.getRelation prog relationName

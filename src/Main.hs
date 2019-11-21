@@ -15,6 +15,7 @@ data Path = Path
 
 instance Program Path where
   type ProgramName Path = "path"
+  type ProgramFacts Path = [Edge, Reachable]
 
 data Edge = Edge String String
   deriving (Eq, Show)
