@@ -11,6 +11,11 @@ import Language.Souffle
 embedProgram "path.cpp"
 
 
+data Path = Path
+
+instance Program Path where
+  type ProgramName Path = "path"
+
 data Edge = Edge String String
   deriving (Eq, Show)
 
@@ -38,7 +43,7 @@ instance Fact Reachable where
 
 main :: IO ()
 main = do
-  maybeProgram <- init "path"
+  maybeProgram <- init Path
   case maybeProgram of
     Nothing -> putStrLn "Failed to load program."
     Just prog -> do

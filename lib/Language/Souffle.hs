@@ -4,7 +4,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Language.Souffle
-  ( Souffle
+  ( Program(..)
+  , Souffle  -- TODO can be removed?
   , Fact(..)
   , Marshal(..)
   , init
@@ -48,6 +49,9 @@ runMarshalT :: MarshalT m a -> Tuple -> m a
 runMarshalT (MarshalT m) = runReaderT m
 
 
+class Program a where
+  type ProgramName a = (s :: Symbol) | s -> a
+
 class Marshal a => Fact a where
   type FactName a = (s :: Symbol) | s -> a
 
@@ -75,9 +79,15 @@ instance Marshal String where
     tuple <- ask
     liftIO $ Internal.tuplePopString tuple
 
+init :: forall a s. (KnownSymbol s, ProgramName a ~ s)
+     => a -> IO (Maybe Souffle)
+init _ =
+  let progName = programName (Proxy :: Proxy a)
+   in fmap Souffle <$> Internal.init progName
 
-init :: String -> IO (Maybe Souffle)
-init prog = fmap Souffle <$> Internal.init prog
+programName :: forall a s. (KnownSymbol s, ProgramName a ~ s)
+            => Proxy a -> String
+programName _ = symbolVal (Proxy :: Proxy (ProgramName a))
 
 run :: Souffle -> IO ()
 run (Souffle prog) = Internal.run prog
