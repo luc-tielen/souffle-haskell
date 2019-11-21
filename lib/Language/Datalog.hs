@@ -3,15 +3,14 @@
 
 module Language.Datalog
   ( Program
-  , Relation
   , Fact(..)
   , init
   , run
   , loadAll
   , printAll
-  , getRelation
-  , gatherResults
   , addFact
+  , addFacts
+  , getFacts
   ) where
 
 import Prelude hiding ( init )
@@ -20,6 +19,7 @@ import Control.Monad.Writer
 import Control.Monad.State
 import Control.Monad.Except
 import Control.Monad.RWS
+import Data.Foldable ( traverse_ )
 import Foreign.ForeignPtr
 import Foreign.Ptr
 import Data.Int
@@ -29,8 +29,6 @@ import qualified Language.Datalog.Internal.API as API
 -- TODO import Language.Datalog.Monad here, and dont use IO directly
 
 newtype Program = Program (ForeignPtr API.Program)
-newtype Relation = Relation (Ptr API.Relation)
-
 
 newtype MarshalT m a = MarshalT (ReaderT (Ptr API.Tuple) m a)
   deriving ( Functor, Applicative, Monad
@@ -76,11 +74,10 @@ loadAll (Program prog) = API.loadAll prog
 printAll :: Program -> IO ()
 printAll (Program prog) = API.printAll prog
 
-getRelation :: Program -> String -> IO Relation
-getRelation (Program prog) name = Relation <$> API.getRelation prog name
-
-gatherResults :: Fact a => Relation -> IO [a]
-gatherResults (Relation relation) = API.getRelationIterator relation >>= go []
+getFacts :: Fact a => Program -> String -> IO [a]
+getFacts (Program prog) relationName = do
+  relation <- API.getRelation prog relationName
+  API.getRelationIterator relation >>= go []
   where
     go acc it = do
       hasNext <- API.relationIteratorHasNext it
@@ -91,8 +88,18 @@ gatherResults (Relation relation) = API.getRelationIterator relation >>= go []
           go (result : acc) it
         else pure acc
 
-addFact :: Fact a => Relation -> a -> IO ()
-addFact (Relation relation) fact = do
+addFact :: Fact a => Program -> String -> a -> IO ()
+addFact (Program prog) relationName fact = do
+  relation <- API.getRelation prog relationName
+  addFact' relation fact
+
+addFacts :: Fact a => Program -> String -> [a] -> IO ()
+addFacts (Program prog) relationName facts = do
+  relation <- API.getRelation prog relationName
+  traverse_ (addFact' relation) facts
+
+addFact' :: Fact a => Ptr API.Relation -> a -> IO ()
+addFact' relation fact = do
   tuple <- API.allocTuple relation
   withForeignPtr tuple $ runMarshalT (push fact)
   API.addTuple relation tuple
