@@ -1,6 +1,6 @@
 
 module Language.Souffle.Internal.Bindings
-  ( Program
+  ( Souffle
   , Relation
   , RelationIterator
   , Tuple
@@ -29,24 +29,24 @@ import Foreign.C.Types
 import Foreign.Ptr
 
 
-data Program
+data Souffle
 data Relation
 data RelationIterator
 data Tuple
 
 
 foreign import ccall unsafe "souffle_init" init
-  :: CString -> IO (Ptr Program)
+  :: CString -> IO (Ptr Souffle)
 foreign import ccall unsafe "&souffle_free" free
-  :: FunPtr (Ptr Program -> IO ())
+  :: FunPtr (Ptr Souffle -> IO ())
 foreign import ccall unsafe "souffle_run" run
-  :: Ptr Program -> IO ()
+  :: Ptr Souffle -> IO ()
 foreign import ccall unsafe "souffle_load_all" loadAll
-  :: Ptr Program -> CString -> IO ()
+  :: Ptr Souffle -> CString -> IO ()
 foreign import ccall unsafe "souffle_print_all" printAll
-  :: Ptr Program -> IO ()
+  :: Ptr Souffle -> IO ()
 foreign import ccall unsafe "souffle_relation" getRelation
-  :: Ptr Program -> CString -> IO (Ptr Relation)
+  :: Ptr Souffle -> CString -> IO (Ptr Relation)
 foreign import ccall unsafe "souffle_relation_iterator" getRelationIterator
   :: Ptr Relation -> IO (Ptr RelationIterator)
 foreign import ccall unsafe "&souffle_relation_iterator_free" freeRelationIterator

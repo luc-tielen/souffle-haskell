@@ -1,9 +1,8 @@
 
 {-# Language LambdaCase #-}
 
--- TODO module name?
-module Language.Souffle.Internal.API
-  ( Program
+module Language.Souffle.Internal
+  ( Souffle
   , Relation
   , RelationIterator
   , Tuple
@@ -34,26 +33,26 @@ import Foreign.ForeignPtr
 import Foreign.Ptr
 import qualified Language.Souffle.Internal.Bindings as Bindings
 import Language.Souffle.Internal.Bindings
-  ( Program, Relation, RelationIterator, Tuple )
+  ( Souffle, Relation, RelationIterator, Tuple )
 
 
-init :: String -> IO (Maybe (ForeignPtr Program))
+init :: String -> IO (Maybe (ForeignPtr Souffle))
 init prog = do
   ptr <- withCString prog Bindings.init
   if ptr == nullPtr
     then pure Nothing
     else Just <$> newForeignPtr Bindings.free ptr
 
-run :: ForeignPtr Program -> IO ()
+run :: ForeignPtr Souffle -> IO ()
 run prog = withForeignPtr prog Bindings.run
 
-loadAll :: ForeignPtr Program -> String -> IO ()
+loadAll :: ForeignPtr Souffle -> String -> IO ()
 loadAll prog str = withForeignPtr prog $ withCString str . Bindings.loadAll
 
-printAll :: ForeignPtr Program -> IO ()
+printAll :: ForeignPtr Souffle -> IO ()
 printAll prog = withForeignPtr prog Bindings.printAll
 
-getRelation :: ForeignPtr Program -> String -> IO (Ptr Relation)
+getRelation :: ForeignPtr Souffle -> String -> IO (Ptr Relation)
 getRelation prog relation = withForeignPtr prog $ \ptr ->
   withCString relation $ Bindings.getRelation ptr
 
@@ -87,15 +86,15 @@ tuplePushString tuple str =
 
 tuplePopInt :: Ptr Tuple -> IO Int32
 tuplePopInt tuple = alloca $ \ptr -> do
-    Bindings.tuplePopInt tuple ptr
-    (CInt res) <- peek ptr
-    pure res
+  Bindings.tuplePopInt tuple ptr
+  (CInt res) <- peek ptr
+  pure res
 
 tuplePopString :: Ptr Tuple -> IO String
 tuplePopString tuple = alloca $ \ptr -> do
-    Bindings.tuplePopString tuple ptr
-    cstr <- peek ptr
-    str <- peekCString cstr
-    free cstr
-    pure str
+  Bindings.tuplePopString tuple ptr
+  cstr <- peek ptr
+  str <- peekCString cstr
+  free cstr
+  pure str
 

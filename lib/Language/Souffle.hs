@@ -2,12 +2,12 @@
 {-# Language FlexibleInstances, DerivingVia #-}
 
 module Language.Souffle
-  ( Program
+  ( Souffle
   , Fact(..)
   , init
   , run
-  , loadAll
-  , printAll
+  , loadFiles
+  , writeFiles
   , addFact
   , addFacts
   , getFacts
@@ -23,21 +23,23 @@ import Data.Foldable ( traverse_ )
 import Foreign.ForeignPtr
 import Foreign.Ptr
 import Data.Int
-import qualified Language.Souffle.Internal.API as API
+import qualified Language.Souffle.Internal as Internal
 
 
 -- TODO import Language.Souffle.Monad here, and dont use IO directly
 
-newtype Program = Program (ForeignPtr API.Program)
+newtype Souffle = Souffle (ForeignPtr Internal.Souffle)
 
-newtype MarshalT m a = MarshalT (ReaderT (Ptr API.Tuple) m a)
+type Tuple = Ptr Internal.Tuple
+
+newtype MarshalT m a = MarshalT (ReaderT Tuple m a)
   deriving ( Functor, Applicative, Monad
-           , MonadIO, MonadReader (Ptr API.Tuple), MonadWriter w
-           , MonadState s, MonadRWS (Ptr API.Tuple) w s, MonadError e )
-  via ( ReaderT (Ptr API.Tuple) m )
-  deriving ( MonadTrans ) via (ReaderT (Ptr API.Tuple) )
+           , MonadIO, MonadReader Tuple, MonadWriter w
+           , MonadState s, MonadRWS Tuple w s, MonadError e )
+  via ( ReaderT Tuple m )
+  deriving ( MonadTrans ) via (ReaderT Tuple )
 
-runMarshalT :: MarshalT m a -> Ptr API.Tuple -> m a
+runMarshalT :: MarshalT m a -> Tuple -> m a
 runMarshalT (MarshalT m) = runReaderT m
 
 
@@ -48,59 +50,59 @@ class Fact a where
 instance Fact Int32 where
   push int = do
     tuple <- ask
-    liftIO $ API.tuplePushInt tuple int
+    liftIO $ Internal.tuplePushInt tuple int
   pop = do
     tuple <- ask
-    liftIO $ API.tuplePopInt tuple
+    liftIO $ Internal.tuplePopInt tuple
 
 instance Fact String where
   push str = do
     tuple <- ask
-    liftIO $ API.tuplePushString tuple str
+    liftIO $ Internal.tuplePushString tuple str
   pop = do
     tuple <- ask
-    liftIO $ API.tuplePopString tuple
+    liftIO $ Internal.tuplePopString tuple
 
 
-init :: String -> IO (Maybe Program)
-init prog = fmap Program <$> API.init prog
+init :: String -> IO (Maybe Souffle)
+init prog = fmap Souffle <$> Internal.init prog
 
-run :: Program -> IO ()
-run (Program prog) = API.run prog
+run :: Souffle -> IO ()
+run (Souffle prog) = Internal.run prog
 
-loadAll :: Program -> String -> IO ()
-loadAll (Program prog) = API.loadAll prog
+loadFiles :: Souffle -> String -> IO ()
+loadFiles (Souffle prog) = Internal.loadAll prog
 
-printAll :: Program -> IO ()
-printAll (Program prog) = API.printAll prog
+writeFiles :: Souffle -> IO ()
+writeFiles (Souffle prog) = Internal.printAll prog
 
-getFacts :: Fact a => Program -> String -> IO [a]
-getFacts (Program prog) relationName = do
-  relation <- API.getRelation prog relationName
-  API.getRelationIterator relation >>= go []
+getFacts :: Fact a => Souffle -> String -> IO [a]
+getFacts (Souffle prog) relationName = do
+  relation <- Internal.getRelation prog relationName
+  Internal.getRelationIterator relation >>= go []
   where
     go acc it = do
-      hasNext <- API.relationIteratorHasNext it
+      hasNext <- Internal.relationIteratorHasNext it
       if hasNext
         then do
-          tuple <- API.relationIteratorNext it
+          tuple <- Internal.relationIteratorNext it
           result <- runMarshalT pop tuple
           go (result : acc) it
         else pure acc
 
-addFact :: Fact a => Program -> String -> a -> IO ()
-addFact (Program prog) relationName fact = do
-  relation <- API.getRelation prog relationName
+addFact :: Fact a => Souffle -> String -> a -> IO ()
+addFact (Souffle prog) relationName fact = do
+  relation <- Internal.getRelation prog relationName
   addFact' relation fact
 
-addFacts :: Fact a => Program -> String -> [a] -> IO ()
-addFacts (Program prog) relationName facts = do
-  relation <- API.getRelation prog relationName
+addFacts :: Fact a => Souffle -> String -> [a] -> IO ()
+addFacts (Souffle prog) relationName facts = do
+  relation <- Internal.getRelation prog relationName
   traverse_ (addFact' relation) facts
 
-addFact' :: Fact a => Ptr API.Relation -> a -> IO ()
+addFact' :: Fact a => Ptr Internal.Relation -> a -> IO ()
 addFact' relation fact = do
-  tuple <- API.allocTuple relation
+  tuple <- Internal.allocTuple relation
   withForeignPtr tuple $ runMarshalT (push fact)
-  API.addTuple relation tuple
+  Internal.addTuple relation tuple
 
