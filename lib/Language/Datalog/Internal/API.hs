@@ -3,7 +3,7 @@
 
 -- TODO module name?
 module Language.Datalog.Internal.API
-  ( Souffle
+  ( Program
   , Relation
   , RelationIterator
   , Tuple
@@ -34,23 +34,23 @@ import Foreign.ForeignPtr
 import Foreign.Ptr
 import qualified Language.Datalog.Internal.Bindings as Bindings
 import Language.Datalog.Internal.Bindings
-  ( Souffle, Relation, RelationIterator, Tuple )
+  ( Program, Relation, RelationIterator, Tuple )
 
 
-init :: String -> IO (ForeignPtr Souffle)
+init :: String -> IO (ForeignPtr Program)
 init prog =
   withCString prog Bindings.init >>= newForeignPtr Bindings.free
 
-run :: ForeignPtr Souffle -> IO ()
+run :: ForeignPtr Program -> IO ()
 run prog = withForeignPtr prog Bindings.run
 
-loadAll :: ForeignPtr Souffle -> String -> IO ()
+loadAll :: ForeignPtr Program -> String -> IO ()
 loadAll prog str = withForeignPtr prog $ withCString str . Bindings.loadAll
 
-printAll :: ForeignPtr Souffle -> IO ()
+printAll :: ForeignPtr Program -> IO ()
 printAll prog = withForeignPtr prog Bindings.printAll
 
-getRelation :: ForeignPtr Souffle -> String -> IO (Ptr Relation)
+getRelation :: ForeignPtr Program -> String -> IO (Ptr Relation)
 getRelation prog relation = withForeignPtr prog $ \ptr ->
   withCString relation $ Bindings.getRelation ptr
 

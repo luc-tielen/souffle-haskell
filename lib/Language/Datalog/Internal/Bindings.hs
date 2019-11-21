@@ -1,6 +1,6 @@
 
 module Language.Datalog.Internal.Bindings
-  ( Souffle
+  ( Program
   , Relation
   , RelationIterator
   , Tuple
@@ -29,24 +29,24 @@ import Foreign.C.Types
 import Foreign.Ptr
 
 
-data Souffle
+data Program
 data Relation
 data RelationIterator
 data Tuple
 
 
 foreign import ccall unsafe "souffle_init" init
-  :: CString -> IO (Ptr Souffle)
+  :: CString -> IO (Ptr Program)
 foreign import ccall unsafe "&souffle_free" free
-  :: FunPtr (Ptr Souffle -> IO ())
+  :: FunPtr (Ptr Program -> IO ())
 foreign import ccall unsafe "souffle_run" run
-  :: Ptr Souffle -> IO ()
+  :: Ptr Program -> IO ()
 foreign import ccall unsafe "souffle_load_all" loadAll
-  :: Ptr Souffle -> CString -> IO ()
+  :: Ptr Program -> CString -> IO ()
 foreign import ccall unsafe "souffle_print_all" printAll
-  :: Ptr Souffle -> IO ()
+  :: Ptr Program -> IO ()
 foreign import ccall unsafe "souffle_relation" getRelation
-  :: Ptr Souffle -> CString -> IO (Ptr Relation)
+  :: Ptr Program -> CString -> IO (Ptr Relation)
 foreign import ccall unsafe "souffle_relation_iterator" getRelationIterator
   :: Ptr Relation -> IO (Ptr RelationIterator)
 foreign import ccall unsafe "&souffle_relation_iterator_free" freeRelationIterator

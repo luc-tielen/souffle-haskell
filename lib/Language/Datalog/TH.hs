@@ -1,8 +1,8 @@
 
-module Language.Datalog.TH ( embedSouffleProgram ) where
+module Language.Datalog.TH ( embedProgram ) where
 
 import Language.Haskell.TH.Syntax
 
 
-embedSouffleProgram :: String -> Q [Dec]
-embedSouffleProgram path = [] <$ qAddForeignFilePath LangCxx path
+embedProgram :: String -> Q [Dec]
+embedProgram path = [] <$ qAddForeignFilePath LangCxx path
