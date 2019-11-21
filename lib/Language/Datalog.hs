@@ -1,5 +1,5 @@
 
-{-# Language FlexibleInstances #-}
+{-# Language FlexibleInstances, DerivingVia #-}
 
 module Language.Datalog
   ( Program
@@ -16,6 +16,10 @@ module Language.Datalog
 
 import Prelude hiding ( init )
 import Control.Monad.Reader
+import Control.Monad.Writer
+import Control.Monad.State
+import Control.Monad.Except
+import Control.Monad.RWS
 import Foreign.ForeignPtr
 import Foreign.Ptr
 import Data.Int
@@ -28,11 +32,20 @@ newtype Program = Program (ForeignPtr API.Program)
 newtype Relation = Relation (Ptr API.Relation)
 
 
-type MarshalM = ReaderT (Ptr API.Tuple)
+newtype MarshalT m a = MarshalT (ReaderT (Ptr API.Tuple) m a)
+  deriving ( Functor, Applicative, Monad
+           , MonadIO, MonadReader (Ptr API.Tuple), MonadWriter w
+           , MonadState s, MonadRWS (Ptr API.Tuple) w s, MonadError e)
+  via (ReaderT (Ptr API.Tuple) m)
+  deriving ( MonadTrans ) via (ReaderT (Ptr API.Tuple))
+
+runMarshalT :: MarshalT m a -> Ptr API.Tuple -> m a
+runMarshalT (MarshalT m) = runReaderT m
+
 
 class Fact a where
-  push :: MonadIO m => a -> MarshalM m ()
-  pop :: MonadIO m => MarshalM m a
+  push :: MonadIO m => a -> MarshalT m ()
+  pop :: MonadIO m => MarshalT m a
 
 instance Fact Int32 where
   push int = do
@@ -74,13 +87,13 @@ gatherResults (Relation relation) = API.getRelationIterator relation >>= go []
       if hasNext
         then do
           tuple <- API.relationIteratorNext it
-          result <- runReaderT pop tuple
+          result <- runMarshalT pop tuple
           go (result : acc) it
         else pure acc
 
 addFact :: Fact a => Relation -> a -> IO ()
 addFact (Relation relation) fact = do
   tuple <- API.allocTuple relation
-  withForeignPtr tuple $ runReaderT (push fact)
+  withForeignPtr tuple $ runMarshalT (push fact)
   API.addTuple relation tuple
 
