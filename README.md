@@ -121,6 +121,20 @@ be set correctly.
 Without Nix, you will have to follow the manual install instructions
 on the [Souffle website](https://souffle-lang.github.io/install).
 
+In your package.yaml / *.cabal file, make sure to add the following options
+(assuming package.yaml here):
+
+```yaml
+# ...
+cpp-options:
+  - -D__EMBEDDED_SOUFFLE__
+
+# ...
+```
+
+This will instruct the Souffle compiler to compile the C++ in such a way that
+it can be linked with other languages (including Haskell!).
+
 
 ## Contributing
 
