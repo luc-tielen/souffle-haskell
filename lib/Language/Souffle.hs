@@ -1,16 +1,13 @@
 
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# LANGUAGE FlexibleInstances, FlexibleContexts, DataKinds #-}
-{-# LANGUAGE DerivingVia, TypeFamilies #-}
-{-# LANGUAGE ScopedTypeVariables, TypeOperators #-}
-{-# LANGUAGE UndecidableInstances, DefaultSignatures #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE RankNTypes, FlexibleInstances, FlexibleContexts, DataKinds #-}
+{-# LANGUAGE ScopedTypeVariables, TypeFamilies, TypeOperators, UndecidableInstances #-}
 
 module Language.Souffle
   ( Program(..)
   , Souffle
   , Fact(..)
-  , Marshal(..)
+  , Marshal.Marshal(..)
   , init
   , run
   , loadFiles
@@ -21,42 +18,27 @@ module Language.Souffle
   ) where
 
 import Prelude hiding ( init )
-import Control.Monad.Reader
-import Control.Monad.Writer
-import Control.Monad.State
-import Control.Monad.Except
-import Control.Monad.RWS
 import Data.Foldable ( traverse_ )
+import Control.Monad.IO.Class
 import Foreign.ForeignPtr
 import Foreign.Ptr
 import GHC.TypeLits
-import GHC.Generics
 import Data.Proxy
 import Data.Kind
-import Data.Int
 import qualified Language.Souffle.Internal as Internal
+import qualified Language.Souffle.Marshal as Marshal
 
 -- TODO import Language.Souffle.Monad here, and dont use IO directly
 
 
 newtype Souffle prog = Souffle (ForeignPtr Internal.Souffle)
 
-type Tuple = Ptr Internal.Tuple
-
-newtype MarshalT m a = MarshalT (ReaderT Tuple m a)
-  deriving ( Functor, Applicative, Monad
-           , MonadIO, MonadReader Tuple, MonadWriter w
-           , MonadState s, MonadRWS Tuple w s, MonadError e )
-  via ( ReaderT Tuple m )
-  deriving ( MonadTrans ) via (ReaderT Tuple )
-
-runMarshalT :: MarshalT m a -> Tuple -> m a
-runMarshalT (MarshalT m) = runReaderT m
-
-
 class Program a where
   type ProgramFacts a :: [Type]
   programName :: Proxy a -> String
+
+class Marshal.Marshal a => Fact a where
+  factName :: Proxy a -> String
 
 type family ContainsFact prog fact :: Constraint where
   ContainsFact prog fact =
@@ -72,107 +54,24 @@ type family CheckContains prog facts fact :: Constraint where
   CheckContains prog (_ ': as) b = CheckContains prog as b
 
 
-class Marshal a => Fact a where
-  factName :: Proxy a -> String
-
-class Marshal a where
-  push :: MonadIO m => a -> MarshalT m ()
-  pop :: MonadIO m => MarshalT m a
-
-  default push :: (Generic a, SimpleProduct (Rep a), GMarshal (Rep a), MonadIO m)
-               => a -> MarshalT m ()
-  default pop :: (Generic a, SimpleProduct (Rep a), GMarshal (Rep a), MonadIO m)
-              => MarshalT m a
-  push a = gpush (from a)
-  pop = to <$> gpop
-
-type family SimpleProduct (f :: Type -> Type) :: Constraint where
-  SimpleProduct f = (ProductLike f, OnlySimpleFields f)
-
-type family ProductLike (f :: Type -> Type) :: Constraint where
-  ProductLike (_ :*: b) = ProductLike b
-  ProductLike (M1 _ _ a) = ProductLike a
-  ProductLike (K1 _ _) = ()
-  ProductLike (_ :+: _) =
-    TypeError ('Text "Can't derive sum type from/to datalog fact.")
-  ProductLike U1 =
-    TypeError ('Text "Can't derive unary type from/to datalog fact automatically.")
-  ProductLike V1 =
-    TypeError ('Text "Can't derive void type from/to datalog fact.")
-
-type family OnlySimpleFields (f :: Type -> Type) :: Constraint where
-  OnlySimpleFields (a :*: b) = (OnlySimpleField a, OnlySimpleFields b)
-  OnlySimpleFields (a :+: b) = (OnlySimpleFields a, OnlySimpleFields b)
-  OnlySimpleFields (M1 _ _ a) = OnlySimpleFields a
-  OnlySimpleFields U1 = ()
-  OnlySimpleFields V1 = ()
-  OnlySimpleFields k = OnlySimpleField k
-
-type family OnlySimpleField (f :: Type -> Type) :: Constraint where
-  OnlySimpleField (M1 _ _ a) = OnlySimpleField a
-  OnlySimpleField (K1 _ a) = DirectlyMarshallable a
-  OnlySimpleField _ =
-    TypeError ('Text "Fact datatype can only contain directly marshallable values")
-
-type family DirectlyMarshallable (a :: Type) :: Constraint where
-  DirectlyMarshallable Int32 = ()
-  DirectlyMarshallable String = ()
-  DirectlyMarshallable a =
-    TypeError ('Text "Can only marshal values of Int32 and String directly"
-         ':<>: 'Text ", but found type: " ':<>: 'ShowType a ':<>: 'Text ".")
-
-class GMarshal f where
-  gpush :: MonadIO m => f a -> MarshalT m ()
-  gpop :: MonadIO m => MarshalT m (f a)
-
-instance Marshal a => GMarshal (K1 i a) where
-  gpush (K1 x) = push x
-  gpop = K1 <$> pop
-
-instance (GMarshal f, GMarshal g) => GMarshal (f :*: g) where
-  gpush (a :*: b) = do
-    gpush a
-    gpush b
-  gpop = (:*:) <$> gpop <*> gpop
-
-instance GMarshal a => GMarshal (M1 i c a) where
-  gpush (M1 x) = gpush x
-  gpop = M1 <$> gpop
-
-instance Marshal Int32 where
-  push int = do
-    tuple <- ask
-    liftIO $ Internal.tuplePushInt tuple int
-  pop = do
-    tuple <- ask
-    liftIO $ Internal.tuplePopInt tuple
-
-instance Marshal String where
-  push str = do
-    tuple <- ask
-    liftIO $ Internal.tuplePushString tuple str
-  pop = do
-    tuple <- ask
-    liftIO $ Internal.tuplePopString tuple
-
-
-init :: forall prog. Program prog => prog -> IO (Maybe (Souffle prog))
+init :: forall prog m. (Program prog, MonadIO m)
+     => prog -> m (Maybe (Souffle prog))
 init _ =
   let progName = programName (Proxy :: Proxy prog)
-   in fmap Souffle <$> Internal.init progName
+   in liftIO $ fmap Souffle <$> Internal.init progName
 
-run :: Souffle prog -> IO ()
-run (Souffle prog) = Internal.run prog
+run :: MonadIO m => Souffle prog -> m ()
+run (Souffle prog) = liftIO $ Internal.run prog
 
-loadFiles :: Souffle prog -> String -> IO ()
-loadFiles (Souffle prog) = Internal.loadAll prog
+loadFiles :: MonadIO m => Souffle prog -> String -> m ()
+loadFiles (Souffle prog) = liftIO . Internal.loadAll prog
 
-writeFiles :: Souffle prog -> IO ()
-writeFiles (Souffle prog) = Internal.printAll prog
+writeFiles :: MonadIO m => Souffle prog -> m ()
+writeFiles (Souffle prog) = liftIO $ Internal.printAll prog
 
-getFacts :: forall a prog. (Fact a, ContainsFact prog a)
-         => Souffle prog -> IO [a]
-getFacts (Souffle prog) = do
+getFacts :: forall a prog m. (Fact a, ContainsFact prog a, MonadIO m)
+         => Souffle prog -> m [a]
+getFacts (Souffle prog) = liftIO $ do
   let relationName = factName (Proxy :: Proxy a)
   relation <- Internal.getRelation prog relationName
   Internal.getRelationIterator relation >>= go []
@@ -182,20 +81,20 @@ getFacts (Souffle prog) = do
       if hasNext
         then do
           tuple <- Internal.relationIteratorNext it
-          result <- runMarshalT pop tuple
+          result <- Marshal.runMarshalT Marshal.pop tuple
           go (result : acc) it
         else pure acc
 
-addFact :: forall a prog. (Fact a, ContainsFact prog a)
-        => Souffle prog -> a -> IO ()
-addFact (Souffle prog) fact = do
+addFact :: forall a prog m. (Fact a, ContainsFact prog a, MonadIO m)
+        => Souffle prog -> a -> m ()
+addFact (Souffle prog) fact = liftIO $ do
   let relationName = factName (Proxy :: Proxy a)
   relation <- Internal.getRelation prog relationName
   addFact' relation fact
 
-addFacts :: forall a prog. (Fact a, ContainsFact prog a)
-         => Souffle prog -> [a] -> IO ()
-addFacts (Souffle prog) facts = do
+addFacts :: forall a prog m. (Fact a, ContainsFact prog a, MonadIO m)
+         => Souffle prog -> [a] -> m ()
+addFacts (Souffle prog) facts = liftIO $ do
   let relationName = factName (Proxy :: Proxy a)
   relation <- Internal.getRelation prog relationName
   traverse_ (addFact' relation) facts
@@ -203,6 +102,6 @@ addFacts (Souffle prog) facts = do
 addFact' :: Fact a => Ptr Internal.Relation -> a -> IO ()
 addFact' relation fact = do
   tuple <- Internal.allocTuple relation
-  withForeignPtr tuple $ runMarshalT (push fact)
+  withForeignPtr tuple $ Marshal.runMarshalT (Marshal.push fact)
   Internal.addTuple relation tuple
 
