@@ -23,7 +23,7 @@ import Control.Monad.RWS
 import Control.Monad.Except
 import Foreign.ForeignPtr
 import Foreign.Ptr
-import GHC.TypeLits
+import Type.Errors.Pretty
 import Data.Proxy
 import Data.Kind
 import qualified Language.Souffle.Internal as Internal
@@ -45,10 +45,12 @@ type family ContainsFact prog fact :: Constraint where
 
 type family CheckContains prog facts fact :: Constraint where
   CheckContains prog '[] fact =
-    -- TODO list out all facts?
-    (TypeError ('Text "Program of type '" ':<>: 'ShowType prog
-          ':<>: 'Text "' does not contain fact: '"
-          ':<>: 'ShowType fact ':<>: 'Text "'"))
+    TypeError ("You tried to perform an action with a fact of type '" <> fact
+    <> "' for program '" <> prog <> "'."
+    % "The program contains the following facts: " <> ProgramFacts prog <> "."
+    % "It does not contain fact: " <> fact <> "."
+    % "You can fix this error by adding the type '" <> fact
+    <> "' to the ProgramFacts type in the Program instance for " <> prog <> ".")
   CheckContains _ (a ': _) a = ()
   CheckContains prog (_ ': as) b = CheckContains prog as b
 
