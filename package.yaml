@@ -14,6 +14,7 @@ dependencies:
   - base >= 4.11.0 && < 5
   - mtl >= 2.2 && < 3
   - template-haskell >= 2.15 && < 3
+  - type-errors-pretty >= 0.0.1.0 && < 1
 
 default-extensions:
   - OverloadedStrings

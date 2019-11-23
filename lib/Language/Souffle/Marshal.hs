@@ -40,9 +40,9 @@ class Marshal a where
   push :: MonadIO m => a -> MarshalT m ()
   pop :: MonadIO m => MarshalT m a
 
-  default push :: (Generic a, C.SimpleProduct (Rep a), GMarshal (Rep a), MonadIO m)
+  default push :: (Generic a, C.SimpleProduct a (Rep a), GMarshal (Rep a), MonadIO m)
                => a -> MarshalT m ()
-  default pop :: (Generic a, C.SimpleProduct (Rep a), GMarshal (Rep a), MonadIO m)
+  default pop :: (Generic a, C.SimpleProduct a (Rep a), GMarshal (Rep a), MonadIO m)
               => MarshalT m a
   push a = gpush (from a)
   pop = to <$> gpop
