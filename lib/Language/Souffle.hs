@@ -1,9 +1,9 @@
 
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# LANGUAGE FlexibleInstances, DataKinds #-}
+{-# LANGUAGE FlexibleInstances, FlexibleContexts, DataKinds #-}
 {-# LANGUAGE DerivingVia, TypeFamilies #-}
 {-# LANGUAGE ScopedTypeVariables, TypeOperators #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE UndecidableInstances, DefaultSignatures #-}
 
 module Language.Souffle
   ( Program(..)
@@ -29,6 +29,7 @@ import Data.Foldable ( traverse_ )
 import Foreign.ForeignPtr
 import Foreign.Ptr
 import GHC.TypeLits
+import GHC.Generics
 import Data.Proxy
 import Data.Kind
 import Data.Int
@@ -77,6 +78,41 @@ class Marshal a where
   push :: MonadIO m => a -> MarshalT m ()
   pop :: MonadIO m => MarshalT m a
 
+  default push :: (Generic a, SimpleProduct (Rep a), GMarshal (Rep a), MonadIO m)
+               => a -> MarshalT m ()
+  default pop :: (Generic a, SimpleProduct (Rep a), GMarshal (Rep a), MonadIO m)
+              => MarshalT m a
+  push a = gpush (from a)
+  pop = to <$> gpop
+
+-- TODO handle recursive types, check elem piece by piece
+type family SimpleProduct (f :: Type -> Type) :: Constraint where
+  SimpleProduct (_ :*: b) = SimpleProduct b
+  SimpleProduct (M1 _ _ a) = SimpleProduct a
+  SimpleProduct (K1 _ _) = ()
+  SimpleProduct (_ :+: _) =
+    (TypeError ('Text "Can't derive sum type into datalog fact automatically."))
+  SimpleProduct U1 =
+    (TypeError ('Text "Can't derive unary type into datalog fact automatically."))
+
+class GMarshal f where
+  gpush :: MonadIO m => f a -> MarshalT m ()
+  gpop :: MonadIO m => MarshalT m (f a)
+
+instance Marshal a => GMarshal (K1 i a) where
+  gpush (K1 x) = push x
+  gpop = K1 <$> pop
+
+instance (GMarshal f, GMarshal g) => GMarshal (f :*: g) where
+  gpush (a :*: b) = do
+    gpush a
+    gpush b
+  gpop = (:*:) <$> gpop <*> gpop
+
+instance GMarshal a => GMarshal (M1 i c a) where
+  gpush (M1 x) = gpush x
+  gpop = M1 <$> gpop
+
 instance Marshal Int32 where
   push int = do
     tuple <- ask
@@ -92,6 +128,7 @@ instance Marshal String where
   pop = do
     tuple <- ask
     liftIO $ Internal.tuplePopString tuple
+
 
 init :: forall prog. Program prog => prog -> IO (Maybe (Souffle prog))
 init _ =

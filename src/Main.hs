@@ -1,10 +1,11 @@
 
-{-# LANGUAGE TemplateHaskell, ScopedTypeVariables, DataKinds, TypeFamilies #-}
+{-# LANGUAGE TemplateHaskell, ScopedTypeVariables, DataKinds, TypeFamilies, DeriveGeneric #-}
 
 module Main ( main ) where
 
 import Prelude hiding ( init )
 import Data.Foldable ( traverse_ )
+import GHC.Generics
 import Language.Souffle.TH
 import Language.Souffle
 
@@ -14,10 +15,10 @@ embedProgram "path.cpp"
 data Path = Path
 
 data Edge = Edge String String
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
 
 data Reachable = Reachable String String
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
 
 instance Program Path where
   type ProgramFacts Path = [Edge, Reachable]
@@ -29,18 +30,8 @@ instance Fact Edge where
 instance Fact Reachable where
   factName = const "reachable"
 
-
-instance Marshal Edge where
-  push (Edge x y) = do
-    push x
-    push y
-  pop = Edge <$> pop <*> pop
-
-instance Marshal Reachable where
-  push (Reachable x y) = do
-    push x
-    push y
-  pop = Reachable <$> pop <*> pop
+instance Marshal Edge
+instance Marshal Reachable
 
 
 main :: IO ()
