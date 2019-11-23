@@ -1,13 +1,13 @@
 
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# LANGUAGE FlexibleInstances, FlexibleContexts, DataKinds #-}
-{-# LANGUAGE DerivingVia, TypeFamilyDependencies #-}
+{-# LANGUAGE FlexibleInstances, DataKinds #-}
+{-# LANGUAGE DerivingVia, TypeFamilies #-}
 {-# LANGUAGE ScopedTypeVariables, TypeOperators #-}
-{-# LANGUAGE UndecidableInstances, ConstraintKinds #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Language.Souffle
   ( Program(..)
-  , Souffle  -- TODO can be removed?
+  , Souffle
   , Fact(..)
   , Marshal(..)
   , init
@@ -53,8 +53,8 @@ runMarshalT (MarshalT m) = runReaderT m
 
 
 class Program a where
-  type ProgramName a = (s :: Symbol) | s -> a
   type ProgramFacts a :: [Type]
+  programName :: Proxy a -> String
 
 type family ContainsFact prog fact :: Constraint where
   ContainsFact prog fact =
@@ -62,6 +62,7 @@ type family ContainsFact prog fact :: Constraint where
 
 type family CheckContains prog facts fact :: Constraint where
   CheckContains prog '[] fact =
+    -- TODO list out all facts?
     (TypeError ('Text "Program of type '" ':<>: 'ShowType prog
           ':<>: 'Text "' does not contain fact: '"
           ':<>: 'ShowType fact ':<>: 'Text "'"))
@@ -70,13 +71,7 @@ type family CheckContains prog facts fact :: Constraint where
 
 
 class Marshal a => Fact a where
-  type FactName a = (s :: Symbol) | s -> a
-
-type KnownFactName a s = (Fact a, KnownSymbol s, FactName a ~ s)
-
-factName :: forall s a. (KnownSymbol s, FactName a ~ s)
-         => Proxy a -> String
-factName _ = symbolVal (Proxy :: Proxy (FactName a))
+  factName :: Proxy a -> String
 
 class Marshal a where
   push :: MonadIO m => a -> MarshalT m ()
@@ -98,15 +93,10 @@ instance Marshal String where
     tuple <- ask
     liftIO $ Internal.tuplePopString tuple
 
-init :: forall prog s. (KnownSymbol s, ProgramName prog ~ s)
-     => IO (Maybe (Souffle prog))
-init =
+init :: forall prog. Program prog => prog -> IO (Maybe (Souffle prog))
+init _ =
   let progName = programName (Proxy :: Proxy prog)
    in fmap Souffle <$> Internal.init progName
-
-programName :: forall prog s. (KnownSymbol s, ProgramName prog ~ s)
-            => Proxy prog -> String
-programName _ = symbolVal (Proxy :: Proxy (ProgramName prog))
 
 run :: Souffle prog -> IO ()
 run (Souffle prog) = Internal.run prog
@@ -117,10 +107,8 @@ loadFiles (Souffle prog) = Internal.loadAll prog
 writeFiles :: Souffle prog -> IO ()
 writeFiles (Souffle prog) = Internal.printAll prog
 
-getFacts ::
-  forall a s prog.
-  (ContainsFact prog a, KnownFactName a s) =>
-  Souffle prog -> IO [a]
+getFacts :: forall a prog. (Fact a, ContainsFact prog a)
+         => Souffle prog -> IO [a]
 getFacts (Souffle prog) = do
   let relationName = factName (Proxy :: Proxy a)
   relation <- Internal.getRelation prog relationName
@@ -135,19 +123,15 @@ getFacts (Souffle prog) = do
           go (result : acc) it
         else pure acc
 
-addFact ::
-  forall a s prog.
-  (ContainsFact prog a, KnownFactName a s) =>
-  Souffle prog -> a -> IO ()
+addFact :: forall a prog. (Fact a, ContainsFact prog a)
+        => Souffle prog -> a -> IO ()
 addFact (Souffle prog) fact = do
   let relationName = factName (Proxy :: Proxy a)
   relation <- Internal.getRelation prog relationName
   addFact' relation fact
 
-addFacts ::
-  forall a s prog.
-  (ContainsFact prog a, KnownFactName a s) =>
-  Souffle prog -> [a] -> IO ()
+addFacts :: forall a prog. (Fact a, ContainsFact prog a)
+         => Souffle prog -> [a] -> IO ()
 addFacts (Souffle prog) facts = do
   let relationName = factName (Proxy :: Proxy a)
   relation <- Internal.getRelation prog relationName

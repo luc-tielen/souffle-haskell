@@ -1,6 +1,5 @@
 
-{-# LANGUAGE TemplateHaskell, TypeApplications, ScopedTypeVariables #-}
-{-# LANGUAGE DataKinds, TypeFamilies #-}
+{-# LANGUAGE TemplateHaskell, ScopedTypeVariables, DataKinds, TypeFamilies #-}
 
 module Main ( main ) where
 
@@ -12,11 +11,7 @@ import Language.Souffle
 embedProgram "path.cpp"
 
 
-data Path
-
-instance Program Path where
-  type ProgramName Path = "path"
-  type ProgramFacts Path = [Edge, Reachable]
+data Path = Path
 
 data Edge = Edge String String
   deriving (Eq, Show)
@@ -24,14 +19,22 @@ data Edge = Edge String String
 data Reachable = Reachable String String
   deriving (Eq, Show)
 
+instance Program Path where
+  type ProgramFacts Path = [Edge, Reachable]
+  programName = const "path"
+
+instance Fact Edge where
+  factName = const "edge"
+
+instance Fact Reachable where
+  factName = const "reachable"
+
+
 instance Marshal Edge where
   push (Edge x y) = do
     push x
     push y
   pop = Edge <$> pop <*> pop
-
-instance Fact Edge where
-  type FactName Edge = "edge"
 
 instance Marshal Reachable where
   push (Reachable x y) = do
@@ -39,21 +42,18 @@ instance Marshal Reachable where
     push y
   pop = Reachable <$> pop <*> pop
 
-instance Fact Reachable where
-  type FactName Reachable = "reachable"
-
 
 main :: IO ()
 main = do
-  maybeProgram <- init @Path
+  maybeProgram <- init Path
   case maybeProgram of
     Nothing -> putStrLn "Failed to load program."
     Just prog -> do
-      addFact prog $ Edge "d" "some_other_node"
+      addFact prog $ Edge "d" "i"
       addFacts prog [ Edge "e" "f"
                     , Edge "f" "g"
                     , Edge "f" "h"
-                    , Edge "g" "some_other_node"
+                    , Edge "g" "i"
                     ]
       run prog
       -- NOTE: change type param to fetch different relations
