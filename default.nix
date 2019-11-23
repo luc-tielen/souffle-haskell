@@ -21,7 +21,7 @@ let
   processedSource = hpack2cabal "souffle" source;
   drv = haskellPkgs.callCabal2nix "souffle" processedSource { };
 in {
-  souffle-hs = drv;
+  souffle-haskell = drv;
   souffle-shell = haskellPkgs.shellFor {
     packages = p: [ drv ];
     buildInputs = with haskellPkgs; [

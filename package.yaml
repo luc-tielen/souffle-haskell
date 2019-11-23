@@ -1,4 +1,4 @@
-name:                souffle
+name:                souffle-haskell
 version:             0.0.1
 homepage:            https://github.com/luc-tielen/souffle-haskell#README.md
 license:             MIT
@@ -18,9 +18,6 @@ dependencies:
 
 default-extensions:
   - OverloadedStrings
-
-cpp-options:
-  - -D__EMBEDDED_SOUFFLE__
 
 ghc-options:
   - -Wall

@@ -1,7 +1,7 @@
 
-# Souffle-hs
+# Souffle-haskell
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/luc-tielen/besra-lang/blob/master/LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/luc-tielen/souffle-haskell/blob/master/LICENSE)
 
 This repo provides Haskell bindings for performing analyses with the
 [Souffle Datalog language](https://github.com/souffle-lang/souffle).
@@ -32,7 +32,7 @@ reachable(x, z) :- edge(x, y), reachable(y, z). // inductive rule
 ```
 
 Now that we have the datalog code, we can generate a `path.cpp` from it
-using `souffle -g path.cpp path.dl`. `souffle-hs` can bind to this program
+using `souffle -g path.cpp path.dl`. `souffle-haskell` can bind to this program
 in the following way:
 
 ```haskell
