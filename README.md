@@ -17,7 +17,12 @@ is reachable from another:
 ```prolog
 // We define 2 data types:
 .decl edge(n: symbol, m: symbol)
-.decl reachable (n: symbol, m: symbol)
+.decl reachable(n: symbol, m: symbol)
+
+// We indicate we are interested in "reachable" facts.
+// NOTE: If you forget to add outputs, the souffle compiler will
+//       try to be smart and remove most generated code!
+.output reachable
 
 // We write down some pre-defined facts on the datalog side.
 edge("a", "b").
@@ -109,6 +114,9 @@ main = Souffle.runSouffle $ do
       results :: [Reachable] <- Souffle.getFacts prog
       liftIO $ traverse_ print results
 ```
+
+For more examples of how to use the top level API, you can also take a look at
+the tests.
 
 
 ## Getting started

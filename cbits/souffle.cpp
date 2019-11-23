@@ -38,6 +38,7 @@ extern "C" {
         assert(prog);
         assert(relation_name);
         auto relation = prog->getRelation(relation_name);
+        assert(relation);
         return reinterpret_cast<relation_t*>(relation);
     }
 
