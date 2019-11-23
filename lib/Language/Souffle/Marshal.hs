@@ -34,6 +34,7 @@ newtype MarshalT m a = MarshalT (ReaderT Tuple m a)
 
 runMarshalT :: MarshalT m a -> Tuple -> m a
 runMarshalT (MarshalT m) = runReaderT m
+{-# INLINABLE runMarshalT #-}
 
 
 class Marshal a where
@@ -45,23 +46,29 @@ class Marshal a where
   default pop :: (Generic a, C.SimpleProduct a (Rep a), GMarshal (Rep a), MonadIO m)
               => MarshalT m a
   push a = gpush (from a)
+  {-# INLINABLE push #-}
   pop = to <$> gpop
+  {-# INLINABLE pop #-}
 
 instance Marshal Int32 where
   push int = do
     tuple <- ask
     liftIO $ Internal.tuplePushInt tuple int
+  {-# INLINABLE push #-}
   pop = do
     tuple <- ask
     liftIO $ Internal.tuplePopInt tuple
+  {-# INLINABLE pop #-}
 
 instance Marshal String where
   push str = do
     tuple <- ask
     liftIO $ Internal.tuplePushString tuple str
+  {-# INLINABLE push #-}
   pop = do
     tuple <- ask
     liftIO $ Internal.tuplePopString tuple
+  {-# INLINABLE pop #-}
 
 
 class GMarshal f where
@@ -70,15 +77,21 @@ class GMarshal f where
 
 instance Marshal a => GMarshal (K1 i a) where
   gpush (K1 x) = push x
+  {-# INLINABLE gpush #-}
   gpop = K1 <$> pop
+  {-# INLINABLE gpop #-}
 
 instance (GMarshal f, GMarshal g) => GMarshal (f :*: g) where
   gpush (a :*: b) = do
     gpush a
     gpush b
+  {-# INLINABLE gpush #-}
   gpop = (:*:) <$> gpop <*> gpop
+  {-# INLINABLE gpop #-}
 
 instance GMarshal a => GMarshal (M1 i c a) where
   gpush (M1 x) = gpush x
+  {-# INLINABLE gpush #-}
   gpop = M1 <$> gpop
+  {-# INLINABLE gpop #-}
 

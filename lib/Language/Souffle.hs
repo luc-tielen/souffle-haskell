@@ -80,12 +80,16 @@ instance MonadSouffle SouffleM where
   init _ =
     let progName = programName (Proxy :: Proxy prog)
     in SouffleM $ fmap SouffleProgram <$> Internal.init progName
+  {-# INLINABLE init #-}
 
   run (SouffleProgram prog) = SouffleM $ Internal.run prog
+  {-# INLINABLE run #-}
 
   loadFiles (SouffleProgram prog) = SouffleM . Internal.loadAll prog
+  {-# INLINABLE loadFiles #-}
 
   writeFiles (SouffleProgram prog) = SouffleM $ Internal.printAll prog
+  {-# INLINABLE writeFiles #-}
 
   addFact :: forall a prog. (Fact a, ContainsFact prog a)
           => SouffleProgram prog -> a -> SouffleM ()
@@ -93,6 +97,7 @@ instance MonadSouffle SouffleM where
     let relationName = factName (Proxy :: Proxy a)
     relation <- Internal.getRelation prog relationName
     addFact' relation fact
+  {-# INLINABLE addFact #-}
 
   addFacts :: forall a prog. (Fact a, ContainsFact prog a)
            => SouffleProgram prog -> [a] -> SouffleM ()
@@ -100,6 +105,7 @@ instance MonadSouffle SouffleM where
     let relationName = factName (Proxy :: Proxy a)
     relation <- Internal.getRelation prog relationName
     traverse_ (addFact' relation) facts
+  {-# INLINABLE addFacts #-}
 
   getFacts :: forall a prog. (Fact a, ContainsFact prog a)
            => SouffleProgram prog -> SouffleM [a]
@@ -116,56 +122,93 @@ instance MonadSouffle SouffleM where
             result <- Marshal.runMarshalT Marshal.pop tuple
             go (result : acc) it
           else pure acc
+  {-# INLINABLE getFacts #-}
 
 addFact' :: Fact a => Ptr Internal.Relation -> a -> IO ()
 addFact' relation fact = do
   tuple <- Internal.allocTuple relation
   withForeignPtr tuple $ Marshal.runMarshalT (Marshal.push fact)
   Internal.addTuple relation tuple
+{-# INLINABLE addFact' #-}
 
 
 instance MonadSouffle m => MonadSouffle (ReaderT r m) where
   init = lift . init
+  {-# INLINABLE init #-}
   run = lift . run
+  {-# INLINABLE run #-}
   loadFiles prog = lift . loadFiles prog
+  {-# INLINABLE loadFiles #-}
   writeFiles = lift . writeFiles
+  {-# INLINABLE writeFiles #-}
   getFacts = lift . getFacts
+  {-# INLINABLE getFacts #-}
   addFact fact = lift . addFact fact
+  {-# INLINABLE addFact #-}
   addFacts facts = lift . addFacts facts
+  {-# INLINABLE addFacts #-}
 
 instance (Monoid w, MonadSouffle m) => MonadSouffle (WriterT w m) where
   init = lift . init
+  {-# INLINABLE init #-}
   run = lift . run
+  {-# INLINABLE run #-}
   loadFiles prog = lift . loadFiles prog
+  {-# INLINABLE loadFiles #-}
   writeFiles = lift . writeFiles
+  {-# INLINABLE writeFiles #-}
   getFacts = lift . getFacts
+  {-# INLINABLE getFacts #-}
   addFact fact = lift . addFact fact
+  {-# INLINABLE addFact #-}
   addFacts facts = lift . addFacts facts
+  {-# INLINABLE addFacts #-}
 
 instance MonadSouffle m => MonadSouffle (StateT s m) where
   init = lift . init
+  {-# INLINABLE init #-}
   run = lift . run
+  {-# INLINABLE run #-}
   loadFiles prog = lift . loadFiles prog
+  {-# INLINABLE loadFiles #-}
   writeFiles = lift . writeFiles
+  {-# INLINABLE writeFiles #-}
   getFacts = lift . getFacts
+  {-# INLINABLE getFacts #-}
   addFact fact = lift . addFact fact
+  {-# INLINABLE addFact #-}
   addFacts facts = lift . addFacts facts
+  {-# INLINABLE addFacts #-}
 
 instance (MonadSouffle m, Monoid w) => MonadSouffle (RWST r w s m) where
   init = lift . init
+  {-# INLINABLE init #-}
   run = lift . run
+  {-# INLINABLE run #-}
   loadFiles prog = lift . loadFiles prog
+  {-# INLINABLE loadFiles #-}
   writeFiles = lift . writeFiles
+  {-# INLINABLE writeFiles #-}
   getFacts = lift . getFacts
+  {-# INLINABLE getFacts #-}
   addFact fact = lift . addFact fact
+  {-# INLINABLE addFact #-}
   addFacts facts = lift . addFacts facts
+  {-# INLINABLE addFacts #-}
 
 instance MonadSouffle m => MonadSouffle (ExceptT s m) where
   init = lift . init
+  {-# INLINABLE init #-}
   run = lift . run
+  {-# INLINABLE run #-}
   loadFiles prog = lift . loadFiles prog
+  {-# INLINABLE loadFiles #-}
   writeFiles = lift . writeFiles
+  {-# INLINABLE writeFiles #-}
   getFacts = lift . getFacts
+  {-# INLINABLE getFacts #-}
   addFact fact = lift . addFact fact
+  {-# INLINABLE addFact #-}
   addFacts facts = lift . addFacts facts
+  {-# INLINABLE addFacts #-}
 
