@@ -47,21 +47,11 @@ library:
     - -Wall
     - -O0
 
-# TODO remove
-executables:
-  souffle-exe:
-    source-dirs:      src
-    main:             Main.hs
-    extra-libraries:    c++
-    dependencies:
-      - souffle
-
 tests:
   souffle-test:
     main:             test.hs
     source-dirs:      tests
     dependencies:
       - hspec >= 2.6.1 && < 3.0.0
-      - neat-interpolation >= 0.3.2.4 && < 1
       - souffle
 
