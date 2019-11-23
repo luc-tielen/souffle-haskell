@@ -1,25 +1,26 @@
 
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# LANGUAGE RankNTypes, FlexibleInstances, FlexibleContexts, DataKinds #-}
-{-# LANGUAGE ScopedTypeVariables, TypeFamilies, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE ScopedTypeVariables, TypeFamilies, TypeOperators #-}
+{-# LANGUAGE DerivingVia, InstanceSigs, UndecidableInstances #-}
 
 module Language.Souffle
   ( Program(..)
-  , Souffle
+  , MonadSouffle(..)
+  , SouffleM
+  , runSouffle
+  , SouffleProgram
   , Fact(..)
   , Marshal.Marshal(..)
-  , init
-  , run
-  , loadFiles
-  , writeFiles
-  , addFact
-  , addFacts
-  , getFacts
   ) where
 
 import Prelude hiding ( init )
 import Data.Foldable ( traverse_ )
-import Control.Monad.IO.Class
+import Control.Monad.Reader
+import Control.Monad.Writer
+import Control.Monad.State
+import Control.Monad.RWS
+import Control.Monad.Except
 import Foreign.ForeignPtr
 import Foreign.Ptr
 import GHC.TypeLits
@@ -28,10 +29,8 @@ import Data.Kind
 import qualified Language.Souffle.Internal as Internal
 import qualified Language.Souffle.Marshal as Marshal
 
--- TODO import Language.Souffle.Monad here, and dont use IO directly
 
-
-newtype Souffle prog = Souffle (ForeignPtr Internal.Souffle)
+newtype SouffleProgram prog = SouffleProgram (ForeignPtr Internal.Souffle)
 
 class Program a where
   type ProgramFacts a :: [Type]
@@ -54,54 +53,119 @@ type family CheckContains prog facts fact :: Constraint where
   CheckContains prog (_ ': as) b = CheckContains prog as b
 
 
-init :: forall prog m. (Program prog, MonadIO m)
-     => prog -> m (Maybe (Souffle prog))
-init _ =
-  let progName = programName (Proxy :: Proxy prog)
-   in liftIO $ fmap Souffle <$> Internal.init progName
+newtype SouffleM a = SouffleM { runSouffle :: IO a }
+  deriving ( Functor, Applicative, Monad, MonadIO ) via IO
 
-run :: MonadIO m => Souffle prog -> m ()
-run (Souffle prog) = liftIO $ Internal.run prog
+class Monad m => MonadSouffle m where
+  init :: Program prog => prog -> m (Maybe (SouffleProgram prog))
 
-loadFiles :: MonadIO m => Souffle prog -> String -> m ()
-loadFiles (Souffle prog) = liftIO . Internal.loadAll prog
+  run :: SouffleProgram prog -> m ()
 
-writeFiles :: MonadIO m => Souffle prog -> m ()
-writeFiles (Souffle prog) = liftIO $ Internal.printAll prog
+  loadFiles :: SouffleProgram prog -> String -> m ()
 
-getFacts :: forall a prog m. (Fact a, ContainsFact prog a, MonadIO m)
-         => Souffle prog -> m [a]
-getFacts (Souffle prog) = liftIO $ do
-  let relationName = factName (Proxy :: Proxy a)
-  relation <- Internal.getRelation prog relationName
-  Internal.getRelationIterator relation >>= go []
-  where
-    go acc it = do
-      hasNext <- Internal.relationIteratorHasNext it
-      if hasNext
-        then do
-          tuple <- Internal.relationIteratorNext it
-          result <- Marshal.runMarshalT Marshal.pop tuple
-          go (result : acc) it
-        else pure acc
+  writeFiles :: SouffleProgram prog -> m ()
 
-addFact :: forall a prog m. (Fact a, ContainsFact prog a, MonadIO m)
-        => Souffle prog -> a -> m ()
-addFact (Souffle prog) fact = liftIO $ do
-  let relationName = factName (Proxy :: Proxy a)
-  relation <- Internal.getRelation prog relationName
-  addFact' relation fact
+  getFacts :: (Fact a, ContainsFact prog a)
+           => SouffleProgram prog -> m [a]
 
-addFacts :: forall a prog m. (Fact a, ContainsFact prog a, MonadIO m)
-         => Souffle prog -> [a] -> m ()
-addFacts (Souffle prog) facts = liftIO $ do
-  let relationName = factName (Proxy :: Proxy a)
-  relation <- Internal.getRelation prog relationName
-  traverse_ (addFact' relation) facts
+  addFact :: (Fact a, ContainsFact prog a)
+          => SouffleProgram prog -> a -> m ()
+
+  addFacts :: (Fact a, ContainsFact prog a)
+           => SouffleProgram prog -> [a] -> m ()
+
+instance MonadSouffle SouffleM where
+  init :: forall prog. Program prog
+       => prog -> SouffleM (Maybe (SouffleProgram prog))
+  init _ =
+    let progName = programName (Proxy :: Proxy prog)
+    in SouffleM $ fmap SouffleProgram <$> Internal.init progName
+
+  run (SouffleProgram prog) = SouffleM $ Internal.run prog
+
+  loadFiles (SouffleProgram prog) = SouffleM . Internal.loadAll prog
+
+  writeFiles (SouffleProgram prog) = SouffleM $ Internal.printAll prog
+
+  addFact :: forall a prog. (Fact a, ContainsFact prog a)
+          => SouffleProgram prog -> a -> SouffleM ()
+  addFact (SouffleProgram prog) fact = liftIO $ do
+    let relationName = factName (Proxy :: Proxy a)
+    relation <- Internal.getRelation prog relationName
+    addFact' relation fact
+
+  addFacts :: forall a prog. (Fact a, ContainsFact prog a)
+           => SouffleProgram prog -> [a] -> SouffleM ()
+  addFacts (SouffleProgram prog) facts = liftIO $ do
+    let relationName = factName (Proxy :: Proxy a)
+    relation <- Internal.getRelation prog relationName
+    traverse_ (addFact' relation) facts
+
+  getFacts :: forall a prog. (Fact a, ContainsFact prog a)
+           => SouffleProgram prog -> SouffleM [a]
+  getFacts (SouffleProgram prog) = SouffleM $ do
+    let relationName = factName (Proxy :: Proxy a)
+    relation <- Internal.getRelation prog relationName
+    Internal.getRelationIterator relation >>= go []
+    where
+      go acc it = do
+        hasNext <- Internal.relationIteratorHasNext it
+        if hasNext
+          then do
+            tuple <- Internal.relationIteratorNext it
+            result <- Marshal.runMarshalT Marshal.pop tuple
+            go (result : acc) it
+          else pure acc
 
 addFact' :: Fact a => Ptr Internal.Relation -> a -> IO ()
 addFact' relation fact = do
   tuple <- Internal.allocTuple relation
   withForeignPtr tuple $ Marshal.runMarshalT (Marshal.push fact)
   Internal.addTuple relation tuple
+
+
+instance MonadSouffle m => MonadSouffle (ReaderT r m) where
+  init = lift . init
+  run = lift . run
+  loadFiles prog = lift . loadFiles prog
+  writeFiles = lift . writeFiles
+  getFacts = lift . getFacts
+  addFact fact = lift . addFact fact
+  addFacts facts = lift . addFacts facts
+
+instance (Monoid w, MonadSouffle m) => MonadSouffle (WriterT w m) where
+  init = lift . init
+  run = lift . run
+  loadFiles prog = lift . loadFiles prog
+  writeFiles = lift . writeFiles
+  getFacts = lift . getFacts
+  addFact fact = lift . addFact fact
+  addFacts facts = lift . addFacts facts
+
+instance MonadSouffle m => MonadSouffle (StateT s m) where
+  init = lift . init
+  run = lift . run
+  loadFiles prog = lift . loadFiles prog
+  writeFiles = lift . writeFiles
+  getFacts = lift . getFacts
+  addFact fact = lift . addFact fact
+  addFacts facts = lift . addFacts facts
+
+instance (MonadSouffle m, Monoid w) => MonadSouffle (RWST r w s m) where
+  init = lift . init
+  run = lift . run
+  loadFiles prog = lift . loadFiles prog
+  writeFiles = lift . writeFiles
+  getFacts = lift . getFacts
+  addFact fact = lift . addFact fact
+  addFacts facts = lift . addFacts facts
+
+instance MonadSouffle m => MonadSouffle (ExceptT s m) where
+  init = lift . init
+  run = lift . run
+  loadFiles prog = lift . loadFiles prog
+  writeFiles = lift . writeFiles
+  getFacts = lift . getFacts
+  addFact fact = lift . addFact fact
+  addFacts facts = lift . addFacts facts
 

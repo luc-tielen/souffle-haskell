@@ -5,6 +5,7 @@ module Main ( main ) where
 
 import Prelude hiding ( init )
 import Data.Foldable ( traverse_ )
+import Control.Monad.IO.Class
 import GHC.Generics
 import Language.Souffle.TH
 import Language.Souffle
@@ -35,13 +36,14 @@ instance Marshal Reachable
 
 
 main :: IO ()
-main = do
+main = runSouffle $ do
   maybeProgram <- init Path
   case maybeProgram of
-    Nothing -> putStrLn "Failed to load program."
+    Nothing -> liftIO $ putStrLn "Failed to load program."
     Just prog -> do
       addFact prog $ Edge "d" "i"
       addFacts prog [ Edge "e" "f"
+                    , Edge "f" "g"
                     , Edge "f" "g"
                     , Edge "f" "h"
                     , Edge "g" "i"
@@ -49,5 +51,5 @@ main = do
       run prog
       -- NOTE: change type param to fetch different relations
       results :: [Reachable] <- getFacts prog
-      traverse_ print results
+      liftIO $ traverse_ print results
 
