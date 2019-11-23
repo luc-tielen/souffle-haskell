@@ -3,9 +3,9 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/luc-tielen/besra-lang/blob/master/LICENSE)
 
-This repo provides a library containing Haskell bindings for performing
-analysises with the [Souffle Datalog language](https://github.com/souffle-lang/souffle).
-It does this by binding directly to an embedded Souffle program
+This repo provides Haskell bindings for performing analyses with the
+[Souffle Datalog language](https://github.com/souffle-lang/souffle).
+It does this by binding directly to an "embedded" Souffle program
 (previously generated with `souffle -g`).
 
 
@@ -14,7 +14,7 @@ It does this by binding directly to an embedded Souffle program
 Let's first write a datalog program that can check if 1 point
 is reachable from another:
 
-```datalog
+```prolog
 // We define 2 data types:
 .decl edge(n: symbol, m: symbol)
 .decl reachable (n: symbol, m: symbol)
@@ -41,17 +41,16 @@ in the following way:
 
 module Main ( main ) where
 
-import Prelude hiding ( init )
 import Data.Foldable ( traverse_ )
 import Control.Monad.IO.Class
 import GHC.Generics
-import Language.Souffle.TH
-import Language.Souffle
+import qualified Language.Souffle.TH as Souffle
+import qualified Language.Souffle as Souffle
 
--- We use template haskell for directly embedding the .cpp file into this file.
+-- We only use template haskell for directly embedding the .cpp file into this file.
 -- If we do not do this, it will link incorrectly due to the way the
 -- C++ code is generated.
-embedProgram "/path/to/path.cpp"
+Souffle.embedProgram "/path/to/path.cpp"
 
 
 -- We define a data type representing our datalog program.
@@ -69,45 +68,45 @@ data Reachable = Reachable String String
 -- By making Path an instance of Program, we provide Haskell with information
 -- about the datalog program. It uses this to perform compile-time checks to
 -- limit the amount of possible programmer errors to a minimum.
-instance Program Path where
+instance Souffle.Program Path where
   type ProgramFacts Path = [Edge, Reachable]
   programName = const "path"
 
 -- By making a data type an instance of Edge, we give Haskell the
 -- necessary information to bind to the datalog fact.
-instance Fact Edge where
+instance Souffle.Fact Edge where
   factName = const "edge"
 
-instance Fact Reachable where
+instance Souffle.Fact Reachable where
   factName = const "reachable"
 
 -- For simple product types, we can automatically generate the
 -- marshalling/unmarshalling code of data between Haskell and datalog.
-instance Marshal Edge
-instance Marshal Reachable
+instance Souffle.Marshal Edge
+instance Souffle.Marshal Reachable
 
 
 main :: IO ()
-main = runSouffle $ do
-  maybeProgram <- init Path  -- Initializes the Souffle program.
+main = Souffle.runSouffle $ do
+  maybeProgram <- Souffle.init Path  -- Initializes the Souffle program.
   case maybeProgram of
     Nothing -> liftIO $ putStrLn "Failed to load program."
     Just prog -> do
-      addFact prog $ Edge "d" "i"   -- Adding a single fact from Haskell side
-      addFacts prog [ Edge "e" "f"  -- Adding multiple facts
-                    , Edge "f" "g"
-                    , Edge "f" "g"
-                    , Edge "f" "h"
-                    , Edge "g" "i"
-                    ]
+      Souffle.addFact prog $ Edge "d" "i"   -- Adding a single fact from Haskell side
+      Souffle.addFacts prog [ Edge "e" "f"  -- Adding multiple facts
+                            , Edge "f" "g"
+                            , Edge "f" "g"
+                            , Edge "f" "h"
+                            , Edge "g" "i"
+                            ]
 
-      run prog  -- Run the Souffle program
+      Souffle.run prog  -- Run the Souffle program
 
       -- NOTE: You can change type param to fetch different relations
       --       Here it requires an annotation since we directly print it
       --       to stdout, but if passed to another function, it can infer
       --       the correct type automatically.
-      results :: [Reachable] <- getFacts prog
+      results :: [Reachable] <- Souffle.getFacts prog
       liftIO $ traverse_ print results
 ```
 

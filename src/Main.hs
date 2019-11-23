@@ -3,14 +3,13 @@
 
 module Main ( main ) where
 
-import Prelude hiding ( init )
 import Data.Foldable ( traverse_ )
 import Control.Monad.IO.Class
 import GHC.Generics
-import Language.Souffle.TH
-import Language.Souffle
+import qualified Language.Souffle.TH as Souffle
+import qualified Language.Souffle as Souffle
 
-embedProgram "path.cpp"
+Souffle.embedProgram "path.cpp"
 
 
 data Path = Path
@@ -21,35 +20,35 @@ data Edge = Edge String String
 data Reachable = Reachable String String
   deriving (Eq, Show, Generic)
 
-instance Program Path where
+instance Souffle.Program Path where
   type ProgramFacts Path = [Edge, Reachable]
   programName = const "path"
 
-instance Fact Edge where
+instance Souffle.Fact Edge where
   factName = const "edge"
 
-instance Fact Reachable where
+instance Souffle.Fact Reachable where
   factName = const "reachable"
 
-instance Marshal Edge
-instance Marshal Reachable
+instance Souffle.Marshal Edge
+instance Souffle.Marshal Reachable
 
 
 main :: IO ()
-main = runSouffle $ do
-  maybeProgram <- init Path
+main = Souffle.runSouffle $ do
+  maybeProgram <- Souffle.init Path
   case maybeProgram of
     Nothing -> liftIO $ putStrLn "Failed to load program."
     Just prog -> do
-      addFact prog $ Edge "d" "i"
-      addFacts prog [ Edge "e" "f"
+      Souffle.addFact prog $ Edge "d" "i"
+      Souffle.addFacts prog [ Edge "e" "f"
                     , Edge "f" "g"
                     , Edge "f" "g"
                     , Edge "f" "h"
                     , Edge "g" "i"
                     ]
-      run prog
+      Souffle.run prog
       -- NOTE: change type param to fetch different relations
-      results :: [Reachable] <- getFacts prog
+      results :: [Reachable] <- Souffle.getFacts prog
       liftIO $ traverse_ print results
 
