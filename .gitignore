@@ -7,3 +7,4 @@ cabal.project.local~
 result
 result-2
 .history
+cbits/*.o
