@@ -242,10 +242,10 @@ SymbolTable symTable
 	R"_(c)_",
 };// -- Table: edge
 std::unique_ptr<t_btree_2__0_1__3> rel_1_edge = std::make_unique<t_btree_2__0_1__3>();
-souffle::RelationWrapper<0,t_btree_2__0_1__3,Tuple<RamDomain,2>,2> wrapper_rel_1_edge;
+souffle::RelationWrapper<0,t_btree_2__0_1__3,Tuple<RamDomain,2>,2,1> wrapper_rel_1_edge;
 // -- Table: reachable
 std::unique_ptr<t_btree_2__0_1__3> rel_2_reachable = std::make_unique<t_btree_2__0_1__3>();
-souffle::RelationWrapper<1,t_btree_2__0_1__3,Tuple<RamDomain,2>,2> wrapper_rel_2_reachable;
+souffle::RelationWrapper<1,t_btree_2__0_1__3,Tuple<RamDomain,2>,2,1> wrapper_rel_2_reachable;
 // -- Table: @delta_reachable
 std::unique_ptr<t_btree_2__0_1__1__3> rel_3_delta_reachable = std::make_unique<t_btree_2__0_1__1__3>();
 // -- Table: @new_reachable
@@ -265,14 +265,18 @@ void runFunction(std::string inputDirectory = ".", std::string outputDirectory =
 SignalHandler::instance()->set();
 std::atomic<size_t> iter(0);
 
+#if defined(_OPENMP)
+if (getNumThreads() > 0) {omp_set_num_threads(getNumThreads());}
+#endif
+
 // -- query evaluation --
 /* BEGIN STRATUM 0 */
 [&]() {
 SignalHandler::instance()->setMsg(R"_(edge("a","b").
-in file /Users/luc/personal/souffle-c/path.dl [5:1-5:16])_");
+in file /Users/luc/personal/souffle-hs/path.dl [5:1-5:16])_");
 rel_1_edge->insert(RamDomain(0),RamDomain(1));
 SignalHandler::instance()->setMsg(R"_(edge("b","c").
-in file /Users/luc/personal/souffle-c/path.dl [6:1-6:16])_");
+in file /Users/luc/personal/souffle-hs/path.dl [6:1-6:16])_");
 rel_1_edge->insert(RamDomain(1),RamDomain(2));
 }();
 /* END STRATUM 0 */
@@ -280,7 +284,7 @@ rel_1_edge->insert(RamDomain(1),RamDomain(2));
 [&]() {
 SignalHandler::instance()->setMsg(R"_(reachable(x,y) :- 
    edge(x,y).
-in file /Users/luc/personal/souffle-c/path.dl [8:1-8:31])_");
+in file /Users/luc/personal/souffle-hs/path.dl [8:1-8:31])_");
 if(!(rel_1_edge->empty())) {
 {
 CREATE_OP_CONTEXT(rel_1_edge_op_ctxt,rel_1_edge->createContext());
@@ -297,8 +301,8 @@ for(;;) {
 SignalHandler::instance()->setMsg(R"_(reachable(x,z) :- 
    edge(x,y),
    reachable(y,z).
-in file /Users/luc/personal/souffle-c/path.dl [9:1-9:48])_");
-if(((!(rel_1_edge->empty())) && (!(rel_3_delta_reachable->empty())))) {
+in file /Users/luc/personal/souffle-hs/path.dl [9:1-9:48])_");
+if(!(rel_3_delta_reachable->empty()) && !(rel_1_edge->empty())) {
 {
 CREATE_OP_CONTEXT(rel_1_edge_op_ctxt,rel_1_edge->createContext());
 CREATE_OP_CONTEXT(rel_2_reachable_op_ctxt,rel_2_reachable->createContext());
@@ -329,7 +333,7 @@ if (performIO) {
 try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","n\tm"},{"filename","./reachable.csv"},{"name","reachable"}});
 if (!outputDirectory.empty() && directiveMap["IO"] == "file" && directiveMap["filename"].front() != '/') {directiveMap["filename"] = outputDirectory + "/" + directiveMap["filename"];}
 IODirectives ioDirectives(directiveMap);
-IOSystem::getInstance().getWriter(std::vector<bool>({1,1}), symTable, ioDirectives, false)->writeAll(*rel_2_reachable);
+IOSystem::getInstance().getWriter(std::vector<bool>({1,1}), symTable, ioDirectives, false, 1)->writeAll(*rel_2_reachable);
 } catch (std::exception& e) {std::cerr << e.what();exit(1);}
 }
 if (!isHintsProfilingEnabled()&& performIO) rel_1_edge->purge();
@@ -365,7 +369,7 @@ void printAll(std::string outputDirectory = ".") override {
 try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","n\tm"},{"filename","./reachable.csv"},{"name","reachable"}});
 if (!outputDirectory.empty() && directiveMap["IO"] == "file" && directiveMap["filename"].front() != '/') {directiveMap["filename"] = outputDirectory + "/" + directiveMap["filename"];}
 IODirectives ioDirectives(directiveMap);
-IOSystem::getInstance().getWriter(std::vector<bool>({1,1}), symTable, ioDirectives, false)->writeAll(*rel_2_reachable);
+IOSystem::getInstance().getWriter(std::vector<bool>({1,1}), symTable, ioDirectives, false, 1)->writeAll(*rel_2_reachable);
 } catch (std::exception& e) {std::cerr << e.what();exit(1);}
 }
 public:
@@ -379,7 +383,7 @@ void dumpOutputs(std::ostream& out = std::cout) override {
 try {IODirectives ioDirectives;
 ioDirectives.setIOType("stdout");
 ioDirectives.setRelationName("rel_2_reachable");
-IOSystem::getInstance().getWriter(std::vector<bool>({1,1}), symTable, ioDirectives, false)->writeAll(*rel_2_reachable);
+IOSystem::getInstance().getWriter(std::vector<bool>({1,1}), symTable, ioDirectives, false, 1)->writeAll(*rel_2_reachable);
 } catch (std::exception& e) {std::cerr << e.what();exit(1);}
 }
 public:
@@ -413,11 +417,11 @@ R"()",
 1,
 -1);
 if (!opt.parse(argc,argv)) return 1;
+souffle::Sf_path obj;
 #if defined(_OPENMP) 
-omp_set_nested(true);
+obj.setNumThreads(opt.getNumJobs());
 
 #endif
-souffle::Sf_path obj;
 obj.runAll(opt.getInputFileDir(), opt.getOutputFileDir(), opt.getStratumIndex());
 return 0;
 } catch(std::exception &e) { souffle::SignalHandler::instance()->error(e.what());}
