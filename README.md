@@ -116,6 +116,10 @@ main = Souffle.runSouffle $ do
       --       the correct type automatically.
       results :: [Reachable] <- Souffle.getFacts prog
       liftIO $ traverse_ print results
+
+      -- We can also look for a specific fact:
+      maybeFact <- Souffle.findFact prog $ Reachable "a" "c"
+      liftIO $ print $ maybeFact
 ```
 
 For more examples of how to use the top level API, you can also take a look at
