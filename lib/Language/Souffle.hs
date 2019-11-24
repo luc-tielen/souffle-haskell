@@ -146,8 +146,8 @@ class Monad m => MonadSouffle m where
 
   -- | Adds multiple facts to the program. This function could be implemented
   --   in terms of 'addFact', but this is done as a minor optimization.
-  addFacts :: (Fact a, ContainsFact prog a)
-           => Handle prog -> [a] -> m ()
+  addFacts :: (Foldable t, Fact a, ContainsFact prog a)
+           => Handle prog -> t a -> m ()
 
 instance MonadSouffle SouffleM where
   init :: forall prog. Program prog
@@ -182,8 +182,8 @@ instance MonadSouffle SouffleM where
     addFact' relation fact
   {-# INLINABLE addFact #-}
 
-  addFacts :: forall a prog. (Fact a, ContainsFact prog a)
-           => Handle prog -> [a] -> SouffleM ()
+  addFacts :: forall t a prog. (Foldable t, Fact a, ContainsFact prog a)
+           => Handle prog -> t a -> SouffleM ()
   addFacts (Handle prog) facts = liftIO $ do
     let relationName = factName (Proxy :: Proxy a)
     relation <- Internal.getRelation prog relationName
