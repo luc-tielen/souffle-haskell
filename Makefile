@@ -1,4 +1,6 @@
 
+# NOTE: these all assume cabal v3
+
 build:
 		@cabal build
 
@@ -17,4 +19,7 @@ hoogle:
 tests:
 		cabal test
 
-.PHONY: hoogle lint clean configure build tests
+docs:
+	@cabal haddock
+
+.PHONY: hoogle lint clean configure build tests docs

@@ -1,6 +1,14 @@
 
 {-# Language LambdaCase #-}
 
+-- | An internal module, providing a slightly higher level interface than
+--   "Language.Souffle.Internal.Bindings".
+--   It uses more commonly found data types instead of the low level C types
+--   for easier integration with other parts of a Haskell application.
+--   Also it takes care of garbage collection so other modules do not have
+--   to take this into account anymore.
+--
+--   Used only internally, so prone to changes, use at your own risk.
 module Language.Souffle.Internal
   ( Souffle
   , Relation
@@ -39,6 +47,15 @@ import Language.Souffle.Internal.Bindings
   ( Souffle, Relation, RelationIterator, Tuple )
 
 
+{- | Initializes a Souffle program.
+
+     The string argument is the name of the program and should be the same
+     as the filename (minus the .dl extension).
+
+     The action will return 'Nothing' if it failed to load the Souffle program.
+     Otherwise it will return a pointer that can be used in other functions
+     in this module.
+-}
 init :: String -> IO (Maybe (ForeignPtr Souffle))
 init prog = do
   ptr <- withCString prog Bindings.init
@@ -47,39 +64,55 @@ init prog = do
     else Just <$> newForeignPtr Bindings.free ptr
 {-# INLINABLE init #-}
 
+-- | Sets the number of CPU cores this Souffle program should use.
 setNumThreads :: ForeignPtr Souffle -> Word64 -> IO ()
 setNumThreads prog numThreads = withForeignPtr prog $ \ptr ->
     Bindings.setNumThreads ptr $ CSize numThreads
 {-# INLINABLE setNumThreads #-}
 
+-- | Gets the number of CPU cores this Souffle program should use.
 getNumThreads :: ForeignPtr Souffle -> IO Word64
 getNumThreads prog = withForeignPtr prog $ \ptr -> do
     (CSize numThreads) <- Bindings.getNumThreads ptr
     pure numThreads
 {-# INLINABLE getNumThreads #-}
 
+-- | Runs the Souffle program.
 run :: ForeignPtr Souffle -> IO ()
 run prog = withForeignPtr prog Bindings.run
 {-# INLINABLE run #-}
 
-loadAll :: ForeignPtr Souffle -> String -> IO ()
+-- | Load all facts from files in a certain directory.
+loadAll :: ForeignPtr Souffle -> FilePath -> IO ()
 loadAll prog str = withForeignPtr prog $ withCString str . Bindings.loadAll
 {-# INLINABLE loadAll #-}
 
+-- | Write out all facts of the program to CSV files
+--   (as defined in the Souffle program).
 printAll :: ForeignPtr Souffle -> IO ()
 printAll prog = withForeignPtr prog Bindings.printAll
 {-# INLINABLE printAll #-}
 
+{-| Lookup a relation by name in the Souffle program.
+
+    Note that the returned pointer can be 'nullPtr' if it is not defined
+    in the Souffle program.
+-}
 getRelation :: ForeignPtr Souffle -> String -> IO (Ptr Relation)
 getRelation prog relation = withForeignPtr prog $ \ptr ->
   withCString relation $ Bindings.getRelation ptr
 {-# INLINABLE getRelation #-}
 
+-- | Create an iterator for iterating over the facts of a relation.
 getRelationIterator :: Ptr Relation -> IO (ForeignPtr RelationIterator)
 getRelationIterator relation =
   Bindings.getRelationIterator relation >>= newForeignPtr Bindings.freeRelationIterator
 {-# INLINABLE getRelationIterator #-}
 
+{-| Checks if the relation iterator contains more results.
+
+    Returns 'True' if there are more results; otherwise 'False'.
+-}
 relationIteratorHasNext :: ForeignPtr RelationIterator -> IO Bool
 relationIteratorHasNext iter = withForeignPtr iter $ \ptr ->
   Bindings.relationIteratorHasNext ptr <&> \case
@@ -87,29 +120,39 @@ relationIteratorHasNext iter = withForeignPtr iter $ \ptr ->
     CBool _ -> True
 {-# INLINABLE relationIteratorHasNext #-}
 
+{-| Advances the relation iterator by 1 position.
+
+    Make sure to use 'relationIteratorHasNext' for checking if there are more
+    results before calling this function to avoid potential crashes.
+-}
 relationIteratorNext :: ForeignPtr RelationIterator -> IO (Ptr Tuple)
 relationIteratorNext iter = withForeignPtr iter Bindings.relationIteratorNext
 {-# INLINABLE relationIteratorNext #-}
 
+-- | Allocates memory for a tuple (fact) to be added to a relation.
 allocTuple :: Ptr Relation -> IO (ForeignPtr Tuple)
 allocTuple relation =
   Bindings.allocTuple relation >>= newForeignPtr Bindings.freeTuple
 {-# INLINABLE allocTuple #-}
 
+-- | Adds a tuple (fact) to a relation.
 addTuple :: Ptr Relation -> ForeignPtr Tuple -> IO ()
 addTuple relation tuple =
   withForeignPtr tuple $ Bindings.addTuple relation
 {-# INLINABLE addTuple #-}
 
+-- | Pushes an integer value into a tuple.
 tuplePushInt :: Ptr Tuple -> Int32 -> IO ()
 tuplePushInt tuple i = Bindings.tuplePushInt tuple (CInt i)
 {-# INLINABLE tuplePushInt #-}
 
+-- | Pushes a string value into a tuple.
 tuplePushString :: Ptr Tuple -> String -> IO ()
 tuplePushString tuple str =
   withCString str $ Bindings.tuplePushString tuple
 {-# INLINABLE tuplePushString #-}
 
+-- | Extracts an integer value from a tuple.
 tuplePopInt :: Ptr Tuple -> IO Int32
 tuplePopInt tuple = alloca $ \ptr -> do
   Bindings.tuplePopInt tuple ptr
@@ -117,6 +160,7 @@ tuplePopInt tuple = alloca $ \ptr -> do
   pure res
 {-# INLINABLE tuplePopInt #-}
 
+-- | Extracts a string value from a tuple.
 tuplePopString :: Ptr Tuple -> IO String
 tuplePopString tuple = alloca $ \ptr -> do
   Bindings.tuplePopString tuple ptr

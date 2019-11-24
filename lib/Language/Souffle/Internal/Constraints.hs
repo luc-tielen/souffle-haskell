@@ -1,6 +1,9 @@
 
 {-# LANGUAGE TypeFamilies, DataKinds, TypeOperators, UndecidableInstances #-}
 
+-- | A helper module for generating more user friendly type errors in the form
+--   of custom constraints.
+--   This is an internal module, not meant to be used directly.
 module Language.Souffle.Internal.Constraints
   ( SimpleProduct
   ) where
@@ -11,6 +14,16 @@ import Data.Kind
 import Data.Int
 
 
+-- | A helper type family used for generating a more user-friendly type error
+--   for incompatible types when generically deriving marshalling code for
+--   the 'Language.Souffle.Marshal.Marshal' typeclass.
+--
+--   The __a__ type parameter is the original type, used when displaying the type error.
+--   The __f__ type parameter should be equal to 'Rep a', used for analyzing the
+--   structure of the data type.
+--
+--   A type error is returned if the passed in type is not a simple product type
+--   consisting of only simple types like Int32 and String.
 type family SimpleProduct (a :: Type) (f :: Type -> Type) :: Constraint where
   SimpleProduct a f = (ProductLike a f, OnlySimpleFields a f)
 

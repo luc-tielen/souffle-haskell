@@ -4,14 +4,21 @@
 {-# LANGUAGE ScopedTypeVariables, TypeFamilies, TypeOperators #-}
 {-# LANGUAGE DerivingVia, InstanceSigs, UndecidableInstances #-}
 
+-- | This module provides the top level API of this library.
+--   It makes use of Haskell's powerful typesystem to make certain invalid states
+--   impossible to represent. It does this with a small type level DSL for
+--   describing properties of the Datalog program (see the 'Program' and 'Fact'
+--   typeclasses for more information).
+--   This module also provides a MTL-style interface to Souffle related operations
+--   so it can be integrated with existing monad transformer stacks.
 module Language.Souffle
   ( Program(..)
+  , Fact(..)
+  , Marshal.Marshal(..)
+  , Handle
   , MonadSouffle(..)
   , SouffleM
   , runSouffle
-  , SouffleProgram
-  , Fact(..)
-  , Marshal.Marshal(..)
   ) where
 
 import Prelude hiding ( init )
@@ -31,13 +38,47 @@ import qualified Language.Souffle.Internal as Internal
 import qualified Language.Souffle.Marshal as Marshal
 
 
-newtype SouffleProgram prog = SouffleProgram (ForeignPtr Internal.Souffle)
+-- | A datatype representing a handle to a datalog program.
+--   The type parameter is used for keeping track of which program
+--   type the handle belongs to for additional type safety.
+newtype Handle prog = Handle (ForeignPtr Internal.Souffle)
 
+-- | A typeclass for describing a datalog program.
+--
+-- Example usage (assuming the program was generated from path.dl
+-- and contains 2 facts: Edge and Reachable):
+--
+-- @
+-- data Path = Path  -- Handle for the datalog program
+--
+-- instance Program Path where
+--   type ProgramFacts Path = '[Edge, Reachable]
+--   factName = const "path"
+-- @
 class Program a where
+  -- | A type level list of facts that belong to this program.
+  --   This list is used to check that only known facts are added to a program.
   type ProgramFacts a :: [Type]
+
+  -- | Function for obtaining the name of a Datalog program.
+  --   This has to be the same as the name of the .dl file (minus the extension).
+  --
+  -- It uses a 'Proxy' to select the correct instance.
   programName :: Proxy a -> String
 
+-- | A typeclass for data types representing a fact in datalog.
 class Marshal.Marshal a => Fact a where
+  -- | Function for obtaining the name of a fact
+  --   (has to be the same as described in the Datalog program).
+  --
+  -- It uses a 'Proxy' to select the correct instance.
+  --
+  -- Example usage:
+  --
+  -- @
+  -- instance Fact Edge where
+  --   factName = const "edge"
+  -- @
   factName :: Proxy a -> String
 
 type family ContainsFact prog fact :: Constraint where
@@ -56,75 +97,96 @@ type family CheckContains prog facts fact :: Constraint where
   CheckContains prog (_ ': as) b = CheckContains prog as b
 
 
-newtype SouffleM a = SouffleM { runSouffle :: IO a }
-  deriving ( Functor, Applicative, Monad, MonadIO ) via IO
+-- | A monad for executing Souffle-related actions in.
+newtype SouffleM a
+  = SouffleM
+  { runSouffle :: IO a  -- ^ Returns the underlying IO action.
+  } deriving ( Functor, Applicative, Monad, MonadIO ) via IO
 
+-- | A mtl-style typeclass for Souffle-related actions.
 class Monad m => MonadSouffle m where
-  init :: Program prog => prog -> m (Maybe (SouffleProgram prog))
+  {- | Initializes a Souffle program.
 
-  run :: SouffleProgram prog -> m ()
+     The action will return 'Nothing' if it failed to load the Souffle program.
+     Otherwise it will return a 'Handle' that can be used in other functions
+     in this module.
+  -}
+  init :: Program prog => prog -> m (Maybe (Handle prog))
 
-  setNumThreads :: SouffleProgram prog -> Word64 -> m ()
+  -- | Runs the Souffle program.
+  run :: Handle prog -> m ()
 
-  getNumThreads :: SouffleProgram prog -> m Word64
+  -- | Sets the number of CPU cores this Souffle program should use.
+  setNumThreads :: Handle prog -> Word64 -> m ()
 
-  loadFiles :: SouffleProgram prog -> String -> m ()
+  -- | Gets the number of CPU cores this Souffle program should use.
+  getNumThreads :: Handle prog -> m Word64
 
-  writeFiles :: SouffleProgram prog -> m ()
+  -- | Load all facts from files in a certain directory.
+  loadFiles :: Handle prog -> FilePath -> m ()
 
+  -- | Write out all facts of the program to CSV files
+  --   (as defined in the Souffle program).
+  writeFiles :: Handle prog -> m ()
+
+  -- | Returns all facts of a program. This function makes use of type inference
+  --   to select the type of fact to return.
   getFacts :: (Fact a, ContainsFact prog a)
-           => SouffleProgram prog -> m [a]
+           => Handle prog -> m [a]
 
+  -- | Adds a fact to the program.
   addFact :: (Fact a, ContainsFact prog a)
-          => SouffleProgram prog -> a -> m ()
+          => Handle prog -> a -> m ()
 
+  -- | Adds multiple facts to the program. This function could be implemented
+  --   in terms of 'addFact', but this is done as a minor optimization.
   addFacts :: (Fact a, ContainsFact prog a)
-           => SouffleProgram prog -> [a] -> m ()
+           => Handle prog -> [a] -> m ()
 
 instance MonadSouffle SouffleM where
   init :: forall prog. Program prog
-       => prog -> SouffleM (Maybe (SouffleProgram prog))
+       => prog -> SouffleM (Maybe (Handle prog))
   init _ =
     let progName = programName (Proxy :: Proxy prog)
-    in SouffleM $ fmap SouffleProgram <$> Internal.init progName
+    in SouffleM $ fmap Handle <$> Internal.init progName
   {-# INLINABLE init #-}
 
-  run (SouffleProgram prog) = SouffleM $ Internal.run prog
+  run (Handle prog) = SouffleM $ Internal.run prog
   {-# INLINABLE run #-}
 
-  setNumThreads (SouffleProgram prog) numCores =
+  setNumThreads (Handle prog) numCores =
     SouffleM $ Internal.setNumThreads prog numCores
   {-# INLINABLE setNumThreads #-}
 
-  getNumThreads (SouffleProgram prog) =
+  getNumThreads (Handle prog) =
     SouffleM $ Internal.getNumThreads prog
   {-# INLINABLE getNumThreads #-}
 
-  loadFiles (SouffleProgram prog) = SouffleM . Internal.loadAll prog
+  loadFiles (Handle prog) = SouffleM . Internal.loadAll prog
   {-# INLINABLE loadFiles #-}
 
-  writeFiles (SouffleProgram prog) = SouffleM $ Internal.printAll prog
+  writeFiles (Handle prog) = SouffleM $ Internal.printAll prog
   {-# INLINABLE writeFiles #-}
 
   addFact :: forall a prog. (Fact a, ContainsFact prog a)
-          => SouffleProgram prog -> a -> SouffleM ()
-  addFact (SouffleProgram prog) fact = liftIO $ do
+          => Handle prog -> a -> SouffleM ()
+  addFact (Handle prog) fact = liftIO $ do
     let relationName = factName (Proxy :: Proxy a)
     relation <- Internal.getRelation prog relationName
     addFact' relation fact
   {-# INLINABLE addFact #-}
 
   addFacts :: forall a prog. (Fact a, ContainsFact prog a)
-           => SouffleProgram prog -> [a] -> SouffleM ()
-  addFacts (SouffleProgram prog) facts = liftIO $ do
+           => Handle prog -> [a] -> SouffleM ()
+  addFacts (Handle prog) facts = liftIO $ do
     let relationName = factName (Proxy :: Proxy a)
     relation <- Internal.getRelation prog relationName
     traverse_ (addFact' relation) facts
   {-# INLINABLE addFacts #-}
 
   getFacts :: forall a prog. (Fact a, ContainsFact prog a)
-           => SouffleProgram prog -> SouffleM [a]
-  getFacts (SouffleProgram prog) = SouffleM $ do
+           => Handle prog -> SouffleM [a]
+  getFacts (Handle prog) = SouffleM $ do
     let relationName = factName (Proxy :: Proxy a)
     relation <- Internal.getRelation prog relationName
     Internal.getRelationIterator relation >>= go []

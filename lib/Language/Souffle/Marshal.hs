@@ -5,10 +5,15 @@
 {-# LANGUAGE UndecidableInstances, DefaultSignatures #-}
 {-# LANGUAGE ScopedTypeVariables, TypeOperators #-}
 
+-- | This module exposes a uniform interface to marshal values
+--   to and from Souffle Datalog. This is done via the 'Marshal' typeclass
+--   and 'MarshalT' monad transformer.
+--   Also, a mechanism is exposed for generically deriving marshalling
+--   and unmarshalling code for simple product types.
 module Language.Souffle.Marshal
-  ( MarshalT(..)
-  , Marshal(..)
+  ( MarshalT
   , runMarshalT
+  , Marshal(..)
   ) where
 
 import Control.Monad.Reader
@@ -25,20 +30,45 @@ import qualified Language.Souffle.Internal.Constraints as C
 
 type Tuple = Ptr Internal.Tuple
 
+-- | A monad transformer, used solely for marshalling and unmarshalling
+--   between Haskell and Souffle Datalog.
 newtype MarshalT m a = MarshalT (ReaderT Tuple m a)
   deriving ( Functor, Applicative, Monad
            , MonadIO, MonadReader Tuple, MonadWriter w
            , MonadState s, MonadRWS Tuple w s, MonadError e )
   via ( ReaderT Tuple m )
-  deriving ( MonadTrans ) via (ReaderT Tuple )
+  deriving MonadTrans via (ReaderT Tuple)
 
+-- | Execute the monad transformer and return the result.
+--   The tuple that is passed in will be used to marshal the data back and forth.
 runMarshalT :: MarshalT m a -> Tuple -> m a
 runMarshalT (MarshalT m) = runReaderT m
 {-# INLINABLE runMarshalT #-}
 
 
+{- | A typeclass for providing a uniform API to marshal/unmarshal values
+     between Haskell and Souffle datalog.
+
+The marshalling is done via a stack-based approach, where elements are
+pushed/popped one by one. The programmer needs to make sure that the
+marshalling values happens in the correct order or unexpected things
+might happen (including crashes). Pushing and popping of fields should
+happen in the same order (from left to right, as defined in Datalog).
+
+Generic implementations for 'push' and 'pop' that perform the previously
+described behavior are available. This makes it possible to
+write very succinct code:
+
+@
+data Edge = Edge String String deriving Generic
+
+instance Marshal Edge
+@
+-}
 class Marshal a where
+  -- | Marshals a value to the datalog side.
   push :: MonadIO m => a -> MarshalT m ()
+  -- | Unmarshals a value from the datalog side.
   pop :: MonadIO m => MarshalT m a
 
   default push :: (Generic a, C.SimpleProduct a (Rep a), GMarshal (Rep a), MonadIO m)
