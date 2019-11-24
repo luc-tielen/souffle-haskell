@@ -1,19 +1,24 @@
 name:                souffle-haskell
+synopsis:            Souffle Datalog bindings for Haskell
+description:         Souffle Datalog bindings for Haskell.
 version:             0.0.1
 homepage:            https://github.com/luc-tielen/souffle-haskell#README.md
 license:             MIT
 author:              Luc Tielen
 maintainer:          luc.tielen@gmail.com
 copyright:           2019 Luc Tielen
-category:            Web
+category:            Logic Programming, Foreign Binding, Bindings
+github:              luc-tielen/souffle-haskell
 extra-source-files:
 - README.md
+- CHANGELOG.md
 - LICENSE
+- cbits/*.h
 
 dependencies:
-  - base >= 4.11.0 && < 5
-  - mtl >= 2.2 && < 3
-  - template-haskell >= 2.15 && < 3
+  - base >= 4.12 && < 5
+  - mtl >= 2.0 && < 3
+  - template-haskell >= 2 && < 3
   - type-errors-pretty >= 0.0.1.0 && < 1
 
 default-extensions:
@@ -45,7 +50,8 @@ library:
   cxx-sources:        cbits/*.cpp
   cxx-options:
     - -Wall
-    - -O0
+  generated-exposed-modules:
+    - Paths_souffle_haskell
 
 tests:
   souffle-haskell-test:
