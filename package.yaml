@@ -50,7 +50,7 @@ library:
   cxx-sources:        cbits/*.cpp
   cxx-options:
     - -Wall
-  generated-exposed-modules:
+  generated-other-modules:
     - Paths_souffle_haskell
 
 tests:

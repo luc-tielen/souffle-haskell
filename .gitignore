@@ -1,5 +1,6 @@
 dist/
 dist-newstyle/
+dist-docs*/
 *.cabal
 cabal.project.local
 cabal.project.local~
