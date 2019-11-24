@@ -160,4 +160,25 @@ spec = describe "Souffle API" $ parallel $ do
         pure (numCpus1, numCpus2, numCpus3)
       results `shouldBe` (1, 4, 2)
 
+  describe "findFact" $ parallel $ do
+    it "returns Nothing if no matching fact was found" $ do
+      (edge, reachable) <- Souffle.runSouffle $ do
+        prog <- fromJust <$> Souffle.init Path
+        Souffle.run prog
+        e <- Souffle.findFact prog $ Edge "c" "d"
+        r <- Souffle.findFact prog $ Reachable "d" "e"
+        pure (e, r)
+      edge `shouldBe` Nothing
+      reachable `shouldBe` Nothing
+
+    it "returns Just the fact if matching fact was found" $ do
+      (edge, reachable) <- Souffle.runSouffle $ do
+        prog <- fromJust <$> Souffle.init Path
+        Souffle.run prog
+        e <- Souffle.findFact prog $ Edge "a" "b"
+        r <- Souffle.findFact prog $ Reachable "a" "c"
+        pure (e, r)
+      edge `shouldBe` Just (Edge "a" "b")
+      reachable `shouldBe` Just (Reachable "a" "c")
+
   -- TODO writeFiles / loadFiles

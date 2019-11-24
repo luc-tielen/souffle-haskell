@@ -88,8 +88,17 @@ extern "C" {
         return tuple;
     }
 
+    bool souffle_contains_tuple(relation_t* relation, tuple_t* tuple) {
+        auto rel = reinterpret_cast<souffle::Relation*>(relation);
+        auto t = reinterpret_cast<souffle::tuple*>(tuple);
+        assert(rel);
+        assert(t);
+        return rel->contains(*t);
+    }
+
     tuple_t *souffle_tuple_alloc(relation_t* relation) {
         auto rel = reinterpret_cast<souffle::Relation*>(relation);
+        assert(rel);
         auto tuple = new souffle::tuple(rel);
         return reinterpret_cast<tuple_t*>(tuple);
     }

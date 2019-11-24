@@ -120,6 +120,15 @@ extern "C" {
     tuple_t* souffle_relation_iterator_next(relation_iterator_t* iterator);
 
     /*
+     * Checks if a relation contains a certain tuple.
+     * You need to check if the passed pointers are non-NULL before passing it
+     * to this function. Not doing so results in undefined behavior.
+     *
+     * Returns true if the tuple was found in the relation; otherwise false.
+     */
+    bool souffle_contains_tuple(relation_t* relation, tuple_t* tuple);
+
+    /*
      * Allocates memory for a tuple to be added to a relation.
      * You need to check if the passed pointer is non-NULL before passing it
      * to this function. Not doing so results in undefined behavior.

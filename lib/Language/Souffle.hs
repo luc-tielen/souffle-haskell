@@ -134,6 +134,12 @@ class Monad m => MonadSouffle m where
   getFacts :: (Fact a, ContainsFact prog a)
            => Handle prog -> m [a]
 
+  -- | Searches for a fact in a program.
+  --   Returns 'Nothing' if no matching fact was found;
+  --   otherwise 'Just' the fact.
+  findFact :: (Fact a, ContainsFact prog a)
+           => Handle prog -> a -> m (Maybe a)
+
   -- | Adds a fact to the program.
   addFact :: (Fact a, ContainsFact prog a)
           => Handle prog -> a -> m ()
@@ -201,6 +207,19 @@ instance MonadSouffle SouffleM where
           else pure acc
   {-# INLINABLE getFacts #-}
 
+  findFact :: forall a prog. (Fact a, ContainsFact prog a)
+             => Handle prog -> a -> SouffleM (Maybe a)
+  findFact (Handle prog) a = SouffleM $ do
+    let relationName = factName (Proxy :: Proxy a)
+    relation <- Internal.getRelation prog relationName
+    tuple <- Internal.allocTuple relation
+    withForeignPtr tuple $ Marshal.runMarshalT (Marshal.push a)
+    found <- Internal.containsTuple relation tuple
+    pure $ if found
+             then Just a
+             else Nothing
+  {-# INLINABLE findFact #-}
+
 addFact' :: Fact a => Ptr Internal.Relation -> a -> IO ()
 addFact' relation fact = do
   tuple <- Internal.allocTuple relation
@@ -224,6 +243,8 @@ instance MonadSouffle m => MonadSouffle (ReaderT r m) where
   {-# INLINABLE writeFiles #-}
   getFacts = lift . getFacts
   {-# INLINABLE getFacts #-}
+  findFact prog = lift . findFact prog
+  {-# INLINABLE findFact #-}
   addFact fact = lift . addFact fact
   {-# INLINABLE addFact #-}
   addFacts facts = lift . addFacts facts
@@ -244,6 +265,8 @@ instance (Monoid w, MonadSouffle m) => MonadSouffle (WriterT w m) where
   {-# INLINABLE writeFiles #-}
   getFacts = lift . getFacts
   {-# INLINABLE getFacts #-}
+  findFact prog = lift . findFact prog
+  {-# INLINABLE findFact #-}
   addFact fact = lift . addFact fact
   {-# INLINABLE addFact #-}
   addFacts facts = lift . addFacts facts
@@ -264,6 +287,8 @@ instance MonadSouffle m => MonadSouffle (StateT s m) where
   {-# INLINABLE writeFiles #-}
   getFacts = lift . getFacts
   {-# INLINABLE getFacts #-}
+  findFact prog = lift . findFact prog
+  {-# INLINABLE findFact #-}
   addFact fact = lift . addFact fact
   {-# INLINABLE addFact #-}
   addFacts facts = lift . addFacts facts
@@ -284,6 +309,8 @@ instance (MonadSouffle m, Monoid w) => MonadSouffle (RWST r w s m) where
   {-# INLINABLE writeFiles #-}
   getFacts = lift . getFacts
   {-# INLINABLE getFacts #-}
+  findFact prog = lift . findFact prog
+  {-# INLINABLE findFact #-}
   addFact fact = lift . addFact fact
   {-# INLINABLE addFact #-}
   addFacts facts = lift . addFacts facts
@@ -304,6 +331,8 @@ instance MonadSouffle m => MonadSouffle (ExceptT s m) where
   {-# INLINABLE writeFiles #-}
   getFacts = lift . getFacts
   {-# INLINABLE getFacts #-}
+  findFact prog = lift . findFact prog
+  {-# INLINABLE findFact #-}
   addFact fact = lift . addFact fact
   {-# INLINABLE addFact #-}
   addFacts facts = lift . addFacts facts

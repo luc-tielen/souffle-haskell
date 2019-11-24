@@ -26,6 +26,7 @@ module Language.Souffle.Internal
   , relationIteratorNext
   , allocTuple
   , addTuple
+  , containsTuple
   , tuplePushInt
   , tuplePushString
   , tuplePopInt
@@ -140,6 +141,17 @@ addTuple :: Ptr Relation -> ForeignPtr Tuple -> IO ()
 addTuple relation tuple =
   withForeignPtr tuple $ Bindings.addTuple relation
 {-# INLINABLE addTuple #-}
+
+{- | Checks if a relation contains a certain tuple.
+
+     Returns True if the tuple was found in the relation; otherwise False.
+-}
+containsTuple :: Ptr Relation -> ForeignPtr Tuple -> IO Bool
+containsTuple relation tuple = withForeignPtr tuple $ \ptr ->
+  Bindings.containsTuple relation ptr <&> \case
+    CBool 0 -> False
+    CBool _ -> True
+{-# INLINABLE containsTuple #-}
 
 -- | Pushes an integer value into a tuple.
 tuplePushInt :: Ptr Tuple -> Int32 -> IO ()

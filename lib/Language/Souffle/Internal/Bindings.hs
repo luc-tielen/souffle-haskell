@@ -22,6 +22,7 @@ module Language.Souffle.Internal.Bindings
   , allocTuple
   , freeTuple
   , addTuple
+  , containsTuple
   , tuplePushInt
   , tuplePushString
   , tuplePopInt
@@ -192,6 +193,16 @@ foreign import ccall unsafe "&souffle_tuple_free" freeTuple
 -}
 foreign import ccall unsafe "souffle_tuple_add" addTuple
   :: Ptr Relation -> Ptr Tuple -> IO ()
+
+{- | Checks if a relation contains a certain tuple.
+
+     You need to check if the passed pointers are non-NULL before passing it
+     to this function. Not doing so results in undefined behavior.
+
+     Returns True if the tuple was found in the relation; otherwise False.
+-}
+foreign import ccall unsafe "souffle_contains_tuple" containsTuple
+  :: Ptr Relation -> Ptr Tuple -> IO CBool
 
 {-| Pushes an integer value into a tuple.
 
