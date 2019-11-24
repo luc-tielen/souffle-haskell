@@ -2,6 +2,7 @@
 # Souffle-haskell
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/luc-tielen/souffle-haskell/blob/master/LICENSE)
+[![Hackage](https://img.shields.io/hackage/v/souffle-haskell?style=flat-square)](https://hackage.haskell.org/package/souffle-haskell)
 
 This repo provides Haskell bindings for performing analyses with the
 [Souffle Datalog language](https://github.com/souffle-lang/souffle).
