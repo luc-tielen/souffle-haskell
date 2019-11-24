@@ -5,6 +5,7 @@ cabal.project.local
 cabal.project.local~
 .ghc.*
 result
-result-2
+result-*
 .history
 cbits/*.o
+*.dl

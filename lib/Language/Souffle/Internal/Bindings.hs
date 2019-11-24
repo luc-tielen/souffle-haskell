@@ -6,6 +6,8 @@ module Language.Souffle.Internal.Bindings
   , Tuple
   , init
   , free
+  , setNumThreads
+  , getNumThreads
   , run
   , loadAll
   , printAll
@@ -39,6 +41,10 @@ foreign import ccall unsafe "souffle_init" init
   :: CString -> IO (Ptr Souffle)
 foreign import ccall unsafe "&souffle_free" free
   :: FunPtr (Ptr Souffle -> IO ())
+foreign import ccall unsafe "souffle_set_num_threads" setNumThreads
+  :: Ptr Souffle -> CSize -> IO ()
+foreign import ccall unsafe "souffle_get_num_threads" getNumThreads
+  :: Ptr Souffle -> IO CSize
 foreign import ccall unsafe "souffle_run" run
   :: Ptr Souffle -> IO ()
 foreign import ccall unsafe "souffle_load_all" loadAll

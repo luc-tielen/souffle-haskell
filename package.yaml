@@ -37,6 +37,9 @@ ghc-options:
   - -fno-show-valid-hole-fits
   - -fno-sort-valid-hole-fits
 
+cpp-options:
+  - -std=c++17
+
 library:
   source-dirs:        lib
   cxx-sources:        cbits/*.cpp

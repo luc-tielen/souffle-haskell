@@ -148,4 +148,16 @@ spec = describe "Souffle API" $ parallel $ do
       reachablesAfter `shouldBe` [ Reachable "f" "g", Reachable "e" "g", Reachable "e" "f"
                                  , Reachable "b" "c",Reachable "a" "c", Reachable "a" "b" ]
 
+  describe "configuring number of cores" $ parallel $
+    it "is possible to configure number of cores" $ do
+      results <- Souffle.runSouffle $ do
+        prog <- fromJust <$> Souffle.init Path
+        numCpus1 <- Souffle.getNumThreads prog
+        Souffle.setNumThreads prog 4
+        numCpus2 <- Souffle.getNumThreads prog
+        Souffle.setNumThreads prog 2
+        numCpus3 <- Souffle.getNumThreads prog
+        pure (numCpus1, numCpus2, numCpus3)
+      results `shouldBe` (1, 4, 2)
+
   -- TODO writeFiles / loadFiles

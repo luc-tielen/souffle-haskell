@@ -35,6 +35,21 @@ extern "C" {
     void souffle_free(souffle_t* program);
 
     /*
+     * Sets the number of cores this program should use.
+     * You need to check if the passed pointer is non-NULL before passing it
+     * to this function. Not doing so results in undefined behavior.
+     */
+    void souffle_set_num_threads(souffle_t* program, size_t num_cores);
+
+    /*
+     * Gets the number of cores this program should use.
+     * You need to check if the passed pointer is non-NULL before passing it
+     * to this function. Not doing so results in undefined behavior.
+     * Returns the number of cores the program will use.
+     */
+    size_t souffle_get_num_threads(souffle_t* program);
+
+    /*
      * Runs the Souffle program.
      * You need to check if the pointer is non-NULL before passing it to this
      * function. Not doing so results in undefined behavior.

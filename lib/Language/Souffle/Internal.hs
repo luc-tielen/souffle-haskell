@@ -7,6 +7,8 @@ module Language.Souffle.Internal
   , RelationIterator
   , Tuple
   , init
+  , setNumThreads
+  , getNumThreads
   , run
   , loadAll
   , printAll
@@ -24,6 +26,7 @@ module Language.Souffle.Internal
 
 import Prelude hiding ( init )
 import Data.Functor ( (<&>) )
+import Data.Word
 import Data.Int
 import Foreign.Marshal.Alloc
 import Foreign.Storable
@@ -43,6 +46,17 @@ init prog = do
     then pure Nothing
     else Just <$> newForeignPtr Bindings.free ptr
 {-# INLINABLE init #-}
+
+setNumThreads :: ForeignPtr Souffle -> Word64 -> IO ()
+setNumThreads prog numThreads = withForeignPtr prog $ \ptr ->
+    Bindings.setNumThreads ptr $ CSize numThreads
+{-# INLINABLE setNumThreads #-}
+
+getNumThreads :: ForeignPtr Souffle -> IO Word64
+getNumThreads prog = withForeignPtr prog $ \ptr -> do
+    (CSize numThreads) <- Bindings.getNumThreads ptr
+    pure numThreads
+{-# INLINABLE getNumThreads #-}
 
 run :: ForeignPtr Souffle -> IO ()
 run prog = withForeignPtr prog Bindings.run
