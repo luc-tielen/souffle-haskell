@@ -14,6 +14,18 @@ extern "C" {
         delete prog;
     }
 
+    void souffle_set_num_threads(souffle_t* program, size_t num_cores) {
+        auto prog = reinterpret_cast<souffle::SouffleProgram*>(program);
+        assert(prog);
+        prog->setNumThreads(num_cores);
+    }
+
+    size_t souffle_get_num_threads(souffle_t* program) {
+        auto prog = reinterpret_cast<souffle::SouffleProgram*>(program);
+        assert(prog);
+        return prog->getNumThreads();
+    }
+
     void souffle_run(souffle_t* program) {
         auto prog = reinterpret_cast<souffle::SouffleProgram*>(program);
         assert(prog);

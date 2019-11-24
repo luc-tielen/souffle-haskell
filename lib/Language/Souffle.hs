@@ -26,6 +26,7 @@ import Foreign.Ptr
 import Type.Errors.Pretty
 import Data.Proxy
 import Data.Kind
+import Data.Word
 import qualified Language.Souffle.Internal as Internal
 import qualified Language.Souffle.Marshal as Marshal
 
@@ -63,6 +64,10 @@ class Monad m => MonadSouffle m where
 
   run :: SouffleProgram prog -> m ()
 
+  setNumThreads :: SouffleProgram prog -> Word64 -> m ()
+
+  getNumThreads :: SouffleProgram prog -> m Word64
+
   loadFiles :: SouffleProgram prog -> String -> m ()
 
   writeFiles :: SouffleProgram prog -> m ()
@@ -86,6 +91,14 @@ instance MonadSouffle SouffleM where
 
   run (SouffleProgram prog) = SouffleM $ Internal.run prog
   {-# INLINABLE run #-}
+
+  setNumThreads (SouffleProgram prog) numCores =
+    SouffleM $ Internal.setNumThreads prog numCores
+  {-# INLINABLE setNumThreads #-}
+
+  getNumThreads (SouffleProgram prog) =
+    SouffleM $ Internal.getNumThreads prog
+  {-# INLINABLE getNumThreads #-}
 
   loadFiles (SouffleProgram prog) = SouffleM . Internal.loadAll prog
   {-# INLINABLE loadFiles #-}
@@ -139,6 +152,10 @@ instance MonadSouffle m => MonadSouffle (ReaderT r m) where
   {-# INLINABLE init #-}
   run = lift . run
   {-# INLINABLE run #-}
+  setNumThreads prog = lift . setNumThreads prog
+  {-# INLINABLE setNumThreads #-}
+  getNumThreads = lift . getNumThreads
+  {-# INLINABLE getNumThreads #-}
   loadFiles prog = lift . loadFiles prog
   {-# INLINABLE loadFiles #-}
   writeFiles = lift . writeFiles
@@ -155,6 +172,10 @@ instance (Monoid w, MonadSouffle m) => MonadSouffle (WriterT w m) where
   {-# INLINABLE init #-}
   run = lift . run
   {-# INLINABLE run #-}
+  setNumThreads prog = lift . setNumThreads prog
+  {-# INLINABLE setNumThreads #-}
+  getNumThreads = lift . getNumThreads
+  {-# INLINABLE getNumThreads #-}
   loadFiles prog = lift . loadFiles prog
   {-# INLINABLE loadFiles #-}
   writeFiles = lift . writeFiles
@@ -171,6 +192,10 @@ instance MonadSouffle m => MonadSouffle (StateT s m) where
   {-# INLINABLE init #-}
   run = lift . run
   {-# INLINABLE run #-}
+  setNumThreads prog = lift . setNumThreads prog
+  {-# INLINABLE setNumThreads #-}
+  getNumThreads = lift . getNumThreads
+  {-# INLINABLE getNumThreads #-}
   loadFiles prog = lift . loadFiles prog
   {-# INLINABLE loadFiles #-}
   writeFiles = lift . writeFiles
@@ -187,6 +212,10 @@ instance (MonadSouffle m, Monoid w) => MonadSouffle (RWST r w s m) where
   {-# INLINABLE init #-}
   run = lift . run
   {-# INLINABLE run #-}
+  setNumThreads prog = lift . setNumThreads prog
+  {-# INLINABLE setNumThreads #-}
+  getNumThreads = lift . getNumThreads
+  {-# INLINABLE getNumThreads #-}
   loadFiles prog = lift . loadFiles prog
   {-# INLINABLE loadFiles #-}
   writeFiles = lift . writeFiles
@@ -203,6 +232,10 @@ instance MonadSouffle m => MonadSouffle (ExceptT s m) where
   {-# INLINABLE init #-}
   run = lift . run
   {-# INLINABLE run #-}
+  setNumThreads prog = lift . setNumThreads prog
+  {-# INLINABLE setNumThreads #-}
+  getNumThreads = lift . getNumThreads
+  {-# INLINABLE getNumThreads #-}
   loadFiles prog = lift . loadFiles prog
   {-# INLINABLE loadFiles #-}
   writeFiles = lift . writeFiles
