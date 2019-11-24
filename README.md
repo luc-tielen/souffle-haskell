@@ -8,6 +8,9 @@ This repo provides Haskell bindings for performing analyses with the
 It does this by binding directly to an "embedded" Souffle program
 (previously generated with `souffle -g`).
 
+Fun fact: this library combines both functional programming (Haskell),
+logic programming (Datalog / Souffle) and imperative / OO programming (C / C++).
+
 
 ## Motivating example
 
