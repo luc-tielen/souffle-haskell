@@ -2,7 +2,7 @@
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# LANGUAGE RankNTypes, FlexibleInstances, FlexibleContexts, DataKinds #-}
 {-# LANGUAGE ScopedTypeVariables, TypeFamilies, TypeOperators #-}
-{-# LANGUAGE DerivingVia, InstanceSigs, UndecidableInstances #-}
+{-# LANGUAGE DerivingVia, InstanceSigs, UndecidableInstances, BangPatterns #-}
 
 -- | This module provides the top level API of this library.
 --   It makes use of Haskell's powerful typesystem to make certain invalid states
@@ -135,8 +135,10 @@ class Monad m => MonadSouffle m where
            => Handle prog -> m [a]
 
   -- | Searches for a fact in a program.
-  --   Returns 'Nothing' if no matching fact was found;
-  --   otherwise 'Just' the fact.
+  --   Returns 'Nothing' if no matching fact was found; otherwise 'Just' the fact.
+  --
+  --   Conceptually equivalent to @List.find (== fact) <$> getFacts prog@, but this operation
+  --   can be implemented much faster.
   findFact :: (Fact a, ContainsFact prog a)
            => Handle prog -> a -> m (Maybe a)
 
@@ -197,7 +199,7 @@ instance MonadSouffle SouffleM where
     relation <- Internal.getRelation prog relationName
     Internal.getRelationIterator relation >>= go []
     where
-      go acc it = do
+      go !acc !it = do
         hasNext <- Internal.relationIteratorHasNext it
         if hasNext
           then do
@@ -208,16 +210,14 @@ instance MonadSouffle SouffleM where
   {-# INLINABLE getFacts #-}
 
   findFact :: forall a prog. (Fact a, ContainsFact prog a)
-             => Handle prog -> a -> SouffleM (Maybe a)
+           => Handle prog -> a -> SouffleM (Maybe a)
   findFact (Handle prog) a = SouffleM $ do
     let relationName = factName (Proxy :: Proxy a)
     relation <- Internal.getRelation prog relationName
     tuple <- Internal.allocTuple relation
     withForeignPtr tuple $ Marshal.runMarshalT (Marshal.push a)
     found <- Internal.containsTuple relation tuple
-    pure $ if found
-             then Just a
-             else Nothing
+    pure $ if found then Just a else Nothing
   {-# INLINABLE findFact #-}
 
 addFact' :: Fact a => Ptr Internal.Relation -> a -> IO ()
