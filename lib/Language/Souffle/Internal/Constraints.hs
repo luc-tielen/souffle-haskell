@@ -12,6 +12,8 @@ import Type.Errors.Pretty
 import GHC.Generics
 import Data.Kind
 import Data.Int
+import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
 
 
 -- | A helper type family used for generating a more user-friendly type error
@@ -54,10 +56,12 @@ type family OnlySimpleField (a :: Type) (f :: Type -> Type) :: Constraint where
   OnlySimpleField t (K1 _ a) = DirectlyMarshallable t a
 
 type family DirectlyMarshallable (a :: Type) (b :: Type) :: Constraint where
+  DirectlyMarshallable _ T.Text = ()
+  DirectlyMarshallable _ TL.Text = ()
   DirectlyMarshallable _ Int32 = ()
   DirectlyMarshallable _ String = ()
   DirectlyMarshallable t a =
     TypeError ( "Error while generating marshalling code for " <> t <> ":"
-              % "Can only marshal values of Int32 and String directly"
+              % "Can only marshal values of Int32, String and Text directly"
              <> ", but found " <> a <> " type instead.")
 

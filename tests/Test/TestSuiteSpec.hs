@@ -40,28 +40,6 @@ instance Souffle.Program BadPath where
   type ProgramFacts BadPath = [Edge, Reachable]
   programName = const "bad_path"
 
-{-
--
--import Data.Foldable ( traverse_ )
--import Control.Monad.IO.Class
--import GHC.Generics
--
--main :: IO ()
--main = Souffle.runSouffle $ do
--  maybeProgram <- Souffle.init Path
--  case maybeProgram of
--    Nothing -> liftIO $ putStrLn "Failed to load program."
--    Just prog -> do
--      Souffle.addFact prog $ Edge "d" "i"
--      Souffle.addFacts prog [ Edge "e" "f"
--                    , Edge "f" "g"
--                    , Edge "f" "g"
--                    , Edge "f" "h"
--                    , Edge "g" "i"
--                    ]
--      Souffle.run prog
-  -}
-
 
 spec :: Spec
 spec = describe "Souffle API" $ parallel $ do

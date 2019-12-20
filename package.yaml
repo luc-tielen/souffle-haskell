@@ -22,6 +22,7 @@ dependencies:
   - mtl >= 2.0 && < 3
   - template-haskell >= 2 && < 3
   - type-errors-pretty >= 0.0.1.0 && < 1
+  - text >= 1.0 && < 2
 
 default-extensions:
   - OverloadedStrings

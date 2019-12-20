@@ -66,7 +66,7 @@ Souffle.embedProgram "/path/to/path.cpp"
 data Path = Path
 
 -- Facts are represent in Haskell as simple product types,
--- Numbers map to Int32, symbols to Strings.
+-- Numbers map to Int32, symbols to Strings / Text.
 
 data Edge = Edge String String
   deriving (Eq, Show, Generic)

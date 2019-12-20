@@ -24,6 +24,8 @@ import Control.Monad.RWS
 import GHC.Generics
 import Foreign.Ptr
 import Data.Int
+import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
 import qualified Language.Souffle.Internal as Internal
 import qualified Language.Souffle.Internal.Constraints as C
 
@@ -100,6 +102,17 @@ instance Marshal String where
     liftIO $ Internal.tuplePopString tuple
   {-# INLINABLE pop #-}
 
+instance Marshal T.Text where
+  push = push . T.unpack
+  {-# INLINABLE push #-}
+  pop = T.pack <$> pop
+  {-# INLINABLE pop #-}
+
+instance Marshal TL.Text where
+  push = push . TL.unpack
+  {-# INLINABLE push #-}
+  pop = TL.pack <$> pop
+  {-# INLINABLE pop #-}
 
 class GMarshal f where
   gpush :: MonadIO m => f a -> MarshalT m ()
