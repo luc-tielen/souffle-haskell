@@ -83,6 +83,15 @@ extern "C" {
     relation_t* souffle_relation(souffle_t* program, const char* relation_name);
 
     /*
+     * Gets the amount of tuples found in a relation.
+     * You need to check if the passed pointer is non-NULL before passing it
+     * to this function. Not doing so results in undefined behavior.
+     *
+     * Returns the amount of tuples found in a relation.
+     */
+    size_t souffle_relation_tuple_count(relation_t* relation);
+
+    /*
      * Create an iterator for iterating over the facts of a relation.
      * You need to check if the passed pointer is non-NULL before passing it
      * to this function. Not doing so results in undefined behavior.

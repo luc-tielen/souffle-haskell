@@ -21,6 +21,7 @@ module Language.Souffle.Internal
   , loadAll
   , printAll
   , getRelation
+  , countFacts
   , getRelationIterator
   , relationIteratorHasNext
   , relationIteratorNext
@@ -103,6 +104,13 @@ getRelation :: ForeignPtr Souffle -> String -> IO (Ptr Relation)
 getRelation prog relation = withForeignPtr prog $ \ptr ->
   withCString relation $ Bindings.getRelation ptr
 {-# INLINABLE getRelation #-}
+
+-- | Returns the amount of facts found in a relation.
+countFacts :: Ptr Relation -> IO Int
+countFacts relation =
+  Bindings.getTupleCount relation >>= \(CSize count) ->
+    -- TODO: check what happens for really large sizes?
+    pure (fromIntegral count)
 
 -- | Create an iterator for iterating over the facts of a relation.
 getRelationIterator :: Ptr Relation -> IO (ForeignPtr RelationIterator)

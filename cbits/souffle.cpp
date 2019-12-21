@@ -54,6 +54,12 @@ extern "C" {
         return reinterpret_cast<relation_t*>(relation);
     }
 
+    size_t souffle_relation_tuple_count(relation_t* relation) {
+        auto rel = reinterpret_cast<souffle::Relation*>(relation);
+        assert(rel);
+        return rel->size();
+    }
+
     struct relation_iterator {
         using iterator_t = souffle::Relation::iterator;
         iterator_t iterator;

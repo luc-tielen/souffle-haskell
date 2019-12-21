@@ -15,6 +15,7 @@ module Language.Souffle.Internal.Bindings
   , loadAll
   , printAll
   , getRelation
+  , getTupleCount
   , getRelationIterator
   , freeRelationIterator
   , relationIteratorHasNext
@@ -123,6 +124,16 @@ foreign import ccall unsafe "souffle_print_all" printAll
 -}
 foreign import ccall unsafe "souffle_relation" getRelation
   :: Ptr Souffle -> CString -> IO (Ptr Relation)
+
+{-| Gets the amount of tuples found in a relation.
+
+    You need to check if both passed pointers are not equal to 'nullPtr' before
+    passing it to this function. Not doing so results in undefined behavior (in C++).
+
+    Returns the amount of tuples found in a relation.
+-}
+foreign import ccall unsafe "souffle_relation_tuple_count" getTupleCount
+  :: Ptr Relation -> IO CSize
 
 {-| Create an iterator for iterating over the facts of a relation.
 

@@ -10,6 +10,13 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
 
 - Added Marshal instance for lazy and strict Text
 
+### Changed
+
+- getFacts can now return a vector instead of a list, based on type inference.
+  This allows for a more efficient representation in memory as well
+  as being able to allocate all needed memory once before collecting facts.
+
+
 ## [0.0.1] - 2019-10-23
 ### Added
 

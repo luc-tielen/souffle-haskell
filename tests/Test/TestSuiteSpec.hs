@@ -9,6 +9,7 @@ import GHC.Generics
 import Data.Maybe
 import qualified Language.Souffle.TH as Souffle
 import qualified Language.Souffle as Souffle
+import qualified Data.Vector as V
 
 Souffle.embedProgram "tests/fixtures/path.cpp"
 
@@ -53,7 +54,7 @@ spec = describe "Souffle API" $ parallel $ do
       isJust prog `shouldBe` True
 
   describe "getFacts" $ parallel $ do
-    it "can retrieve facts" $ do
+    it "can retrieve facts as a list" $ do
       (edges, reachables) <- Souffle.runSouffle $ do
         prog <- fromJust <$> Souffle.init Path
         Souffle.run prog
@@ -63,7 +64,17 @@ spec = describe "Souffle API" $ parallel $ do
       edges `shouldBe` [Edge "b" "c", Edge "a" "b"]
       reachables `shouldBe` [Reachable "b" "c", Reachable "a" "c", Reachable "a" "b"]
 
-    it "returns empty list if program hasn't run yet" $ do
+    it "can retrieve facts as a vector" $ do
+      (edges, reachables) <- Souffle.runSouffle $ do
+        prog <- fromJust <$> Souffle.init Path
+        Souffle.run prog
+        es <- Souffle.getFacts prog
+        rs <- Souffle.getFacts prog
+        pure (es , rs)
+      edges `shouldBe` V.fromList [Edge "a" "b", Edge "b" "c"]
+      reachables `shouldBe` V.fromList [Reachable "a" "b", Reachable "a" "c", Reachable "b" "c"]
+
+    it "returns no facts if program hasn't run yet" $ do
       edges <- Souffle.runSouffle $ do
         prog <- fromJust <$> Souffle.init Path
         Souffle.getFacts prog

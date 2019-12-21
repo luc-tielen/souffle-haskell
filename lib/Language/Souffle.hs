@@ -34,6 +34,8 @@ import Type.Errors.Pretty
 import Data.Proxy
 import Data.Kind
 import Data.Word
+import qualified Data.Vector as V
+import qualified Data.Vector.Mutable as MV
 import qualified Language.Souffle.Internal as Internal
 import qualified Language.Souffle.Marshal as Marshal
 
@@ -103,6 +105,38 @@ newtype SouffleM a
   { runSouffle :: IO a  -- ^ Returns the underlying IO action.
   } deriving ( Functor, Applicative, Monad, MonadIO ) via IO
 
+-- | Helper typeclass for collecting facts.
+--   The order of returned facts is unspecified.
+--   Only used internally.
+class CollectFacts c where
+  collectFacts :: Marshal.Marshal a
+               => Int
+               -> ForeignPtr Internal.RelationIterator
+               -> IO (c a)
+
+instance CollectFacts V.Vector where
+  collectFacts factCount iterator = do
+    vec <- MV.unsafeNew factCount
+    go vec 0 factCount iterator
+    where
+      go vec idx count _ | idx == count = V.unsafeFreeze vec
+      go vec idx count it = do
+        tuple <- Internal.relationIteratorNext it
+        result <- Marshal.runMarshalT Marshal.pop tuple
+        MV.unsafeWrite vec idx result
+        go vec (idx + 1) count it
+  {-# INLINABLE collectFacts #-}
+
+instance CollectFacts [] where
+  collectFacts factCount = go 0 factCount []
+    where
+      go idx count acc _ | idx == count = pure acc
+      go idx count !acc !it = do
+        tuple <- Internal.relationIteratorNext it
+        result <- Marshal.runMarshalT Marshal.pop tuple
+        go (idx + 1) count (result : acc) it
+  {-# INLINABLE collectFacts #-}
+
 -- | A mtl-style typeclass for Souffle-related actions.
 class Monad m => MonadSouffle m where
   {- | Initializes a Souffle program.
@@ -131,8 +165,8 @@ class Monad m => MonadSouffle m where
 
   -- | Returns all facts of a program. This function makes use of type inference
   --   to select the type of fact to return.
-  getFacts :: (Fact a, ContainsFact prog a)
-           => Handle prog -> m [a]
+  getFacts :: (Fact a, ContainsFact prog a, CollectFacts c)
+           => Handle prog -> m (c a)
 
   -- | Searches for a fact in a program.
   --   Returns 'Nothing' if no matching fact was found; otherwise 'Just' the fact.
@@ -192,21 +226,13 @@ instance MonadSouffle SouffleM where
     traverse_ (addFact' relation) facts
   {-# INLINABLE addFacts #-}
 
-  getFacts :: forall a prog. (Fact a, ContainsFact prog a)
-           => Handle prog -> SouffleM [a]
+  getFacts :: forall a prog c. (Fact a, ContainsFact prog a, CollectFacts c)
+           => Handle prog -> SouffleM (c a)
   getFacts (Handle prog) = SouffleM $ do
     let relationName = factName (Proxy :: Proxy a)
     relation <- Internal.getRelation prog relationName
-    Internal.getRelationIterator relation >>= go []
-    where
-      go !acc !it = do
-        hasNext <- Internal.relationIteratorHasNext it
-        if hasNext
-          then do
-            tuple <- Internal.relationIteratorNext it
-            result <- Marshal.runMarshalT Marshal.pop tuple
-            go (result : acc) it
-          else pure acc
+    factCount <- Internal.countFacts relation
+    Internal.getRelationIterator relation >>= collectFacts factCount
   {-# INLINABLE getFacts #-}
 
   findFact :: forall a prog. (Fact a, ContainsFact prog a)
