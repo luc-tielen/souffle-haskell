@@ -23,7 +23,6 @@ module Language.Souffle.Internal
   , getRelation
   , countFacts
   , getRelationIterator
-  , relationIteratorHasNext
   , relationIteratorNext
   , allocTuple
   , addTuple
@@ -117,17 +116,6 @@ getRelationIterator :: Ptr Relation -> IO (ForeignPtr RelationIterator)
 getRelationIterator relation =
   Bindings.getRelationIterator relation >>= newForeignPtr Bindings.freeRelationIterator
 {-# INLINABLE getRelationIterator #-}
-
-{-| Checks if the relation iterator contains more results.
-
-    Returns 'True' if there are more results; otherwise 'False'.
--}
-relationIteratorHasNext :: ForeignPtr RelationIterator -> IO Bool
-relationIteratorHasNext iter = withForeignPtr iter $ \ptr ->
-  Bindings.relationIteratorHasNext ptr <&> \case
-    CBool 0 -> False
-    CBool _ -> True
-{-# INLINABLE relationIteratorHasNext #-}
 
 {-| Advances the relation iterator by 1 position.
 

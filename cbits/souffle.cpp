@@ -63,28 +63,21 @@ extern "C" {
     struct relation_iterator {
         using iterator_t = souffle::Relation::iterator;
         iterator_t iterator;
-        iterator_t end;
 
-        relation_iterator(const iterator_t& begin_, const iterator_t& end_)
-            : iterator(begin_)
-            , end(end_) {}
+        relation_iterator(const iterator_t& it)
+            : iterator(it) {}
     };
 
     relation_iterator_t* souffle_relation_iterator(relation_t* relation) {
         auto rel = reinterpret_cast<souffle::Relation*>(relation);
         assert(rel);
-        relation_iterator_t* it = new relation_iterator_t(rel->begin(), rel->end());
+        relation_iterator_t* it = new relation_iterator_t(rel->begin());
         return it;
     }
 
     void souffle_relation_iterator_free(relation_iterator_t* iterator) {
         assert(iterator);
         delete iterator;
-    }
-
-    bool souffle_relation_iterator_has_next(const relation_iterator_t* iterator) {
-        assert(iterator);
-        return iterator->iterator != iterator->end;
     }
 
     tuple_t* souffle_relation_iterator_next(relation_iterator_t* iterator) {

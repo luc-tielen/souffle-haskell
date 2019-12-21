@@ -18,7 +18,6 @@ module Language.Souffle.Internal.Bindings
   , getTupleCount
   , getRelationIterator
   , freeRelationIterator
-  , relationIteratorHasNext
   , relationIteratorNext
   , allocTuple
   , freeTuple
@@ -154,23 +153,13 @@ foreign import ccall unsafe "souffle_relation_iterator" getRelationIterator
 foreign import ccall unsafe "&souffle_relation_iterator_free" freeRelationIterator
   :: FunPtr (Ptr RelationIterator -> IO ())
 
-{-| Checks if the relation iterator contains more results.
-
-    You need to check if the passed pointer is not equal to 'nullPtr' before
-    passing it to this function. Not doing so results in undefined behavior (in C++).
-
-    Returns true if iterator contains more results; otherwise false.
--}
-foreign import ccall unsafe "souffle_relation_iterator_has_next" relationIteratorHasNext
-  :: Ptr RelationIterator -> IO CBool
-
 {-| Advances the relation iterator by 1 position.
 
     You need to check if the passed pointer is not equal to 'nullPtr' before
     passing it to this function. Not doing so results in undefined behavior (in C++).
 
-    Always check if there is a next record with 'relationIteratorHasNext'
-    before using this function to prevent crashes.
+    Calling this function when there are no more tuples to be returned
+    will result in a crash.
 
     Returns a pointer to the next tuple. This pointer is not allowed to be freed
     as it is managed by the Souffle program already.

@@ -109,20 +109,11 @@ extern "C" {
     void souffle_relation_iterator_free(relation_iterator_t* iterator);
 
     /*
-     * Checks if the relation iterator contains more results.
-     * You need to check if the passed pointer is non-NULL before passing it
-     * to this function. Not doing so results in undefined behavior.
-     *
-     * Returns true if iterator contains more results; otherwise false.
-     */
-    bool souffle_relation_iterator_has_next(const relation_iterator_t* iterator);
-
-    /*
      * Advances the relation iterator by 1 position.
      * You need to check if the passed pointer is non-NULL before passing it
      * to this function. Not doing so results in undefined behavior.
-     * Always check if there is a next record with "souffle_relation_iterator_has_next"
-     * before using this function to prevent crashes.
+     * Calling this function when there are no more tuples to be returned
+     * will result in a crash.
      *
      * Returns a pointer to the next record. This pointer is not allowed to be freed.
      */
