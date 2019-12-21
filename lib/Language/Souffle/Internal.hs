@@ -119,8 +119,8 @@ getRelationIterator relation =
 
 {-| Advances the relation iterator by 1 position.
 
-    Make sure to use 'relationIteratorHasNext' for checking if there are more
-    results before calling this function to avoid potential crashes.
+    Calling this function when there are no more results to be returned
+    will result in a crash.
 -}
 relationIteratorNext :: ForeignPtr RelationIterator -> IO (Ptr Tuple)
 relationIteratorNext iter = withForeignPtr iter Bindings.relationIteratorNext

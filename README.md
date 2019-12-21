@@ -53,6 +53,7 @@ module Main ( main ) where
 import Data.Foldable ( traverse_ )
 import Control.Monad.IO.Class
 import GHC.Generics
+import Data.Vector
 import qualified Language.Souffle.TH as Souffle
 import qualified Language.Souffle as Souffle
 
@@ -115,7 +116,8 @@ main = Souffle.runSouffle $ do
       --       Here it requires an annotation since we directly print it
       --       to stdout, but if passed to another function, it can infer
       --       the correct type automatically.
-      results :: [Reachable] <- Souffle.getFacts prog
+      --       A list of facts can also be returned here.
+      results :: Vector Reachable <- Souffle.getFacts prog
       liftIO $ traverse_ print results
 
       -- We can also look for a specific fact:

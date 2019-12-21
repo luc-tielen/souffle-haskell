@@ -16,6 +16,7 @@ module Language.Souffle
   , Fact(..)
   , Marshal.Marshal(..)
   , Handle
+  , CollectFacts
   , MonadSouffle(..)
   , SouffleM
   , runSouffle
@@ -105,8 +106,8 @@ newtype SouffleM a
   { runSouffle :: IO a  -- ^ Returns the underlying IO action.
   } deriving ( Functor, Applicative, Monad, MonadIO ) via IO
 
--- | Helper typeclass for collecting facts.
---   The order of returned facts is unspecified.
+-- | Helper typeclass for collecting facts into a container-like structure.
+--   The order of returned facts is unspecified for performance reasons.
 --   Only used internally.
 class CollectFacts c where
   collectFacts :: Marshal.Marshal a
@@ -171,7 +172,7 @@ class Monad m => MonadSouffle m where
   -- | Searches for a fact in a program.
   --   Returns 'Nothing' if no matching fact was found; otherwise 'Just' the fact.
   --
-  --   Conceptually equivalent to @List.find (== fact) <$> getFacts prog@, but this operation
+  --   Conceptually equivalent to @List.find (== fact) \<$\> getFacts prog@, but this operation
   --   can be implemented much faster.
   findFact :: (Fact a, ContainsFact prog a)
            => Handle prog -> a -> m (Maybe a)

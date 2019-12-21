@@ -1,7 +1,7 @@
 name:                souffle-haskell
 synopsis:            Souffle Datalog bindings for Haskell
 description:         Souffle Datalog bindings for Haskell.
-version:             0.0.1
+version:             0.1.0
 homepage:            https://github.com/luc-tielen/souffle-haskell#README.md
 license:             MIT
 author:              Luc Tielen
