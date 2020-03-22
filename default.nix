@@ -9,6 +9,7 @@ let
   souffle-master = callPackage ./nix/souffle.nix {};
   haskellPkgs = haskellPackages.override {
     overrides = self: super: {
+      hedgehog = self.hedgehog_1_0_1;
       hpack = self.callCabal2nix "hpack" hpack { };
       neat-interpolation = dontCheck super.neat-interpolation;
       type-errors-pretty = doJailbreak super.type-errors-pretty;
