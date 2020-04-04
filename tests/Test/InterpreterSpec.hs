@@ -3,7 +3,7 @@ module Test.InterpreterSpec (spec) where
 
 import GHC.Generics
 import Language.Souffle.Interpreter as I
-import Language.Souffle
+import Language.Souffle as S
 import Test.Hspec
 
 spec :: Spec
@@ -35,5 +35,3 @@ instance Fact Reachable where
 
 instance Marshal Edge
 instance Marshal Reachable
-instance IMarshal Edge
-instance IMarshal Reachable

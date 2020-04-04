@@ -29,6 +29,7 @@ dependencies:
   - process
   - extra
   - temporary
+  - free
 
 default-extensions:
   - OverloadedStrings
