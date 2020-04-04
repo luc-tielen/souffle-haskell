@@ -17,6 +17,7 @@ module Language.Souffle
   , Marshal.Marshal(..)
   , Handle
   , CollectFacts
+  , ContainsFact
   , MonadSouffle(..)
   , SouffleM
   , runSouffle

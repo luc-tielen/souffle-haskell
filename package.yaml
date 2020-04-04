@@ -24,6 +24,11 @@ dependencies:
   - type-errors-pretty >= 0.0.1.0 && < 1
   - text >= 1.0 && < 2
   - vector <= 1.0
+  - directory
+  - filepath
+  - process
+  - extra
+  - temporary
 
 default-extensions:
   - OverloadedStrings
@@ -47,7 +52,14 @@ ghc-options:
   - -fno-sort-valid-hole-fits
 
 cpp-options:
-  - -std=c++17
+ - -std=c++17
+
+when:
+  - condition: os(linux)
+    then:
+      extra-libraries: stdc++
+    else:
+      extra-libraries: c++
 
 library:
   source-dirs:        lib
@@ -64,6 +76,5 @@ tests:
     dependencies:
       - hspec >= 2.6.1 && < 3.0.0
       - souffle-haskell
-    extra-libraries:    c++
     cpp-options:
       - -D__EMBEDDED_SOUFFLE__
