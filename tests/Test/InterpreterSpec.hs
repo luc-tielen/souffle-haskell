@@ -1,19 +1,19 @@
 {-# LANGUAGE DataKinds, TypeFamilies, DeriveGeneric, ScopedTypeVariables #-}
 module Test.InterpreterSpec (spec) where
 
+import Prelude hiding (init)
 import GHC.Generics
-import Language.Souffle.Interpreter as I
-import Language.Souffle as S
+import Language.Souffle.Interpreter
 import Test.Hspec
 
 spec :: Spec
 spec = do
   it "Interpreter" $ do
-    runSouffleM $ do
-      Just handle <- I.init Path
-      I.run handle
-      I.addFact handle $ Reachable "x" "y"
-      I.cleanUp handle
+    runSouffle $ do
+      Just handle <- init Path
+      run handle
+      addFact handle $ Reachable "x" "y"
+      cleanUp handle
 
 data Path = Path
 

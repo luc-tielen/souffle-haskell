@@ -6,20 +6,15 @@
 {-# LANGUAGE GeneralisedNewtypeDeriving, DefaultSignatures, DeriveGeneric, LambdaCase #-}
 {-# LANGUAGE GADTs #-}
 module Language.Souffle.Interpreter
-  ( SouffleM
-  , runSouffleM
-  , init
+  ( Program(..)
+  , Fact(..)
+  , Marshal(..)
+  , Handle
+  , ContainsFact
+  , MonadSouffle(..)
+  , SouffleM
+  , runSouffle
   , cleanUp
-  , run
-  , setNumThreads
-  , getNumThreads
-  , loadFiles
-  , writeFiles
-  , getFacts
-  , findFact
-  , addFact
-  , addFacts
-  , Marshal
   ) where
 
 import Prelude hiding (init)
@@ -41,7 +36,7 @@ import System.Process
 import Text.Printf
 
 
-newtype SouffleM a = SouffleM { runSouffleM :: IO a }
+newtype SouffleM a = SouffleM { runSouffle :: IO a }
   deriving
     ( Functor
     , Applicative
