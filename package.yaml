@@ -54,6 +54,12 @@ library:
   cxx-sources:        cbits/*.cpp
   cxx-options:
     - -Wall
+  when:
+    - condition: os(darwin)
+      then:
+        extra-libraries: c++
+      else:
+        extra-libraries: stdc++
   generated-other-modules:
     - Paths_souffle_haskell
 
@@ -64,11 +70,5 @@ tests:
     dependencies:
       - hspec >= 2.6.1 && < 3.0.0
       - souffle-haskell
-    when:
-      - condition: os(darwin)
-        then:
-          extra-libraries: c++
-        else:
-          extra-libraries: stdc++
     cpp-options:
       - -D__EMBEDDED_SOUFFLE__
