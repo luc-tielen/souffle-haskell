@@ -1,0 +1,24 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: nixorg/nix:circleci
+    steps:
+      - checkout
+      - run:
+          name: Setup Cachix
+          command: |
+            nix-env -iA cachix -f https://cachix.org/api/v1/install
+            USER=dummy cachix use luctielen
+      - run:
+          name: Build environment
+          command: |
+            nix-shell --pure --run :
+      - run:
+          name: Linting
+          command: nix-shell --run "make lint"
+          no_output_timeout: 60m
+      - run:
+          name: Unit tests
+          command: nix-shell --run "make configure tests"
+          no_output_timeout: 60m

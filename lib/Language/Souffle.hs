@@ -52,7 +52,7 @@ newtype Handle prog = Handle (ForeignPtr Internal.Souffle)
 -- and contains 2 facts: Edge and Reachable):
 --
 -- @
--- data Path = Path  -- Handle for the datalog program
+-- data Path = Path  -- A helper data type representing the datalog program
 --
 -- instance Program Path where
 --   type ProgramFacts Path = '[Edge, Reachable]
@@ -108,7 +108,8 @@ newtype SouffleM a
 
 -- | Helper typeclass for collecting facts into a container-like structure.
 --   The order of returned facts is unspecified for performance reasons.
---   Only used internally.
+--   This is only used internally to allow collecting facts into different
+--   types of containers (vectors, lists, ...).
 class CollectFacts c where
   collectFacts :: Marshal.Marshal a
                => Int
@@ -151,10 +152,10 @@ class Monad m => MonadSouffle m where
   -- | Runs the Souffle program.
   run :: Handle prog -> m ()
 
-  -- | Sets the number of CPU cores this Souffle program should use.
+  -- | Sets the number of CPU threads this Souffle program should use.
   setNumThreads :: Handle prog -> Word64 -> m ()
 
-  -- | Gets the number of CPU cores this Souffle program should use.
+  -- | Gets the number of CPU threads this Souffle program should use.
   getNumThreads :: Handle prog -> m Word64
 
   -- | Load all facts from files in a certain directory.

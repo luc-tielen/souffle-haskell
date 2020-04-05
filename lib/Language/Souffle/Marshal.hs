@@ -52,10 +52,10 @@ runMarshalT (MarshalT m) = runReaderT m
      between Haskell and Souffle datalog.
 
 The marshalling is done via a stack-based approach, where elements are
-pushed/popped one by one. The programmer needs to make sure that the
-marshalling values happens in the correct order or unexpected things
-might happen (including crashes). Pushing and popping of fields should
-happen in the same order (from left to right, as defined in Datalog).
+pushed/popped one by one. You need to make sure that the marshalling
+of values happens in the correct order or unexpected things might happen
+(including crashes). Pushing and popping of fields should happen in the
+same order (from left to right, as defined in Datalog).
 
 Generic implementations for 'push' and 'pop' that perform the previously
 described behavior are available. This makes it possible to
