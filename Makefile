@@ -17,7 +17,7 @@ hoogle:
 		hoogle server --local -p 8080
 
 tests:
-		cabal test
+		DATALOG_DIR=tests/fixtures/ cabal test
 
 docs:
 	@cabal haddock
