@@ -1,9 +1,6 @@
-
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# LANGUAGE DerivingVia, TypeFamilies #-}
-{-# LANGUAGE FlexibleInstances, FlexibleContexts, DataKinds #-}
-{-# LANGUAGE UndecidableInstances, DefaultSignatures #-}
-{-# LANGUAGE ScopedTypeVariables, TypeOperators, RankNTypes #-}
+{-# LANGUAGE DerivingVia, TypeFamilies, FlexibleInstances, FlexibleContexts #-}
+{-# LANGUAGE DefaultSignatures, TypeOperators, RankNTypes #-}
 
 -- | This module exposes a uniform interface to marshal values
 --   to and from Souffle Datalog. This is done via the 'Marshal' typeclass

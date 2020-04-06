@@ -1,8 +1,5 @@
-
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# LANGUAGE RankNTypes, FlexibleInstances, FlexibleContexts, DataKinds #-}
-{-# LANGUAGE ScopedTypeVariables, TypeFamilies, TypeOperators #-}
-{-# LANGUAGE DerivingVia, InstanceSigs, UndecidableInstances, BangPatterns #-}
+{-# LANGUAGE TypeFamilies, TypeOperators, DerivingVia, InstanceSigs, BangPatterns #-}
 
 -- | This module provides the top level API of this library.
 --   It makes use of Haskell's powerful typesystem to make certain invalid states

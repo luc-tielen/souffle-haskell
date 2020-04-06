@@ -1,6 +1,4 @@
 
-{-# Language LambdaCase #-}
-
 -- | An internal module, providing a slightly higher level interface than
 --   "Language.Souffle.Internal.Bindings".
 --   It uses more commonly found data types instead of the low level C types

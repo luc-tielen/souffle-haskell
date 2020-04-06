@@ -33,6 +33,8 @@ dependencies:
 
 default-extensions:
   - OverloadedStrings
+  - LambdaCase
+  - ScopedTypeVariables
 
 ghc-options:
   - -Wall

@@ -1,4 +1,4 @@
-{-# LANGUAGE DataKinds, TypeFamilies, DeriveGeneric, ScopedTypeVariables #-}
+{-# LANGUAGE DataKinds, TypeFamilies, DeriveGeneric #-}
 module Test.InterpreterSpec (spec) where
 
 import Prelude hiding (init)
@@ -11,8 +11,8 @@ spec = do
   it "Interpreter" $ do
     runSouffle $ do
       Just handle <- init Path
-      run handle
       addFact handle $ Reachable "x" "y"
+      run handle
       cleanUp handle
 
 data Path = Path

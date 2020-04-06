@@ -1,4 +1,3 @@
-
 {-# LANGUAGE TypeFamilies, DataKinds, TypeOperators, UndecidableInstances #-}
 
 -- | A helper module for generating more user friendly type errors in the form

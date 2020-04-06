@@ -1,8 +1,4 @@
-{-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# LANGUAGE RankNTypes, FlexibleInstances, FlexibleContexts, DataKinds #-}
-{-# LANGUAGE ScopedTypeVariables, TypeFamilies, TypeOperators #-}
-{-# LANGUAGE DerivingVia, InstanceSigs, UndecidableInstances, BangPatterns #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE DataKinds, TypeFamilies, TypeOperators, UndecidableInstances #-}
 module Language.Souffle.Class
   ( ContainsFact
   , Program(..)

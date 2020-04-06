@@ -1,10 +1,6 @@
 
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# LANGUAGE RankNTypes, FlexibleInstances, FlexibleContexts, DataKinds #-}
-{-# LANGUAGE ScopedTypeVariables, TypeFamilies, TypeOperators #-}
-{-# LANGUAGE DerivingVia, InstanceSigs, UndecidableInstances, BangPatterns #-}
-{-# LANGUAGE GeneralisedNewtypeDeriving, DefaultSignatures, DeriveGeneric, LambdaCase #-}
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE TypeFamilies, DerivingVia, InstanceSigs #-}
 module Language.Souffle.Interpreter
   ( Program(..)
   , Fact(..)
@@ -43,7 +39,7 @@ newtype SouffleM a = SouffleM { runSouffle :: IO a }
     , Monad
     , MonadFail
     , MonadIO
-    )
+    ) via IO
 
 
 -- | The handle for the interpreter is the path where the souffle executable
@@ -204,7 +200,7 @@ newtype IMarshal a = IMarshal (State [String] a)
     ( Functor
     , Applicative
     , Monad
-    )
+    ) via (State [String])
 
 marshalAlgM :: forall a . MarshalF a -> IMarshal a
 marshalAlgM (PopStr f) = IMarshal $ do
