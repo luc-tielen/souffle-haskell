@@ -38,9 +38,6 @@ instance Functor MarshalF where
 
 type MarshalM a = Free MarshalF a
 
-cmd :: Functor f => f a -> Free f a
-cmd command = Free (fmap Pure command)
-
 interpret :: Monad m => (forall x . MarshalF x -> m x) -> MarshalM a -> m a
 interpret = foldFree
 
@@ -79,15 +76,15 @@ class Marshal a where
   {-# INLINABLE pop #-}
 
 instance Marshal Int32 where
-  push int = cmd (PushInt int ())
+  push int = liftF (PushInt int ())
   {-# INLINABLE push #-}
-  pop  = cmd (PopInt id)
+  pop  = liftF (PopInt id)
   {-# INLINABLE pop #-}
 
 instance Marshal String where
-  push str = cmd (PushStr str ())
+  push str = liftF (PushStr str ())
   {-# INLINABLE push #-}
-  pop  = cmd (PopStr id)
+  pop  = liftF (PopStr id)
   {-# INLINABLE pop #-}
 
 instance Marshal T.Text where

@@ -58,13 +58,13 @@ newtype MarshalT m a = MarshalT (ReaderT Tuple m a)
 
 -- | Execute the monad transformer and return the result.
 --   The tuple that is passed in will be used to marshal the data back and forth.
-runMarshalT :: forall m a . (Monad m, MonadIO m) => MarshalM a -> Tuple -> m a
+runMarshalT :: forall m a. MonadIO m => MarshalM a -> Tuple -> m a
 runMarshalT free = calc (interpret marshalAlgM free)
   where
     calc (MarshalT m) = runReaderT m
 {-# INLINABLE runMarshalT #-}
 
-marshalAlgM :: (Monad m, MonadIO m) => MarshalF a -> MarshalT m a
+marshalAlgM :: MonadIO m => MarshalF a -> MarshalT m a
 marshalAlgM (PopStr f) = MarshalT $ do
   tuple <- ask
   str   <- liftIO $ Internal.tuplePopString tuple
