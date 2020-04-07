@@ -7,16 +7,16 @@ module Language.Souffle.Class
   ) where
 
 import Prelude hiding ( init )
-import Type.Errors.Pretty
+import Control.Monad.Except
+import Control.Monad.RWS.Strict
+import Control.Monad.Reader
+import Control.Monad.State
+import Control.Monad.Writer
 import Data.Proxy
 import Data.Kind
 import Data.Word
-import Control.Monad.Reader
-import Control.Monad.Writer
-import Control.Monad.State
-import Control.Monad.RWS
-import Control.Monad.Except
 import qualified Language.Souffle.Marshal as Marshal
+import Type.Errors.Pretty
 
 
 type family ContainsFact prog fact :: Constraint where
