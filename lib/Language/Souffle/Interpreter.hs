@@ -10,11 +10,12 @@ module Language.Souffle.Interpreter
   , MonadSouffle(..)
   , SouffleM
   , runSouffle
-  , cleanUp
+  , cleanup
   ) where
 
 import Prelude hiding (init)
 
+import Control.DeepSeq (deepseq)
 import Control.Monad.State.Strict
 import Data.IORef
 import Data.List hiding (init)
@@ -64,26 +65,27 @@ instance MonadSouffle SouffleM where
      Otherwise it will return a 'Handle' that can be used in other functions
      in this module.
   -}
-  init :: forall prog . Program prog => prog -> SouffleM (Maybe (Handle prog))
-  init prg = SouffleM $ do
-    -- TODO: Use system commands to locate the interpreter
-    -- TODO: Use system's tmp directory
-    tmpDir <- getCanonicalTemporaryDirectory
-    souffleTempDir <- createTempDirectory tmpDir "souffle"
-    let factDir = souffleTempDir </> "fact"
-    let outDir  = souffleTempDir </> "out"
-    createDirectoryIfMissing True $ factDir
-    createDirectoryIfMissing True $ outDir
-    datalogExecutable <- datalogProgramFile prg
-    souffleBin  <- souffleCmd
-    fmap (Just . Handle) $ newIORef $ HandleData
-      { soufflePath = souffleBin
-      , basePath    = souffleTempDir
-      , factPath    = factDir
-      , outputPath  = outDir
-      , datalogExec = datalogExecutable
-      , noOfThreads = 1
-      }
+  init :: forall prog. Program prog => prog -> SouffleM (Maybe (Handle prog))
+  init prg = SouffleM $ datalogProgramFile prg >>= \case
+    Nothing -> pure Nothing
+    Just datalogExecutable -> do
+      -- TODO: Use system commands to locate the interpreter
+      -- TODO: Use system's tmp directory
+      tmpDir <- getCanonicalTemporaryDirectory
+      souffleTempDir <- createTempDirectory tmpDir "souffle"
+      let factDir = souffleTempDir </> "fact"
+      let outDir  = souffleTempDir </> "out"
+      createDirectoryIfMissing True $ factDir
+      createDirectoryIfMissing True $ outDir
+      souffleBin <- fromMaybe "souffle" <$> lookupEnv "SOUFFLE_BIN"
+      fmap (Just . Handle) $ newIORef $ HandleData
+        { soufflePath = souffleBin
+        , basePath    = souffleTempDir
+        , factPath    = factDir
+        , outputPath  = outDir
+        , datalogExec = datalogExecutable
+        , noOfThreads = 1
+        }
 
   -- | Runs the Souffle program.
   run :: Handle prog -> SouffleM ()
@@ -111,8 +113,8 @@ instance MonadSouffle SouffleM where
 
   -- | Load all facts from files in a certain directory.
   loadFiles :: Handle prog -> FilePath -> SouffleM ()
-  loadFiles (Handle ref) srcPath = SouffleM $ liftIO $do
-    handle  <- readIORef ref
+  loadFiles (Handle ref) srcPath = SouffleM $ liftIO $ do
+    handle <- readIORef ref
     let destPath = factPath handle
     copyFiles srcPath destPath
 
@@ -120,22 +122,22 @@ instance MonadSouffle SouffleM where
   --   (as defined in the Souffle program).
   -- TODO: This should be moved out from this class
   writeFiles :: Handle prog -> {- FilePath -> -} SouffleM ()
-  writeFiles (Handle ref) {-destPath-} = SouffleM $ liftIO $do
+  writeFiles (Handle ref) {-destPath-} = SouffleM $ liftIO $ do
     handle <- readIORef ref
     let srcPath = factPath handle
     copyFiles srcPath "./facts"
 
   -- | Returns all facts of a program. This function makes use of type inference
   --   to select the type of fact to return.
-  getFacts :: forall a prog . (Marshal a, Fact a, ContainsFact prog a)
+  getFacts :: forall a prog. (Marshal a, Fact a, ContainsFact prog a)
            => Handle prog -> SouffleM [a]
-  getFacts (Handle ref) = SouffleM $ liftIO $do
+  getFacts (Handle ref) = SouffleM $ liftIO $ do
     handle <- readIORef ref
     let relationName = factName (Proxy :: Proxy a)
     let factFile = outputPath handle </> relationName <.> "csv"
     factLines <- readCSVFile factFile
     let facts = map (runMarshallIT pop) factLines
-    pure facts
+    pure $! facts  -- force facts before running to avoid issues with lazy IO
 
   -- | Searches for a fact in a program.
   --   Returns 'Nothing' if no matching fact was found; otherwise 'Just' the fact.
@@ -147,47 +149,52 @@ instance MonadSouffle SouffleM where
   findFact prog fact = find (== fact) <$> getFacts prog
 
   -- | Adds a fact to the program.
-  addFact :: forall a prog . (Fact a, ContainsFact prog a, Marshal a)
+  addFact :: forall a prog. (Fact a, ContainsFact prog a, Marshal a)
           => Handle prog -> a -> SouffleM ()
   addFact (Handle ref) fact = SouffleM $ do
     handle <- readIORef ref
     let relationName = factName (Proxy :: Proxy a)
-    let factFile = factPath handle </> relationName <.> "csv"
+    let factFile = factPath handle </> relationName <.> "facts"
     let line = pushMarshallIT (push fact)
     appendFile factFile $ intercalate "\t" line ++ "\n"
 
   -- | Adds multiple facts to the program. This function could be implemented
   --   in terms of 'addFact', but this is done as a minor optimization.
-  addFacts :: forall a prog f . (Fact a, ContainsFact prog a, Marshal a, Foldable f)
+  addFacts :: forall a prog f. (Fact a, ContainsFact prog a, Marshal a, Foldable f)
            => Handle prog -> f a -> SouffleM ()
   addFacts (Handle ref) facts = SouffleM $ do
     handle <- readIORef ref
     let relationName = factName (Proxy :: Proxy a)
-    let factFile = factPath handle </> relationName <.> "csv"
+    let factFile = factPath handle </> relationName <.> "facts"
     let factLines :: [[String]] = map (pushMarshallIT . push) (foldMap pure facts)
     mapM_ (\line -> appendFile factFile (intercalate "\t" line ++ "\n")) factLines
 
 copyFiles :: FilePath -> FilePath -> IO ()
 copyFiles srcPath destPath = do
   content <- listDirectory srcPath
-  forM_ content $ \file -> do
+  forM_ content $ \file ->
     doesFileExist (srcPath </> file) >>= \case
-      False -> pure () -- Dir or symlink, but not file
+      False -> pure ()
       True  -> copyFile (srcPath </> file) (destPath </> file)
 
-datalogProgramFile :: forall prog . Program prog => prog -> IO FilePath
-datalogProgramFile _prg = do
+datalogProgramFile :: forall prog. Program prog => prog -> IO (Maybe FilePath)
+datalogProgramFile _ = do
   dir <- fromMaybe "." <$> lookupEnv "DATALOG_DIR"
-  pure $ dir </> programName (Proxy :: Proxy prog) <.> "dl"
-
-souffleCmd :: IO FilePath
-souffleCmd = fromMaybe "souffle" <$> lookupEnv "SOUFFLE_BIN"
+  let dlFile = dir </> programName (Proxy :: Proxy prog) <.> "dl"
+  doesFileExist dlFile >>= \case
+    False -> pure Nothing
+    True -> pure $ Just dlFile
 
 readCSVFile :: FilePath -> IO [[String]]
-readCSVFile = fmap (fmap (splitOn "\t") . lines) . readFile
+readCSVFile path = doesFileExist path >>= \case
+  False -> pure []
+  True -> do
+    contents <- readFile path
+    -- deepseq needed to avoid issues with lazy IO
+    pure $ contents `deepseq` (map (splitOn "\t") . lines) contents
 
-cleanUp :: forall prog . (Program prog) => Handle prog -> SouffleM ()
-cleanUp (Handle ref) = SouffleM $ do
+cleanup :: forall prog. (Program prog) => Handle prog -> SouffleM ()
+cleanup (Handle ref) = SouffleM $ do
   handle <- readIORef ref
   removeDirectoryRecursive $ factPath    handle
   removeDirectoryRecursive $ outputPath  handle
@@ -202,7 +209,7 @@ newtype IMarshal a = IMarshal (State [String] a)
     , Monad
     ) via (State [String])
 
-marshalAlgM :: forall a . MarshalF a -> IMarshal a
+marshalAlgM :: forall a. MarshalF a -> IMarshal a
 marshalAlgM (PopStr f) = IMarshal $ do
   str <- state (\case
             [] -> error "Empty fact stack"
@@ -220,14 +227,14 @@ marshalAlgM (PushStr s v) = IMarshal $ do
   state (\st -> ((), s:st))
   pure v
 
-runMarshallIT :: forall a . MarshalM a -> [String] -> a
+runMarshallIT :: forall a. MarshalM a -> [String] -> a
 runMarshallIT free = calc (interpret marshalAlgM free)
   where
     calc :: IMarshal a -> [String] -> a
-    calc (IMarshal m) s = evalState m s
+    calc (IMarshal m) = evalState m
 
-pushMarshallIT :: forall a . MarshalM a -> [String]
+pushMarshallIT :: forall a. MarshalM a -> [String]
 pushMarshallIT = calc . interpret marshalAlgM
   where
     calc :: IMarshal a -> [String]
-    calc (IMarshal m) = execState m []
+    calc (IMarshal m) = reverse $ execState m []
