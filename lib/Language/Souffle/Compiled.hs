@@ -20,10 +20,9 @@ module Language.Souffle.Compiled
   ) where
 
 import Prelude hiding ( init )
-import Control.Monad.Writer
-import Control.Monad.State
+
 import Control.Monad.Except
-import Control.Monad.RWS
+import Control.Monad.RWS.Strict
 import Control.Monad.Reader
 import Data.Foldable ( traverse_ )
 import Data.Proxy
