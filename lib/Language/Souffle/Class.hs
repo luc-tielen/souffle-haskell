@@ -4,9 +4,11 @@ module Language.Souffle.Class
   , Program(..)
   , Fact(..)
   , MonadSouffle(..)
+  , MonadSouffleFileIO(..)
   ) where
 
 import Prelude hiding ( init )
+
 import Control.Monad.Except
 import Control.Monad.RWS.Strict
 import Control.Monad.Reader
@@ -102,13 +104,6 @@ class Monad m => MonadSouffle m where
   -- | Gets the number of CPU cores this Souffle program should use.
   getNumThreads :: Handler m prog -> m Word64
 
-  -- | Load all facts from files in a certain directory.
-  loadFiles :: Handler m prog -> FilePath -> m ()
-
-  -- | Write out all facts of the program to CSV files
-  --   (as defined in the Souffle program).
-  writeFiles :: Handler m prog -> m ()
-
   -- | Returns all facts of a program. This function makes use of type inference
   --   to select the type of fact to return.
   getFacts :: (Fact a, ContainsFact prog a)
@@ -141,10 +136,6 @@ instance MonadSouffle m => MonadSouffle (ReaderT r m) where
   {-# INLINABLE setNumThreads #-}
   getNumThreads = lift . getNumThreads
   {-# INLINABLE getNumThreads #-}
-  loadFiles prog = lift . loadFiles prog
-  {-# INLINABLE loadFiles #-}
-  writeFiles = lift . writeFiles
-  {-# INLINABLE writeFiles #-}
   getFacts = lift . getFacts
   {-# INLINABLE getFacts #-}
   findFact prog = lift . findFact prog
@@ -164,10 +155,6 @@ instance (Monoid w, MonadSouffle m) => MonadSouffle (WriterT w m) where
   {-# INLINABLE setNumThreads #-}
   getNumThreads = lift . getNumThreads
   {-# INLINABLE getNumThreads #-}
-  loadFiles prog = lift . loadFiles prog
-  {-# INLINABLE loadFiles #-}
-  writeFiles = lift . writeFiles
-  {-# INLINABLE writeFiles #-}
   getFacts = lift . getFacts
   {-# INLINABLE getFacts #-}
   findFact prog = lift . findFact prog
@@ -187,10 +174,6 @@ instance MonadSouffle m => MonadSouffle (StateT s m) where
   {-# INLINABLE setNumThreads #-}
   getNumThreads = lift . getNumThreads
   {-# INLINABLE getNumThreads #-}
-  loadFiles prog = lift . loadFiles prog
-  {-# INLINABLE loadFiles #-}
-  writeFiles = lift . writeFiles
-  {-# INLINABLE writeFiles #-}
   getFacts = lift . getFacts
   {-# INLINABLE getFacts #-}
   findFact prog = lift . findFact prog
@@ -210,10 +193,6 @@ instance (MonadSouffle m, Monoid w) => MonadSouffle (RWST r w s m) where
   {-# INLINABLE setNumThreads #-}
   getNumThreads = lift . getNumThreads
   {-# INLINABLE getNumThreads #-}
-  loadFiles prog = lift . loadFiles prog
-  {-# INLINABLE loadFiles #-}
-  writeFiles = lift . writeFiles
-  {-# INLINABLE writeFiles #-}
   getFacts = lift . getFacts
   {-# INLINABLE getFacts #-}
   findFact prog = lift . findFact prog
@@ -233,10 +212,6 @@ instance MonadSouffle m => MonadSouffle (ExceptT s m) where
   {-# INLINABLE setNumThreads #-}
   getNumThreads = lift . getNumThreads
   {-# INLINABLE getNumThreads #-}
-  loadFiles prog = lift . loadFiles prog
-  {-# INLINABLE loadFiles #-}
-  writeFiles = lift . writeFiles
-  {-# INLINABLE writeFiles #-}
   getFacts = lift . getFacts
   {-# INLINABLE getFacts #-}
   findFact prog = lift . findFact prog
@@ -245,3 +220,44 @@ instance MonadSouffle m => MonadSouffle (ExceptT s m) where
   {-# INLINABLE addFact #-}
   addFacts facts = lift . addFacts facts
   {-# INLINABLE addFacts #-}
+
+
+-- | A mtl-style typeclass for Souffle-related actions that involve file IO.
+class MonadSouffle m => MonadSouffleFileIO m where
+  -- | Load all facts from files in a certain directory.
+  loadFiles :: Handler m prog -> FilePath -> m ()
+
+  -- | Write out all facts of the program to CSV files
+  --   (as defined in the Souffle program).
+  writeFiles :: Handler m prog -> m ()
+
+instance MonadSouffleFileIO m => MonadSouffleFileIO (ReaderT r m) where
+  loadFiles prog = lift . loadFiles prog
+  {-# INLINABLE loadFiles #-}
+  writeFiles = lift . writeFiles
+  {-# INLINABLE writeFiles #-}
+
+instance (Monoid w, MonadSouffleFileIO m) => MonadSouffleFileIO (WriterT w m) where
+  loadFiles prog = lift . loadFiles prog
+  {-# INLINABLE loadFiles #-}
+  writeFiles = lift . writeFiles
+  {-# INLINABLE writeFiles #-}
+
+instance MonadSouffleFileIO m => MonadSouffleFileIO (StateT s m) where
+  loadFiles prog = lift . loadFiles prog
+  {-# INLINABLE loadFiles #-}
+  writeFiles = lift . writeFiles
+  {-# INLINABLE writeFiles #-}
+
+instance (MonadSouffleFileIO m, Monoid w) => MonadSouffleFileIO (RWST r w s m) where
+  loadFiles prog = lift . loadFiles prog
+  {-# INLINABLE loadFiles #-}
+  writeFiles = lift . writeFiles
+  {-# INLINABLE writeFiles #-}
+
+instance MonadSouffleFileIO m => MonadSouffleFileIO (ExceptT s m) where
+  loadFiles prog = lift . loadFiles prog
+  {-# INLINABLE loadFiles #-}
+  writeFiles = lift . writeFiles
+  {-# INLINABLE writeFiles #-}
+

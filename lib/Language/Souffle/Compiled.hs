@@ -115,12 +115,6 @@ instance MonadSouffle SouffleM where
     SouffleM $ Internal.getNumThreads prog
   {-# INLINABLE getNumThreads #-}
 
-  loadFiles (Handle prog) = SouffleM . Internal.loadAll prog
-  {-# INLINABLE loadFiles #-}
-
-  writeFiles (Handle prog) = SouffleM $ Internal.printAll prog
-  {-# INLINABLE writeFiles #-}
-
   addFact :: forall a prog. (Fact a, ContainsFact prog a)
           => Handle prog -> a -> SouffleM ()
   addFact (Handle prog) fact = liftIO $ do
@@ -163,3 +157,12 @@ addFact' relation fact = do
   withForeignPtr tuple $ runMarshalT (push fact)
   Internal.addTuple relation tuple
 {-# INLINABLE addFact' #-}
+
+
+instance MonadSouffleFileIO SouffleM where
+  loadFiles (Handle prog) = SouffleM . Internal.loadAll prog
+  {-# INLINABLE loadFiles #-}
+
+  writeFiles (Handle prog) = SouffleM $ Internal.printAll prog
+  {-# INLINABLE writeFiles #-}
+

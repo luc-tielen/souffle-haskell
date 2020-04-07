@@ -18,7 +18,7 @@ import Prelude hiding (init)
 import Control.DeepSeq (deepseq)
 import Control.Monad.State.Strict
 import Data.IORef
-import Data.Foldable (traverse_, for_)
+import Data.Foldable (traverse_)
 import Data.List hiding (init)
 import Data.List.Extra (splitOn)
 import Data.Maybe (fromMaybe)
@@ -109,20 +109,6 @@ instance MonadSouffle SouffleM where
   getNumThreads (Handle ref) = liftIO $
     noOfThreads <$> readIORef ref
 
-  -- | Load all facts from files in a certain directory.
-  loadFiles (Handle ref) srcPath = liftIO $ do
-    handle <- readIORef ref
-    let destPath = factPath handle
-    copyFiles srcPath destPath
-
-  -- | Write out all facts of the program to CSV files
-  --   (as defined in the Souffle program).
-  -- TODO: This should be moved out from this class
-  writeFiles (Handle ref) {-destPath-} = liftIO $ do
-    handle <- readIORef ref
-    let srcPath = factPath handle
-    copyFiles srcPath "./facts"
-
   -- | Returns all facts of a program. This function makes use of type inference
   --   to select the type of fact to return.
   getFacts :: forall a prog. (Marshal a, Fact a, ContainsFact prog a)
@@ -162,14 +148,6 @@ instance MonadSouffle SouffleM where
     let factFile = factPath handle </> relationName <.> "facts"
     let factLines = map (pushMarshallIT . push) (foldMap pure facts)
     traverse_ (\line -> appendFile factFile (intercalate "\t" line ++ "\n")) factLines
-
-copyFiles :: FilePath -> FilePath -> IO ()
-copyFiles srcPath destPath = do
-  dirContents <- listDirectory srcPath
-  for_ dirContents $ \file ->
-    doesFileExist (srcPath </> file) >>= \case
-      False -> pure ()
-      True  -> copyFile (srcPath </> file) (destPath </> file)
 
 datalogProgramFile :: forall prog. Program prog => prog -> IO (Maybe FilePath)
 datalogProgramFile _ = do
