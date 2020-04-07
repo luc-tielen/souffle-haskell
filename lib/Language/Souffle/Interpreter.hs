@@ -93,13 +93,14 @@ instance MonadSouffle SouffleM where
     handle <- readIORef ref
     -- Invoke the souffle binary using parameters, supposing that the facts are placed
     -- in the factPath, rendering the output into the outputPath
-    callCommand $
-      printf "%s -F%s -D%s -j%d %s"
-        (soufflePath handle)
-        (factPath handle)
-        (outputPath handle)
-        (noOfThreads handle)
-        (datalogExec handle)
+    let command =
+          printf "%s -F%s -D%s -j%d %s"
+            (soufflePath handle)
+            (factPath handle)
+            (outputPath handle)
+            (noOfThreads handle)
+            (datalogExec handle)
+    callCommand command
 
   -- | Sets the number of CPU cores this Souffle program should use.
   setNumThreads :: Handle prog -> Word64 -> SouffleM ()

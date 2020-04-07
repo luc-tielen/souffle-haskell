@@ -13,6 +13,8 @@ import qualified Language.Souffle.Interpreter as Souffle
 
 data Path = Path
 
+data PathNoInput = PathNoInput  -- doesn't mark edge as an input
+
 data BadPath = BadPath
 
 data Edge = Edge String String
@@ -33,6 +35,10 @@ instance Souffle.Marshal Reachable
 instance Souffle.Program Path where
   type ProgramFacts Path = [Edge, Reachable]
   programName = const "path"
+
+instance Souffle.Program PathNoInput where
+  type ProgramFacts PathNoInput = [Edge, Reachable]
+  programName = const "path_no_input"
 
 instance Souffle.Program BadPath where
   type ProgramFacts BadPath = [Edge, Reachable]
@@ -56,7 +62,7 @@ spec = describe "Souffle API" $ parallel $ do
   describe "getFacts" $ parallel $ do
     it "can retrieve facts as a list" $ do
       (edges, reachables) <- Souffle.runSouffle $ do
-        prog <- fromJust <$> Souffle.init Path
+        prog <- fromJust <$> Souffle.init PathNoInput
         Souffle.run prog
         es <- Souffle.getFacts prog
         rs <- Souffle.getFacts prog
@@ -75,21 +81,17 @@ spec = describe "Souffle API" $ parallel $ do
 
   describe "addFact" $ parallel $ do
     it "adds a fact" $ do
-      (edgesBefore, edgesAfter) <- Souffle.runSouffle $ do
+      edges <- Souffle.runSouffle $ do
         prog <- fromJust <$> Souffle.init Path
-        Souffle.run prog
-        es1 <- Souffle.getFacts prog
         Souffle.addFact prog $ Edge "e" "f"
         Souffle.run prog
-        es2 <- Souffle.getFacts prog
-        pure (es1, es2)
-      edgesBefore `shouldBe` [Edge "a" "b", Edge "b" "c"]
-      edgesAfter `shouldBe` [Edge "a" "b", Edge "b" "c", Edge "e" "f"]
+        Souffle.getFacts prog
+      edges `shouldBe` [Edge "a" "b", Edge "b" "c", Edge "e" "f"]
 
     -- NOTE: this is different compared to compiled version (bug in Souffle?)
-    it "can not add a fact if it is marked as output" $ do
+    it "can not add a fact if it is not marked as input" $ do
       reachables <- Souffle.runSouffle $ do
-        prog <- fromJust <$> Souffle.init Path
+        prog <- fromJust <$> Souffle.init PathNoInput
         Souffle.addFact prog $ Reachable "e" "f"
         Souffle.run prog
         Souffle.getFacts prog
@@ -98,21 +100,17 @@ spec = describe "Souffle API" $ parallel $ do
 
   describe "addFacts" $ parallel $
     it "can add multiple facts at once" $ do
-      (edgesBefore, edgesAfter) <- Souffle.runSouffle $ do
+      edges <- Souffle.runSouffle $ do
         prog <- fromJust <$> Souffle.init Path
-        Souffle.run prog
-        es1 <- Souffle.getFacts prog
         Souffle.addFacts prog [Edge "e" "f", Edge "f" "g"]
         Souffle.run prog
-        es2 <- Souffle.getFacts prog
-        pure (es1, es2)
-      edgesBefore `shouldBe` [Edge "a" "b", Edge "b" "c"]
-      edgesAfter `shouldBe` [Edge "a" "b", Edge "b" "c", Edge "e" "f", Edge "f" "g"]
+        Souffle.getFacts prog
+      edges `shouldBe` [Edge "a" "b", Edge "b" "c", Edge "e" "f", Edge "f" "g"]
 
   describe "run" $ parallel $ do
     it "is OK to run a program multiple times" $ do
       edges <- Souffle.runSouffle $ do
-        prog <- fromJust <$> Souffle.init Path
+        prog <- fromJust <$> Souffle.init PathNoInput
         Souffle.run prog
         Souffle.run prog
         facts <- Souffle.getFacts prog
@@ -154,7 +152,7 @@ spec = describe "Souffle API" $ parallel $ do
   describe "findFact" $ parallel $ do
     it "returns Nothing if no matching fact was found" $ do
       (edge, reachable) <- Souffle.runSouffle $ do
-        prog <- fromJust <$> Souffle.init Path
+        prog <- fromJust <$> Souffle.init PathNoInput
         Souffle.run prog
         e <- Souffle.findFact prog $ Edge "c" "d"
         r <- Souffle.findFact prog $ Reachable "d" "e"
@@ -164,7 +162,7 @@ spec = describe "Souffle API" $ parallel $ do
 
     it "returns Just the fact if matching fact was found" $ do
       (edge, reachable) <- Souffle.runSouffle $ do
-        prog <- fromJust <$> Souffle.init Path
+        prog <- fromJust <$> Souffle.init PathNoInput
         Souffle.run prog
         e <- Souffle.findFact prog $ Edge "a" "b"
         r <- Souffle.findFact prog $ Reachable "a" "c"
