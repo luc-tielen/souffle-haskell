@@ -55,7 +55,7 @@
     within:
       - Test.Language.Souffle.CompiledSpec
       - Test.Language.Souffle.InterpretedSpec
-      - Language.Souffle.Interpreter
+      - Language.Souffle.Interpreted
 
 
 # Define some custom infix operators

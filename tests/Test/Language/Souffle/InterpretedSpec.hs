@@ -8,7 +8,7 @@ module Test.Language.Souffle.InterpretedSpec
 import Test.Hspec
 import GHC.Generics
 import Data.Maybe
-import qualified Language.Souffle.Interpreter as Souffle
+import qualified Language.Souffle.Interpreted as Souffle
 
 
 data Path = Path

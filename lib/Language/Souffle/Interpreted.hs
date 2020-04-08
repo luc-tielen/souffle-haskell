@@ -1,7 +1,7 @@
 
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# LANGUAGE TypeFamilies, DerivingVia, InstanceSigs #-}
-module Language.Souffle.Interpreter
+module Language.Souffle.Interpreted
   ( Program(..)
   , Fact(..)
   , Marshal(..)
