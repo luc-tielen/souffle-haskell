@@ -20,7 +20,6 @@ import Control.Monad.State.Strict
 import Data.IORef
 import Data.Foldable (traverse_)
 import Data.List hiding (init)
-import Data.List.Extra (splitOn)
 import Data.Maybe (fromMaybe)
 import Data.Proxy
 import Data.Word
@@ -163,7 +162,7 @@ readCSVFile path = doesFileExist path >>= \case
   True -> do
     contents <- readFile path
     -- deepseq needed to avoid issues with lazy IO
-    pure $ contents `deepseq` (map (splitOn "\t") . lines) contents
+    pure $ contents `deepseq` (map (splitOn '\t') . lines) contents
 
 cleanup :: forall prog. Program prog => Handle prog -> SouffleM ()
 cleanup (Handle ref) = liftIO $ do
@@ -207,3 +206,10 @@ pushMarshallIT = calc . interpret marshalAlgM
   where
     calc :: IMarshal a -> [String]
     calc (IMarshal m) = reverse $ execState m []
+
+splitOn :: Char -> String -> [String]
+splitOn c s =
+  let (x, rest) = break (== c) s
+      rest' = drop 1 rest
+   in x : splitOn c rest'
+
