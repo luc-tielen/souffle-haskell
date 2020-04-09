@@ -8,8 +8,15 @@ module Test.Language.Souffle.InterpretedSpec
 import Test.Hspec
 import GHC.Generics
 import Data.Maybe
+import qualified Data.Vector as V
 import qualified Language.Souffle.Interpreted as Souffle
 
+
+asList :: Souffle.RetrievalMode []
+asList = Souffle.AsList
+
+asVector :: Souffle.RetrievalMode V.Vector
+asVector = Souffle.AsVector
 
 data Path = Path
 
@@ -64,17 +71,27 @@ spec = describe "Souffle API" $ parallel $ do
       (edges, reachables) <- Souffle.runSouffle $ do
         prog <- fromJust <$> Souffle.init PathNoInput
         Souffle.run prog
-        es <- Souffle.getFacts prog
-        rs <- Souffle.getFacts prog
+        es <- Souffle.getFacts asList prog
+        rs <- Souffle.getFacts asList prog
         Souffle.cleanup prog
         pure (es , rs)
       edges `shouldBe` [Edge "a" "b", Edge "b" "c"]
       reachables `shouldBe` [Reachable "a" "b", Reachable "a" "c", Reachable "b" "c"]
 
+    it "can retrieve facts as a vector" $ do
+      (edges, reachables) <- Souffle.runSouffle $ do
+        prog <- fromJust <$> Souffle.init Path
+        Souffle.run prog
+        es <- Souffle.getFacts asVector prog
+        rs <- Souffle.getFacts asVector prog
+        pure (es , rs)
+      edges `shouldBe` V.fromList [Edge "a" "b", Edge "b" "c"]
+      reachables `shouldBe` V.fromList [Reachable "a" "b", Reachable "a" "c", Reachable "b" "c"]
+
     it "returns no facts if program hasn't run yet" $ do
       edges <- Souffle.runSouffle $ do
         prog <- fromJust <$> Souffle.init Path
-        results <- Souffle.getFacts prog
+        results <- Souffle.getFacts asList prog
         Souffle.cleanup prog
         pure results
       edges `shouldBe` ([] :: [Edge])
@@ -85,7 +102,7 @@ spec = describe "Souffle API" $ parallel $ do
         prog <- fromJust <$> Souffle.init Path
         Souffle.addFact prog $ Edge "e" "f"
         Souffle.run prog
-        Souffle.getFacts prog
+        Souffle.getFacts asList prog
       edges `shouldBe` [Edge "a" "b", Edge "b" "c", Edge "e" "f"]
 
     -- NOTE: this is different compared to compiled version (bug in Souffle?)
@@ -94,7 +111,7 @@ spec = describe "Souffle API" $ parallel $ do
         prog <- fromJust <$> Souffle.init PathNoInput
         Souffle.addFact prog $ Reachable "e" "f"
         Souffle.run prog
-        Souffle.getFacts prog
+        Souffle.getFacts asList prog
       reachables `shouldBe`
         [ Reachable "a" "b", Reachable "a" "c", Reachable "b" "c" ]
 
@@ -104,7 +121,7 @@ spec = describe "Souffle API" $ parallel $ do
         prog <- fromJust <$> Souffle.init Path
         Souffle.addFacts prog [Edge "e" "f", Edge "f" "g"]
         Souffle.run prog
-        Souffle.getFacts prog
+        Souffle.getFacts asList prog
       edges `shouldBe` [Edge "a" "b", Edge "b" "c", Edge "e" "f", Edge "f" "g"]
 
   describe "run" $ parallel $ do
@@ -113,7 +130,7 @@ spec = describe "Souffle API" $ parallel $ do
         prog <- fromJust <$> Souffle.init PathNoInput
         Souffle.run prog
         Souffle.run prog
-        facts <- Souffle.getFacts prog
+        facts <- Souffle.getFacts asList prog
         Souffle.cleanup prog
         pure facts
       edges `shouldBe` [Reachable "a" "b", Reachable "a" "c", Reachable "b" "c"]
@@ -123,10 +140,10 @@ spec = describe "Souffle API" $ parallel $ do
         prog <- fromJust <$> Souffle.init Path
         Souffle.addFacts prog [Edge "c" "d"]
         Souffle.run prog
-        rs1 <- Souffle.getFacts prog
+        rs1 <- Souffle.getFacts asList prog
         Souffle.addFacts prog [Edge "b" "e"]
         Souffle.run prog
-        rs2 <- Souffle.getFacts prog
+        rs2 <- Souffle.getFacts asList prog
         Souffle.cleanup prog
         pure (rs1, rs2)
       reachablesBefore `shouldBe`

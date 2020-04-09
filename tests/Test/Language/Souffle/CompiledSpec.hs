@@ -8,10 +8,17 @@ module Test.Language.Souffle.CompiledSpec
 import Test.Hspec
 import GHC.Generics
 import Data.Maybe
+import qualified Data.Vector as V
 import qualified Language.Souffle.TH as Souffle
 import qualified Language.Souffle as Souffle
 
 Souffle.embedProgram "tests/fixtures/path.cpp"
+
+asList :: Souffle.RetrievalMode []
+asList = Souffle.AsList
+
+asVector :: Souffle.RetrievalMode V.Vector
+asVector = Souffle.AsVector
 
 data Path = Path
 
@@ -58,16 +65,26 @@ spec = describe "Souffle API" $ parallel $ do
       (edges, reachables) <- Souffle.runSouffle $ do
         prog <- fromJust <$> Souffle.init Path
         Souffle.run prog
-        es <- Souffle.getFacts prog
-        rs <- Souffle.getFacts prog
+        es <- Souffle.getFacts asList prog
+        rs <- Souffle.getFacts asList prog
         pure (es , rs)
       edges `shouldBe` [Edge "b" "c", Edge "a" "b"]
       reachables `shouldBe` [Reachable "b" "c", Reachable "a" "c", Reachable "a" "b"]
 
+    it "can retrieve facts as a vector" $ do
+      (edges, reachables) <- Souffle.runSouffle $ do
+        prog <- fromJust <$> Souffle.init Path
+        Souffle.run prog
+        es <- Souffle.getFacts asVector prog
+        rs <- Souffle.getFacts asVector prog
+        pure (es , rs)
+      edges `shouldBe` V.fromList [Edge "a" "b", Edge "b" "c"]
+      reachables `shouldBe` V.fromList [Reachable "a" "b", Reachable "a" "c", Reachable "b" "c"]
+
     it "returns no facts if program hasn't run yet" $ do
       edges <- Souffle.runSouffle $ do
         prog <- fromJust <$> Souffle.init Path
-        Souffle.getFacts prog
+        Souffle.getFacts asList prog
       edges `shouldBe` ([] :: [Edge])
 
   describe "addFact" $ parallel $ do
@@ -75,10 +92,10 @@ spec = describe "Souffle API" $ parallel $ do
       (edgesBefore, edgesAfter) <- Souffle.runSouffle $ do
         prog <- fromJust <$> Souffle.init Path
         Souffle.run prog
-        es1 <- Souffle.getFacts prog
+        es1 <- Souffle.getFacts asList prog
         Souffle.addFact prog $ Edge "e" "f"
         Souffle.run prog
-        es2 <- Souffle.getFacts prog
+        es2 <- Souffle.getFacts asList prog
         pure (es1, es2)
       edgesBefore `shouldBe` [Edge "b" "c", Edge "a" "b"]
       edgesAfter `shouldBe` [Edge "e" "f", Edge "b" "c", Edge "a" "b"]
@@ -89,7 +106,7 @@ spec = describe "Souffle API" $ parallel $ do
         prog <- fromJust <$> Souffle.init Path
         Souffle.addFact prog $ Reachable "e" "f"
         Souffle.run prog
-        Souffle.getFacts prog
+        Souffle.getFacts asList prog
       reachables `shouldBe` [ Reachable "e" "f", Reachable "b" "c"
                             , Reachable "a" "c", Reachable "a" "b" ]
 
@@ -98,10 +115,10 @@ spec = describe "Souffle API" $ parallel $ do
       (edgesBefore, edgesAfter) <- Souffle.runSouffle $ do
         prog <- fromJust <$> Souffle.init Path
         Souffle.run prog
-        es1 <- Souffle.getFacts prog
+        es1 <- Souffle.getFacts asList prog
         Souffle.addFacts prog [Edge "e" "f", Edge "f" "g"]
         Souffle.run prog
-        es2 <- Souffle.getFacts prog
+        es2 <- Souffle.getFacts asList prog
         pure (es1, es2)
       edgesBefore `shouldBe` [Edge "b" "c", Edge "a" "b"]
       edgesAfter `shouldBe` [Edge "f" "g", Edge "e" "f", Edge "b" "c", Edge "a" "b"]
@@ -112,17 +129,17 @@ spec = describe "Souffle API" $ parallel $ do
         prog <- fromJust <$> Souffle.init Path
         Souffle.run prog
         Souffle.run prog
-        Souffle.getFacts prog
+        Souffle.getFacts asList prog
       edges `shouldBe` [Edge "b" "c", Edge "a" "b"]
 
     it "discovers new facts after running with new facts" $ do
       (reachablesBefore, reachablesAfter) <- Souffle.runSouffle $ do
         prog <- fromJust <$> Souffle.init Path
         Souffle.run prog
-        rs1 <- Souffle.getFacts prog
+        rs1 <- Souffle.getFacts asList prog
         Souffle.addFacts prog [Edge "e" "f", Edge "f" "g"]
         Souffle.run prog
-        rs2 <- Souffle.getFacts prog
+        rs2 <- Souffle.getFacts asList prog
         pure (rs1, rs2)
       reachablesBefore `shouldBe` [Reachable "b" "c", Reachable "a" "c", Reachable "a" "b"]
       reachablesAfter `shouldBe` [ Reachable "f" "g", Reachable "e" "g", Reachable "e" "f"

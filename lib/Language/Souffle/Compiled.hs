@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# LANGUAGE TypeFamilies, TypeOperators, DerivingVia, InstanceSigs, BangPatterns #-}
+{-# LANGUAGE DataKinds, FlexibleContexts #-}
 
 -- | This module provides the top level API of this library.
 --   It makes use of Haskell's powerful typesystem to make certain invalid states
@@ -14,6 +15,7 @@ module Language.Souffle.Compiled
   , Marshal(..)
   , Handle
   , ContainsFact
+  , RetrievalMode(..)
   , MonadSouffle(..)
   , SouffleM
   , runSouffle
@@ -26,6 +28,8 @@ import Control.Monad.RWS.Strict
 import Control.Monad.Reader
 import Data.Foldable ( traverse_ )
 import Data.Proxy
+import qualified Data.Vector as V
+import qualified Data.Vector.Mutable as MV
 import Foreign.ForeignPtr
 import Foreign.Ptr
 import Language.Souffle.Class
@@ -82,21 +86,10 @@ marshalAlgM (PushStr str v) = MarshalT $ do
   pure v
 {-# INLINABLE marshalAlgM #-}
 
-collectFacts
-  :: Marshal a
-  => Int
-  -> ForeignPtr Internal.RelationIterator
-  -> IO [a]
-collectFacts factCount = go 0 factCount []
-  where
-    go idx count acc _ | idx == count = pure acc
-    go idx count !acc !it = do
-      tuple <- Internal.relationIteratorNext it
-      result <- runMarshalT pop tuple
-      go (idx + 1) count (result : acc) it
 
 instance MonadSouffle SouffleM where
   type Handler SouffleM = Handle
+
   init :: forall prog. Program prog
        => prog -> SouffleM (Maybe (Handle prog))
   init _ =
@@ -131,13 +124,35 @@ instance MonadSouffle SouffleM where
     traverse_ (addFact' relation) facts
   {-# INLINABLE addFacts #-}
 
-  getFacts :: forall a prog . (Fact a, ContainsFact prog a)
-           => Handle prog -> SouffleM [a]
-  getFacts (Handle prog) = SouffleM $ do
+  getFacts :: forall a c prog. (Fact a, ContainsFact prog a)
+           => RetrievalMode c -> Handle prog -> SouffleM (c a)
+  getFacts tag (Handle prog) = SouffleM $ do
     let relationName = factName (Proxy :: Proxy a)
     relation <- Internal.getRelation prog relationName
     factCount <- Internal.countFacts relation
-    Internal.getRelationIterator relation >>= collectFacts factCount
+    Internal.getRelationIterator relation >>= collectFacts tag factCount
+    where
+      collectFacts :: forall c'. RetrievalMode c'
+                   -> Int
+                   -> ForeignPtr Internal.RelationIterator
+                   -> IO (c' a)
+      collectFacts AsList factCount iterator = go 0 factCount [] iterator
+        where
+          go idx count acc _ | idx == count = pure acc
+          go idx count !acc !it = do
+            tuple <- Internal.relationIteratorNext it
+            result <- runMarshalT pop tuple
+            go (idx + 1) count (result : acc) it
+      collectFacts AsVector factCount iterator = do
+        vec <- MV.unsafeNew factCount
+        go vec 0 factCount iterator
+        where
+          go vec idx count _ | idx == count = V.unsafeFreeze vec
+          go vec idx count it = do
+            tuple <- Internal.relationIteratorNext it
+            result <- runMarshalT pop tuple
+            MV.unsafeWrite vec idx result
+            go vec (idx + 1) count it
   {-# INLINABLE getFacts #-}
 
   findFact :: forall a prog. (Fact a, ContainsFact prog a)

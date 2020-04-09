@@ -1,12 +1,13 @@
 
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# LANGUAGE TypeFamilies, DerivingVia, InstanceSigs #-}
+{-# LANGUAGE DataKinds, FlexibleContexts, TypeFamilies, DerivingVia, InstanceSigs #-}
 module Language.Souffle.Interpreted
   ( Program(..)
   , Fact(..)
   , Marshal(..)
   , Handle
   , ContainsFact
+  , RetrievalMode(..)
   , MonadSouffle(..)
   , SouffleM
   , runSouffle
@@ -22,6 +23,7 @@ import Data.Foldable (traverse_)
 import Data.List hiding (init)
 import Data.Maybe (fromMaybe)
 import Data.Proxy
+import qualified Data.Vector as V
 import Data.Word
 import Language.Souffle.Class
 import Language.Souffle.Marshal
@@ -110,22 +112,28 @@ instance MonadSouffle SouffleM where
 
   -- | Returns all facts of a program. This function makes use of type inference
   --   to select the type of fact to return.
-  getFacts :: forall a prog. (Marshal a, Fact a, ContainsFact prog a)
-           => Handle prog -> SouffleM [a]
-  getFacts (Handle ref) = liftIO $ do
+  getFacts :: forall a c prog. (Marshal a, Fact a, ContainsFact prog a)
+           => RetrievalMode c -> Handle prog -> SouffleM (c a)
+  getFacts tag (Handle ref) = liftIO $ do
     handle <- readIORef ref
     let relationName = factName (Proxy :: Proxy a)
     let factFile = outputPath handle </> relationName <.> "csv"
-    factLines <- readCSVFile factFile
-    let facts = map (runMarshallIT pop) factLines
+    facts <- collectFacts tag factFile
     pure $! facts  -- force facts before running to avoid issues with lazy IO
+    where
+      collectFacts :: forall c'. RetrievalMode c' -> FilePath -> IO (c' a)
+      collectFacts AsVector factFile = V.fromList <$!> collectFacts AsList factFile
+      collectFacts AsList factFile = do
+        factLines <- readCSVFile factFile
+        let facts = map (runMarshallIT pop) factLines
+        pure $! facts
 
   -- | Searches for a fact in a program.
   --   Returns 'Nothing' if no matching fact was found; otherwise 'Just' the fact.
   --
-  --   Conceptually equivalent to @List.find (== fact) \<$\> getFacts prog@, but this operation
+  --   Conceptually equivalent to @List.find (== fact) \<$\> getFacts AsList prog@, but this operation
   --   can be implemented much faster.
-  findFact prog fact = find (== fact) <$> getFacts prog
+  findFact prog fact = find (== fact) <$> getFacts AsList prog
 
   -- | Adds a fact to the program.
   addFact :: forall a prog. (Fact a, ContainsFact prog a, Marshal a)
