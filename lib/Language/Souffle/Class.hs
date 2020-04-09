@@ -4,7 +4,6 @@ module Language.Souffle.Class
   ( ContainsFact
   , Program(..)
   , Fact(..)
-  , RetrievalMode(..)
   , MonadSouffle(..)
   , MonadSouffleFileIO(..)
   ) where
@@ -18,7 +17,6 @@ import Control.Monad.State
 import Control.Monad.Writer
 import Data.Proxy
 import Data.Kind
-import qualified Data.Vector as V
 import Data.Word
 import qualified Language.Souffle.Marshal as Marshal
 import Type.Errors.Pretty
@@ -77,14 +75,11 @@ class Marshal.Marshal a => Fact a where
   -- @
   factName :: Proxy a -> String
 
-data RetrievalMode (c :: Type -> Type) where
-  AsList :: RetrievalMode []
-  AsVector :: RetrievalMode V.Vector
-
 
 -- | A mtl-style typeclass for Souffle-related actions.
 class Monad m => MonadSouffle m where
   type Handler m :: Type -> Type
+  type CollectFacts m (c :: Type -> Type) :: Constraint
 
   {- | Initializes a Souffle program.
 
@@ -105,8 +100,8 @@ class Monad m => MonadSouffle m where
 
   -- | Returns all facts of a program. This function makes use of type inference
   --   to select the type of fact to return.
-  getFacts :: (Fact a, ContainsFact prog a)
-           => RetrievalMode c -> Handler m prog -> m (c a)
+  getFacts :: (Fact a, ContainsFact prog a, CollectFacts m c)
+           => Handler m prog -> m (c a)
 
   -- | Searches for a fact in a program.
   --   Returns 'Nothing' if no matching fact was found; otherwise 'Just' the fact.
@@ -127,6 +122,8 @@ class Monad m => MonadSouffle m where
 
 instance MonadSouffle m => MonadSouffle (ReaderT r m) where
   type Handler (ReaderT r m) = Handler m
+  type CollectFacts (ReaderT r m) c = CollectFacts m c
+
   init = lift . init
   {-# INLINABLE init #-}
   run = lift . run
@@ -135,7 +132,7 @@ instance MonadSouffle m => MonadSouffle (ReaderT r m) where
   {-# INLINABLE setNumThreads #-}
   getNumThreads = lift . getNumThreads
   {-# INLINABLE getNumThreads #-}
-  getFacts tag = lift . getFacts tag
+  getFacts = lift . getFacts
   {-# INLINABLE getFacts #-}
   findFact prog = lift . findFact prog
   {-# INLINABLE findFact #-}
@@ -146,6 +143,8 @@ instance MonadSouffle m => MonadSouffle (ReaderT r m) where
 
 instance (Monoid w, MonadSouffle m) => MonadSouffle (WriterT w m) where
   type Handler (WriterT w m) = Handler m
+  type CollectFacts (WriterT w m) c = CollectFacts m c
+
   init = lift . init
   {-# INLINABLE init #-}
   run = lift . run
@@ -154,7 +153,7 @@ instance (Monoid w, MonadSouffle m) => MonadSouffle (WriterT w m) where
   {-# INLINABLE setNumThreads #-}
   getNumThreads = lift . getNumThreads
   {-# INLINABLE getNumThreads #-}
-  getFacts tag = lift . getFacts tag
+  getFacts = lift . getFacts
   {-# INLINABLE getFacts #-}
   findFact prog = lift . findFact prog
   {-# INLINABLE findFact #-}
@@ -165,6 +164,8 @@ instance (Monoid w, MonadSouffle m) => MonadSouffle (WriterT w m) where
 
 instance MonadSouffle m => MonadSouffle (StateT s m) where
   type Handler (StateT s m) = Handler m
+  type CollectFacts (StateT s m) c = CollectFacts m c
+
   init = lift . init
   {-# INLINABLE init #-}
   run = lift . run
@@ -173,7 +174,7 @@ instance MonadSouffle m => MonadSouffle (StateT s m) where
   {-# INLINABLE setNumThreads #-}
   getNumThreads = lift . getNumThreads
   {-# INLINABLE getNumThreads #-}
-  getFacts tag = lift . getFacts tag
+  getFacts = lift . getFacts
   {-# INLINABLE getFacts #-}
   findFact prog = lift . findFact prog
   {-# INLINABLE findFact #-}
@@ -184,6 +185,8 @@ instance MonadSouffle m => MonadSouffle (StateT s m) where
 
 instance (MonadSouffle m, Monoid w) => MonadSouffle (RWST r w s m) where
   type Handler (RWST r w s m) = Handler m
+  type CollectFacts (RWST r w s m) c = CollectFacts m c
+
   init = lift . init
   {-# INLINABLE init #-}
   run = lift . run
@@ -192,7 +195,7 @@ instance (MonadSouffle m, Monoid w) => MonadSouffle (RWST r w s m) where
   {-# INLINABLE setNumThreads #-}
   getNumThreads = lift . getNumThreads
   {-# INLINABLE getNumThreads #-}
-  getFacts tag = lift . getFacts tag
+  getFacts = lift . getFacts
   {-# INLINABLE getFacts #-}
   findFact prog = lift . findFact prog
   {-# INLINABLE findFact #-}
@@ -203,6 +206,8 @@ instance (MonadSouffle m, Monoid w) => MonadSouffle (RWST r w s m) where
 
 instance MonadSouffle m => MonadSouffle (ExceptT e m) where
   type Handler (ExceptT e m) = Handler m
+  type CollectFacts (ExceptT e m) c = CollectFacts m c
+
   init = lift . init
   {-# INLINABLE init #-}
   run = lift . run
@@ -211,7 +216,7 @@ instance MonadSouffle m => MonadSouffle (ExceptT e m) where
   {-# INLINABLE setNumThreads #-}
   getNumThreads = lift . getNumThreads
   {-# INLINABLE getNumThreads #-}
-  getFacts tag = lift . getFacts tag
+  getFacts = lift . getFacts
   {-# INLINABLE getFacts #-}
   findFact prog = lift . findFact prog
   {-# INLINABLE findFact #-}
@@ -259,4 +264,3 @@ instance MonadSouffleFileIO m => MonadSouffleFileIO (ExceptT s m) where
   {-# INLINABLE loadFiles #-}
   writeFiles = lift . writeFiles
   {-# INLINABLE writeFiles #-}
-
