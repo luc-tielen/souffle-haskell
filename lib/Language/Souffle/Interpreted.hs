@@ -89,7 +89,8 @@ instance MonadSouffle SouffleM where
 
   {- | Looks for a souffle interpreter.
 
-     The action will return 'Nothing' if it failed to load the Souffle program.
+     The action will return 'Nothing' if it failed to find the Souffle interpreter and
+     load the Souffle program.
      Otherwise it will return a 'Handle' that can be used in other functions
      in this module.
   -}
