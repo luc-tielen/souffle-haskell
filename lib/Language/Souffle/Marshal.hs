@@ -37,6 +37,7 @@ type MarshalM = Free
 
 interpret :: Monad m => (forall x. f x -> m x) -> Free f a -> m a
 interpret = foldFree
+{-# INLINABLE interpret #-}
 
 {- | A typeclass for providing a uniform API to marshal/unmarshal values
      between Haskell and Souffle datalog.

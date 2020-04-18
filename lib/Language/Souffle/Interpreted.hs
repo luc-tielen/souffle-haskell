@@ -57,6 +57,42 @@ data HandleData = HandleData
 
 newtype Handle prog = Handle (IORef HandleData)
 
+newtype IMarshal a = IMarshal (State [String] a)
+  deriving
+    ( Functor
+    , Applicative
+    , Monad
+    , MonadState [String]
+    )
+  via (State [String])
+
+popMarshalT :: MarshalM PopF a -> [String] -> a
+popMarshalT = runM . interpret popAlgM where
+  runM (IMarshal m) = evalState m
+  popAlgM (PopStr f) = do
+    str <- state (\case
+              [] -> error "Empty fact stack"
+              (h:t) -> (h, t))
+    pure $ f str
+  popAlgM (PopInt f) = do
+    int <- state (\case
+              [] -> error "Empty fact stack"
+              (h:t) -> (read h, t))
+    pure $ f int
+{-# INLINABLE popMarshalT #-}
+
+pushMarshalT :: MarshalM PushF a -> [String]
+pushMarshalT = runM . interpret marshalAlgM where
+  runM (IMarshal m) = reverse $ execState m []
+  marshalAlgM (PushInt i v) = do
+    modify (show i:)
+    pure v
+  marshalAlgM (PushStr s v) = do
+    modify (s:)
+    pure v
+{-# INLINABLE pushMarshalT #-}
+
+
 class Collect c where
   collect :: Marshal a => FilePath -> IO (c a)
 
@@ -102,6 +138,7 @@ instance MonadSouffle SouffleM where
         , datalogExec = datalogExecutable
         , noOfThreads = 1
         }
+  {-# INLINABLE init #-}
 
   -- | Runs the Souffle program.
   run (Handle ref) = liftIO $ do
@@ -115,14 +152,17 @@ instance MonadSouffle SouffleM where
         (outputPath handle)
         (noOfThreads handle)
         (datalogExec handle)
+  {-# INLINABLE run #-}
 
   -- | Sets the number of CPU cores this Souffle program should use.
   setNumThreads (Handle ref) n = liftIO $
     modifyIORef' ref (\h -> h { noOfThreads = n })
+  {-# INLINABLE setNumThreads #-}
 
   -- | Gets the number of CPU cores this Souffle program should use.
   getNumThreads (Handle ref) = liftIO $
     noOfThreads <$> readIORef ref
+  {-# INLINABLE getNumThreads #-}
 
   -- | Returns all facts of a program. This function makes use of type inference
   --   to select the type of fact to return.
@@ -134,6 +174,7 @@ instance MonadSouffle SouffleM where
     let factFile = outputPath handle </> relationName <.> "csv"
     facts <- collect factFile
     pure $! facts  -- force facts before running to avoid issues with lazy IO
+  {-# INLINABLE getFacts #-}
 
   -- | Searches for a fact in a program.
   --   Returns 'Nothing' if no matching fact was found; otherwise 'Just' the fact.
@@ -145,6 +186,7 @@ instance MonadSouffle SouffleM where
   findFact prog fact = do
     facts :: [a] <- getFacts prog
     pure $ find (== fact) facts
+  {-# INLINABLE findFact #-}
 
   -- | Adds a fact to the program.
   addFact :: forall a prog. (Fact a, ContainsFact prog a, Marshal a)
@@ -155,6 +197,7 @@ instance MonadSouffle SouffleM where
     let factFile = factPath handle </> relationName <.> "facts"
     let line = pushMarshalT (push fact)
     appendFile factFile $ intercalate "\t" line ++ "\n"
+  {-# INLINABLE addFact #-}
 
   -- | Adds multiple facts to the program. This function could be implemented
   --   in terms of 'addFact', but this is done as a minor optimization.
@@ -166,6 +209,7 @@ instance MonadSouffle SouffleM where
     let factFile = factPath handle </> relationName <.> "facts"
     let factLines = map (pushMarshalT . push) (foldMap pure facts)
     traverse_ (\line -> appendFile factFile (intercalate "\t" line ++ "\n")) factLines
+  {-# INLINABLE addFacts #-}
 
 datalogProgramFile :: forall prog. Program prog => prog -> IO (Maybe FilePath)
 datalogProgramFile _ = do
@@ -174,6 +218,7 @@ datalogProgramFile _ = do
   doesFileExist dlFile >>= \case
     False -> pure Nothing
     True -> pure $ Just dlFile
+{-# INLINABLE datalogProgramFile #-}
 
 readCSVFile :: FilePath -> IO [[String]]
 readCSVFile path = doesFileExist path >>= \case
@@ -182,49 +227,18 @@ readCSVFile path = doesFileExist path >>= \case
     contents <- readFile path
     -- deepseq needed to avoid issues with lazy IO
     pure $ contents `deepseq` (map (splitOn '\t') . lines) contents
+{-# INLINABLE readCSVFile #-}
 
 cleanup :: forall prog. Program prog => Handle prog -> SouffleM ()
 cleanup (Handle ref) = liftIO $ do
   handle <- readIORef ref
   traverse_ removeDirectoryRecursive [factPath handle, outputPath handle, basePath handle]
-
-
-newtype IMarshal a = IMarshal (State [String] a)
-  deriving
-    ( Functor
-    , Applicative
-    , Monad
-    , MonadState [String]
-    )
-  via (State [String])
-
-popMarshalT :: MarshalM PopF a -> [String] -> a
-popMarshalT = runM . interpret popAlgM where
-  runM (IMarshal m) = evalState m
-  popAlgM (PopStr f) = do
-    str <- state (\case
-              [] -> error "Empty fact stack"
-              (h:t) -> (h, t))
-    pure $ f str
-  popAlgM (PopInt f) = do
-    int <- state (\case
-              [] -> error "Empty fact stack"
-              (h:t) -> (read h, t))
-    pure $ f int
-
-pushMarshalT :: MarshalM PushF a -> [String]
-pushMarshalT = runM . interpret marshalAlgM where
-  runM (IMarshal m) = reverse $ execState m []
-  marshalAlgM (PushInt i v) = do
-    modify (show i:)
-    pure v
-  marshalAlgM (PushStr s v) = do
-    modify (s:)
-    pure v
+{-# INLINABLE cleanup #-}
 
 splitOn :: Char -> String -> [String]
 splitOn c s =
   let (x, rest) = break (== c) s
       rest' = drop 1 rest
    in x : splitOn c rest'
+{-# INLINABLE splitOn #-}
 
