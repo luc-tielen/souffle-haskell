@@ -28,7 +28,9 @@ import Language.Souffle.Class
 import Language.Souffle.Marshal
 import System.Directory
 import System.Environment
+import System.Exit
 import System.FilePath
+import System.IO (hGetContents)
 import System.IO.Temp
 import System.Process
 import Text.Printf
@@ -91,17 +93,17 @@ instance MonadSouffle SouffleM where
       let outDir  = souffleTempDir </> "out"
       createDirectoryIfMissing True factDir
       createDirectoryIfMissing True outDir
-      -- TODO: Use system commands to locate the interpreter
-      -- TODO: souffle not found => Nothing
-      souffleBin <- fromMaybe "souffle" <$> lookupEnv "SOUFFLE_BIN"
-      fmap (Just . Handle) $ newIORef $ HandleData
-        { soufflePath = souffleBin
-        , basePath    = souffleTempDir
-        , factPath    = factDir
-        , outputPath  = outDir
-        , datalogExec = datalogExecutable
-        , noOfThreads = 1
-        }
+      mSouffleBin <- mplus <$> lookupEnv "SOUFFLE_BIN"
+                           <*> locateSouffle
+      forM mSouffleBin $ \souffleBin -> do
+        fmap Handle $ newIORef $ HandleData
+          { soufflePath = souffleBin
+          , basePath    = souffleTempDir
+          , factPath    = factDir
+          , outputPath  = outDir
+          , datalogExec = datalogExecutable
+          , noOfThreads = 1
+          }
 
   -- | Runs the Souffle program.
   run (Handle ref) = liftIO $ do
@@ -188,6 +190,18 @@ cleanup (Handle ref) = liftIO $ do
   handle <- readIORef ref
   traverse_ removeDirectoryRecursive [factPath handle, outputPath handle, basePath handle]
 
+locateSouffle :: IO (Maybe FilePath)
+locateSouffle = do
+  let locateCmd = (shell "whereis souffle")
+                    { std_out = CreatePipe
+                    }
+  (_, Just hout, _, locateCmdHandle) <- createProcess locateCmd
+  waitForProcess locateCmdHandle >>= \case
+    ExitFailure _ -> pure Nothing
+    ExitSuccess   -> do
+      fmap words (hGetContents hout) >>= \case
+        (_souffle : souffleBin : _) -> pure (souffleBin `deepseq` Just souffleBin)
+        _                           -> pure Nothing
 
 newtype IMarshal a = IMarshal (State [String] a)
   deriving
