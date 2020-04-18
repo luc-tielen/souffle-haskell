@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# LANGUAGE DerivingVia, TypeFamilies, FlexibleInstances, FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances, FlexibleContexts, DeriveFunctor #-}
 {-# LANGUAGE DefaultSignatures, TypeOperators, RankNTypes #-}
 
 -- | This module exposes a uniform interface to marshal values
@@ -9,7 +9,8 @@
 --   and unmarshalling code for simple product types.
 module Language.Souffle.Marshal
   ( Marshal(..)
-  , MarshalF(..)
+  , PushF(..)
+  , PopF(..)
   , MarshalM
   , interpret
   ) where
@@ -22,23 +23,19 @@ import qualified Data.Text.Lazy as TL
 import qualified Language.Souffle.Internal.Constraints as C
 
 
+data PopF a
+  = PopInt (Int32 -> a)
+  | PopStr (String -> a)
+  deriving Functor
 
-data MarshalF a
-  = PopInt  (Int32  -> a)
-  | PopStr  (String -> a)
-  | PushInt Int32  a
+data PushF a
+  = PushInt Int32 a
   | PushStr String a
+  deriving Functor
 
-instance Functor MarshalF where
-  fmap f m = case m of
-    PopInt g -> PopInt (f . g)
-    PopStr g -> PopStr (f . g)
-    PushInt i x -> PushInt i (f x)
-    PushStr s x -> PushStr s (f x)
+type MarshalM = Free
 
-type MarshalM a = Free MarshalF a
-
-interpret :: Monad m => (forall x . MarshalF x -> m x) -> MarshalM a -> m a
+interpret :: Monad m => (forall x. f x -> m x) -> Free f a -> m a
 interpret = foldFree
 
 {- | A typeclass for providing a uniform API to marshal/unmarshal values
@@ -62,14 +59,14 @@ instance Marshal Edge
 -}
 class Marshal a where
   -- | Marshals a value to the datalog side.
-  push :: a -> MarshalM ()
+  push :: a -> MarshalM PushF ()
   -- | Unmarshals a value from the datalog side.
-  pop :: MarshalM a
+  pop :: MarshalM PopF a
 
   default push :: (Generic a, C.SimpleProduct a (Rep a), GMarshal (Rep a))
-               => a -> MarshalM ()
+               => a -> MarshalM PushF ()
   default pop :: (Generic a, C.SimpleProduct a (Rep a), GMarshal (Rep a))
-              => MarshalM a
+              => MarshalM PopF a
   push a = gpush (from a)
   {-# INLINABLE push #-}
   pop = to <$> gpop
@@ -100,8 +97,8 @@ instance Marshal TL.Text where
   {-# INLINABLE pop #-}
 
 class GMarshal f where
-  gpush :: f a -> MarshalM ()
-  gpop  :: MarshalM (f a)
+  gpush :: f a -> MarshalM PushF ()
+  gpop  :: MarshalM PopF (f a)
 
 instance Marshal a => GMarshal (K1 i a) where
   gpush (K1 x) = push x

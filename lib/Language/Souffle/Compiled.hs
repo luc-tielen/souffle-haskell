@@ -58,32 +58,37 @@ newtype MarshalT m a = MarshalT (ReaderT Tuple m a)
   via ( ReaderT Tuple m )
   deriving MonadTrans via (ReaderT Tuple)
 
+runM :: Monad m => MarshalT m a -> Tuple -> m a
+runM (MarshalT m) = runReaderT m
+{-# INLINABLE runM #-}
+
 -- | Execute the monad transformer and return the result.
 --   The tuple that is passed in will be used to marshal the data back and forth.
-runMarshalT :: MonadIO m => MarshalM a -> Tuple -> m a
-runMarshalT = calc . interpret marshalAlgM
-  where
-    calc (MarshalT m) = runReaderT m
-{-# INLINABLE runMarshalT #-}
+runPushT :: MonadIO m => MarshalM PushF a -> Tuple -> m a
+runPushT = runM . interpret pushAlgM where
+  pushAlgM (PushInt int v) = do
+    tuple <- ask
+    liftIO $ Internal.tuplePushInt tuple int
+    pure v
+  pushAlgM (PushStr str v) = do
+    tuple <- ask
+    liftIO $ Internal.tuplePushString tuple str
+    pure v
+{-# INLINABLE runPushT #-}
 
-marshalAlgM :: MonadIO m => MarshalF a -> MarshalT m a
-marshalAlgM (PopStr f) = MarshalT $ do
-  tuple <- ask
-  str   <- liftIO $ Internal.tuplePopString tuple
-  pure $ f str
-marshalAlgM (PopInt f) = MarshalT $ do
-  tuple <- ask
-  int   <- liftIO $ Internal.tuplePopInt tuple
-  pure $ f int
-marshalAlgM (PushInt int v) = MarshalT $ do
-  tuple <- ask
-  liftIO $ Internal.tuplePushInt tuple int
-  pure v
-marshalAlgM (PushStr str v) = MarshalT $ do
-  tuple <- ask
-  liftIO $ Internal.tuplePushString tuple str
-  pure v
-{-# INLINABLE marshalAlgM #-}
+-- | Execute the monad transformer and return the result.
+--   The tuple that is passed in will be used to marshal the data back and forth.
+runPopT :: MonadIO m => MarshalM PopF a -> Tuple -> m a
+runPopT = runM . interpret popAlgM where
+  popAlgM (PopStr f) = MarshalT $ do
+    tuple <- ask
+    str   <- liftIO $ Internal.tuplePopString tuple
+    pure $ f str
+  popAlgM (PopInt f) = MarshalT $ do
+    tuple <- ask
+    int   <- liftIO $ Internal.tuplePopInt tuple
+    pure $ f int
+{-# INLINABLE runPopT #-}
 
 class Collect c where
   collect :: Marshal a => Int -> ForeignPtr Internal.RelationIterator -> IO (c a)
@@ -94,7 +99,7 @@ instance Collect [] where
       go idx count acc _ | idx == count = pure acc
       go idx count !acc !it = do
         tuple <- Internal.relationIteratorNext it
-        result <- runMarshalT pop tuple
+        result <- runPopT pop tuple
         go (idx + 1) count (result : acc) it
   {-# INLINABLE collect #-}
 
@@ -106,7 +111,7 @@ instance Collect V.Vector where
       go vec idx count _ | idx == count = V.unsafeFreeze vec
       go vec idx count it = do
         tuple <- Internal.relationIteratorNext it
-        result <- runMarshalT pop tuple
+        result <- runPopT pop tuple
         MV.unsafeWrite vec idx result
         go vec (idx + 1) count it
   {-# INLINABLE collect #-}
@@ -164,7 +169,7 @@ instance MonadSouffle SouffleM where
     let relationName = factName (Proxy :: Proxy a)
     relation <- Internal.getRelation prog relationName
     tuple <- Internal.allocTuple relation
-    withForeignPtr tuple $ runMarshalT (push a)
+    withForeignPtr tuple $ runPushT (push a)
     found <- Internal.containsTuple relation tuple
     pure $ if found then Just a else Nothing
   {-# INLINABLE findFact #-}
@@ -172,7 +177,7 @@ instance MonadSouffle SouffleM where
 addFact' :: Fact a => Ptr Internal.Relation -> a -> IO ()
 addFact' relation fact = do
   tuple <- Internal.allocTuple relation
-  withForeignPtr tuple $ runMarshalT (push fact)
+  withForeignPtr tuple $ runPushT (push fact)
   Internal.addTuple relation tuple
 {-# INLINABLE addFact' #-}
 

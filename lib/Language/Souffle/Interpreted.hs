@@ -63,7 +63,7 @@ class Collect c where
 instance Collect [] where
   collect factFile = do
     factLines <- readCSVFile factFile
-    let facts = map (runMarshallIT pop) factLines
+    let facts = map (popMarshalT pop) factLines
     pure $! facts
   {-# INLINABLE collect #-}
 
@@ -153,7 +153,7 @@ instance MonadSouffle SouffleM where
     handle <- readIORef ref
     let relationName = factName (Proxy :: Proxy a)
     let factFile = factPath handle </> relationName <.> "facts"
-    let line = pushMarshallIT (push fact)
+    let line = pushMarshalT (push fact)
     appendFile factFile $ intercalate "\t" line ++ "\n"
 
   -- | Adds multiple facts to the program. This function could be implemented
@@ -164,7 +164,7 @@ instance MonadSouffle SouffleM where
     handle <- readIORef ref
     let relationName = factName (Proxy :: Proxy a)
     let factFile = factPath handle </> relationName <.> "facts"
-    let factLines = map (pushMarshallIT . push) (foldMap pure facts)
+    let factLines = map (pushMarshalT . push) (foldMap pure facts)
     traverse_ (\line -> appendFile factFile (intercalate "\t" line ++ "\n")) factLines
 
 datalogProgramFile :: forall prog. Program prog => prog -> IO (Maybe FilePath)
@@ -194,37 +194,33 @@ newtype IMarshal a = IMarshal (State [String] a)
     ( Functor
     , Applicative
     , Monad
-    ) via (State [String])
+    , MonadState [String]
+    )
+  via (State [String])
 
-marshalAlgM :: MarshalF a -> IMarshal a
-marshalAlgM (PopStr f) = IMarshal $ do
-  str <- state (\case
-            [] -> error "Empty fact stack"
-            (h:t) -> (h, t))
-  pure $ f str
-marshalAlgM (PopInt f) = IMarshal $ do
-  int <- state (\case
-            [] -> error "Empty fact stack"
-            (h:t) -> (read h, t))
-  pure $ f int
-marshalAlgM (PushInt i v) = IMarshal $ do
-  modify (show i:)
-  pure v
-marshalAlgM (PushStr s v) = IMarshal $ do
-  modify (s:)
-  pure v
+popMarshalT :: MarshalM PopF a -> [String] -> a
+popMarshalT = runM . interpret popAlgM where
+  runM (IMarshal m) = evalState m
+  popAlgM (PopStr f) = do
+    str <- state (\case
+              [] -> error "Empty fact stack"
+              (h:t) -> (h, t))
+    pure $ f str
+  popAlgM (PopInt f) = do
+    int <- state (\case
+              [] -> error "Empty fact stack"
+              (h:t) -> (read h, t))
+    pure $ f int
 
-runMarshallIT :: MarshalM a -> [String] -> a
-runMarshallIT = calc . interpret marshalAlgM
-  where
-    calc :: IMarshal a -> [String] -> a
-    calc (IMarshal m) = evalState m
-
-pushMarshallIT :: MarshalM a -> [String]
-pushMarshallIT = calc . interpret marshalAlgM
-  where
-    calc :: IMarshal a -> [String]
-    calc (IMarshal m) = reverse $ execState m []
+pushMarshalT :: MarshalM PushF a -> [String]
+pushMarshalT = runM . interpret marshalAlgM where
+  runM (IMarshal m) = reverse $ execState m []
+  marshalAlgM (PushInt i v) = do
+    modify (show i:)
+    pure v
+  marshalAlgM (PushStr s v) = do
+    modify (s:)
+    pure v
 
 splitOn :: Char -> String -> [String]
 splitOn c s =

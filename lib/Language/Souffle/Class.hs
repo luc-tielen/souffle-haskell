@@ -1,5 +1,5 @@
 {-# LANGUAGE DataKinds, UndecidableInstances, FlexibleContexts #-}
-{-# LANGUAGE GADTs, TypeFamilies, TypeOperators #-}
+{-# LANGUAGE TypeFamilies, TypeOperators #-}
 module Language.Souffle.Class
   ( ContainsFact
   , Program(..)
