@@ -55,7 +55,7 @@ newtype SouffleM a
 runSouffle :: SouffleM a -> IO a
 runSouffle (SouffleM m) = runReaderT m Nothing
 
--- | Run a souffle interpreter that will look up the datalog program
+-- | Run a souffle interpreter that will look up datalog programs
 --   in the given directory.
 runSouffleWith :: FilePath -> SouffleM a -> IO a
 runSouffleWith datalogProgramPath (SouffleM m) = runReaderT m (Just datalogProgramPath)
@@ -245,16 +245,14 @@ datalogProgramFile _ =
 
 locateSouffle :: IO (Maybe FilePath)
 locateSouffle = do
-  let locateCmd = (shell "whereis souffle")
-                    { std_out = CreatePipe
-                    }
+  let locateCmd = (shell "which souffle") { std_out = CreatePipe }
   (_, Just hout, _, locateCmdHandle) <- createProcess locateCmd
   waitForProcess locateCmdHandle >>= \case
     ExitFailure _ -> pure Nothing
-    ExitSuccess   ->
-      fmap words (hGetContents hout) >>= \case
-        (_souffle : souffleBin : _) -> pure (souffleBin `deepseq` Just souffleBin)
-        _                           -> pure Nothing
+    ExitSuccess ->
+      words <$> hGetContents hout >>= \case
+        [souffleBin] -> pure $ Just souffleBin
+        _ -> pure Nothing
 {-# INLINABLE locateSouffle #-}
 
 readCSVFile :: FilePath -> IO [[String]]

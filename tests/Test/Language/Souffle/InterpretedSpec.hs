@@ -74,10 +74,11 @@ spec = describe "Souffle API" $ parallel $ do
 
     it "can retrieve facts as a vector" $ do
       (edges, reachables) <- Souffle.runSouffle $ do
-        prog <- fromJust <$> Souffle.init Path
+        prog <- fromJust <$> Souffle.init PathNoInput
         Souffle.run prog
         es <- Souffle.getFacts prog
         rs <- Souffle.getFacts prog
+        Souffle.cleanup prog
         pure (es , rs)
       edges `shouldBe` V.fromList [Edge "a" "b", Edge "b" "c"]
       reachables `shouldBe` V.fromList [Reachable "a" "b", Reachable "a" "c", Reachable "b" "c"]
