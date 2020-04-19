@@ -1,5 +1,18 @@
 {-# LANGUAGE DataKinds, UndecidableInstances, FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies, TypeOperators #-}
+
+-- | This module provides the top level API for Souffle related operations.
+--   It makes use of Haskell's powerful typesystem to make certain invalid states
+--   impossible to represent. It does this with a small type level DSL for
+--   describing properties of the Datalog program (see the 'Program' and 'Fact'
+--   typeclasses for more information).
+--
+--   The Souffle operations are exposed via 2 mtl-style interfaces
+--   (see `MonadSouffle` and `MonadSouffleFileIO`) that allows them to be
+--   integrated with existing monad transformer stacks.
+--
+--   This module also contains some helper type families for additional
+--   type safety and user-friendly error messages.
 module Language.Souffle.Class
   ( ContainsFact
   , Program(..)
@@ -22,6 +35,8 @@ import qualified Language.Souffle.Marshal as Marshal
 import Type.Errors.Pretty
 
 
+-- | A helper type family for checking if a specific Souffle `Program` contains a certain `Fact`.
+--   This will generate a user-friendly type error if this is not the case.
 type family ContainsFact prog fact :: Constraint where
   ContainsFact prog fact =
     CheckContains prog (ProgramFacts prog) fact
@@ -78,13 +93,18 @@ class Marshal.Marshal a => Fact a where
 
 -- | A mtl-style typeclass for Souffle-related actions.
 class Monad m => MonadSouffle m where
+  -- | Represents a handle for interacting with a Souffle program.
+  --   See also `init`, which returns a handle of this type.
   type Handler m :: Type -> Type
+
+  -- | Helper associated type constraint that allows collecting facts from
+  --   Souffle in a list or vector. Only used internally.
   type CollectFacts m (c :: Type -> Type) :: Constraint
 
   {- | Initializes a Souffle program.
 
      The action will return 'Nothing' if it failed to load the Souffle program.
-     Otherwise it will return a 'Handle' that can be used in other functions
+     Otherwise it will return a handle that can be used in other functions
      in this module.
   -}
   init :: Program prog => prog -> m (Maybe (Handler m prog))
@@ -106,8 +126,8 @@ class Monad m => MonadSouffle m where
   -- | Searches for a fact in a program.
   --   Returns 'Nothing' if no matching fact was found; otherwise 'Just' the fact.
   --
-  --   Conceptually equivalent to @List.find (== fact) \<$\> getFacts AsList prog@, but this operation
-  --   can be implemented much faster.
+  --   Conceptually equivalent to @List.find (== fact) \<$\> getFacts prog@,
+  --   but this operation can be implemented much faster.
   findFact :: (Fact a, ContainsFact prog a, Eq a)
            => Handler m prog -> a -> m (Maybe a)
 

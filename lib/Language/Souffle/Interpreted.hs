@@ -1,13 +1,19 @@
-
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# LANGUAGE DataKinds, FlexibleContexts, TypeFamilies, DerivingVia, InstanceSigs #-}
+
+-- | This module provides an implementation for the `MonadSouffle` typeclass
+--   defined in "Language.Souffle.Class".
+--   It makes use of the Souffle interpreter and CSV files to offer an
+--   implementation optimized for quick development speed compared to
+--   "Language.Souffle.Compiled".
+--
+--   It is however __much__ slower so users are advised to switch over to
+--   the compiled alternative once the prototyping phase is finished.
 module Language.Souffle.Interpreted
   ( Program(..)
   , Fact(..)
   , Marshal(..)
   , Handle
-  , ContainsFact
-  , MonadSouffle(..)
   , SouffleM
   , runSouffle
   , cleanup
@@ -34,18 +40,20 @@ import System.Process
 import Text.Printf
 
 
-newtype SouffleM a = SouffleM { runSouffle :: IO a }
-  deriving
-    ( Functor
-    , Applicative
-    , Monad
-    , MonadFail
-    , MonadIO
-    ) via IO
+-- | A monad for executing Souffle-related actions in.
+newtype SouffleM a
+  = SouffleM
+  { runSouffle :: IO a  -- ^ Returns the underlying IO action.
+  } deriving (Functor, Applicative, Monad, MonadIO) via IO
 
+-- | A datatype representing a handle to a datalog program.
+--   The type parameter is used for keeping track of which program
+--   type the handle belongs to for additional type safety.
+newtype Handle prog = Handle (IORef HandleData)
 
--- | The handle for the interpreter is the path where the souffle executable
--- can be found, and a template directory where the program is stored.
+-- | The data needed for the interpreter is the path where the souffle
+--   executable can be found, and a template directory where the program
+--   is stored.
 data HandleData = HandleData
   { soufflePath :: FilePath
   , basePath    :: FilePath
@@ -54,8 +62,6 @@ data HandleData = HandleData
   , datalogExec :: FilePath
   , noOfThreads :: Word64
   }
-
-newtype Handle prog = Handle (IORef HandleData)
 
 newtype IMarshal a = IMarshal (State [String] a)
   deriving
@@ -82,12 +88,12 @@ popMarshalT = runM . interpret popAlgM where
 {-# INLINABLE popMarshalT #-}
 
 pushMarshalT :: MarshalM PushF a -> [String]
-pushMarshalT = runM . interpret marshalAlgM where
+pushMarshalT = runM . interpret pushAlgM where
   runM (IMarshal m) = reverse $ execState m []
-  marshalAlgM (PushInt i v) = do
+  pushAlgM (PushInt i v) = do
     modify (show i:)
     pure v
-  marshalAlgM (PushStr s v) = do
+  pushAlgM (PushStr s v) = do
     modify (s:)
     pure v
 {-# INLINABLE pushMarshalT #-}
@@ -229,6 +235,9 @@ readCSVFile path = doesFileExist path >>= \case
     pure $ contents `deepseq` (map (splitOn '\t') . lines) contents
 {-# INLINABLE readCSVFile #-}
 
+-- | Cleans up the temporary directory that this library has written files to.
+--   This functionality is only provided for the interpreted version since the
+--   compiled version directly (de-)serializes data via the C++ API.
 cleanup :: forall prog. Program prog => Handle prog -> SouffleM ()
 cleanup (Handle ref) = liftIO $ do
   handle <- readIORef ref

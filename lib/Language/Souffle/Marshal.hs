@@ -4,7 +4,7 @@
 
 -- | This module exposes a uniform interface to marshal values
 --   to and from Souffle Datalog. This is done via the 'Marshal' typeclass
---   and 'MarshalT' monad transformer.
+--   and 'MarshalM' monad.
 --   Also, a mechanism is exposed for generically deriving marshalling
 --   and unmarshalling code for simple product types.
 module Language.Souffle.Marshal
@@ -23,19 +23,28 @@ import qualified Data.Text.Lazy as TL
 import qualified Language.Souffle.Internal.Constraints as C
 
 
+-- | A data type used for deserializing a `Marshal`-able value
+--   from Souffle to Haskell, only used internally.
 data PopF a
   = PopInt (Int32 -> a)
   | PopStr (String -> a)
   deriving Functor
 
+-- | A data type used for serializing a `Marshal`-able value
+--   from Haskell to Souffle, only used internally.
 data PushF a
   = PushInt Int32 a
   | PushStr String a
   deriving Functor
 
+-- | The monad used for serializing and deserializing of values that
+--   implement the `Marshal` typeclass.
 type MarshalM = Free
 
-interpret :: Monad m => (forall x. f x -> m x) -> Free f a -> m a
+-- | Helper function for interpreting the actual (de-)serialization of values.
+--   This allows both the compiled and interpreted variant to handle
+--   (de-)serialization in their own way.
+interpret :: Monad m => (forall x. f x -> m x) -> MarshalM f a -> m a
 interpret = foldFree
 {-# INLINABLE interpret #-}
 

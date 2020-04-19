@@ -2,20 +2,20 @@
 {-# LANGUAGE TypeFamilies, TypeOperators, DerivingVia, InstanceSigs, BangPatterns #-}
 {-# LANGUAGE DataKinds, FlexibleContexts #-}
 
--- | This module provides the top level API of this library.
---   It makes use of Haskell's powerful typesystem to make certain invalid states
---   impossible to represent. It does this with a small type level DSL for
---   describing properties of the Datalog program (see the 'Program' and 'Fact'
---   typeclasses for more information).
---   This module also provides a MTL-style interface to Souffle related operations
---   so it can be integrated with existing monad transformer stacks.
+-- | This module provides an implementation for the typeclasses defined in
+--   "Language.Souffle.Class".
+--   It makes use of the low level Souffle C++ API to offer a much more
+--   performant alternative implementation to the implementation in
+--   "Language.Souffle.Interpreted".
+--
+--   This module is mainly intended to be used after the prototyping phase is
+--   over since the iteration cycle is slower due to the additional
+--   C++ compilation times.
 module Language.Souffle.Compiled
   ( Program(..)
   , Fact(..)
   , Marshal(..)
   , Handle
-  , ContainsFact
-  , MonadSouffle(..)
   , SouffleM
   , runSouffle
   ) where
