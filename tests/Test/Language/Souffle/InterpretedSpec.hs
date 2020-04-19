@@ -55,7 +55,7 @@ spec = describe "Souffle API" $ parallel $ do
 
     it "returns just the program if it can load a souffle program" $ do
       prog <- Souffle.runSouffle $ do
-        Just handle <- Souffle.init Path
+        handle <- fromJust <$> Souffle.init Path
         Souffle.cleanup handle
         pure $ Just handle
       isJust prog `shouldBe` True

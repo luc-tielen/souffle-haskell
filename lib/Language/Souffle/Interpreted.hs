@@ -15,6 +15,7 @@ module Language.Souffle.Interpreted
   , Marshal(..)
   , Handle
   , SouffleM
+  , MonadSouffle(..)
   , runSouffle
   , runSouffleWith
   , cleanup

@@ -17,6 +17,7 @@ module Language.Souffle.Compiled
   , Marshal(..)
   , Handle
   , SouffleM
+  , MonadSouffle(..)
   , runSouffle
   ) where
 
