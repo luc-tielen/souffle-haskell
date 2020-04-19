@@ -16,6 +16,7 @@ module Language.Souffle.Interpreted
   , Handle
   , SouffleM
   , runSouffle
+  , runSouffleWith
   , cleanup
   ) where
 
@@ -23,6 +24,7 @@ import Prelude hiding (init)
 
 import Control.DeepSeq (deepseq)
 import Control.Monad.State.Strict
+import Control.Monad.Trans.Reader
 import Data.IORef
 import Data.Foldable (traverse_)
 import Data.List hiding (init)
@@ -34,7 +36,9 @@ import Language.Souffle.Class
 import Language.Souffle.Marshal
 import System.Directory
 import System.Environment
+import System.Exit
 import System.FilePath
+import System.IO (hGetContents)
 import System.IO.Temp
 import System.Process
 import Text.Printf
@@ -42,9 +46,18 @@ import Text.Printf
 
 -- | A monad for executing Souffle-related actions in.
 newtype SouffleM a
-  = SouffleM
-  { runSouffle :: IO a  -- ^ Returns the underlying IO action.
-  } deriving (Functor, Applicative, Monad, MonadIO) via IO
+  = SouffleM (ReaderT (Maybe FilePath) IO a)
+  deriving (Functor, Applicative, Monad, MonadIO)
+  via (ReaderT (Maybe FilePath) IO)
+
+-- ^ Returns the underlying IO action.
+runSouffle :: SouffleM a -> IO a
+runSouffle (SouffleM m) = runReaderT m Nothing
+
+-- | Run a souffle interpreter that will look up the datalog program
+-- in the given directory.
+runSouffleWith :: FilePath -> SouffleM a -> IO a
+runSouffleWith datalogProgramPath (SouffleM m) = runReaderT m (Just datalogProgramPath)
 
 -- | A datatype representing a handle to a datalog program.
 --   The type parameter is used for keeping track of which program
@@ -119,31 +132,32 @@ instance MonadSouffle SouffleM where
 
   {- | Looks for a souffle interpreter.
 
-     The action will return 'Nothing' if it failed to load the Souffle program.
+     The action will return 'Nothing' if it failed to find the Souffle interpreter and
+     load the Souffle program.
      Otherwise it will return a 'Handle' that can be used in other functions
      in this module.
   -}
   init :: forall prog. Program prog => prog -> SouffleM (Maybe (Handle prog))
   init prg = SouffleM $ datalogProgramFile prg >>= \case
     Nothing -> pure Nothing
-    Just datalogExecutable -> do
+    Just datalogExecutable -> lift $ do
       tmpDir <- getCanonicalTemporaryDirectory
       souffleTempDir <- createTempDirectory tmpDir "souffle-haskell"
       let factDir = souffleTempDir </> "fact"
       let outDir  = souffleTempDir </> "out"
       createDirectoryIfMissing True factDir
       createDirectoryIfMissing True outDir
-      -- TODO: Use system commands to locate the interpreter
-      -- TODO: souffle not found => Nothing
-      souffleBin <- fromMaybe "souffle" <$> lookupEnv "SOUFFLE_BIN"
-      fmap (Just . Handle) $ newIORef $ HandleData
-        { soufflePath = souffleBin
-        , basePath    = souffleTempDir
-        , factPath    = factDir
-        , outputPath  = outDir
-        , datalogExec = datalogExecutable
-        , noOfThreads = 1
-        }
+      mSouffleBin <- mplus <$> lookupEnv "SOUFFLE_BIN"
+                           <*> locateSouffle
+      forM mSouffleBin $ \souffleBin -> do
+        fmap Handle $ newIORef $ HandleData
+          { soufflePath = souffleBin
+          , basePath    = souffleTempDir
+          , factPath    = factDir
+          , outputPath  = outDir
+          , datalogExec = datalogExecutable
+          , noOfThreads = 1
+          }
   {-# INLINABLE init #-}
 
   -- | Runs the Souffle program.
@@ -209,7 +223,7 @@ instance MonadSouffle SouffleM where
   --   in terms of 'addFact', but this is done as a minor optimization.
   addFacts :: forall a prog f. (Fact a, ContainsFact prog a, Marshal a, Foldable f)
            => Handle prog -> f a -> SouffleM ()
-  addFacts (Handle ref) facts = SouffleM $ do
+  addFacts (Handle ref) facts = SouffleM $ lift $ do
     handle <- readIORef ref
     let relationName = factName (Proxy :: Proxy a)
     let factFile = factPath handle </> relationName <.> "facts"
@@ -217,13 +231,15 @@ instance MonadSouffle SouffleM where
     traverse_ (\line -> appendFile factFile (intercalate "\t" line ++ "\n")) factLines
   {-# INLINABLE addFacts #-}
 
-datalogProgramFile :: forall prog. Program prog => prog -> IO (Maybe FilePath)
-datalogProgramFile _ = do
-  dir <- fromMaybe "." <$> lookupEnv "DATALOG_DIR"
-  let dlFile = dir </> programName (Proxy :: Proxy prog) <.> "dl"
-  doesFileExist dlFile >>= \case
-    False -> pure Nothing
-    True -> pure $ Just dlFile
+datalogProgramFile :: forall prog. Program prog => prog -> ReaderT (Maybe FilePath) IO (Maybe FilePath)
+datalogProgramFile _ =
+  mplus <$> ask
+        <*> lift (do
+              dir <- fromMaybe "." <$> lookupEnv "DATALOG_DIR"
+              let dlFile = dir </> programName (Proxy :: Proxy prog) <.> "dl"
+              doesFileExist dlFile >>= \case
+                False -> pure Nothing
+                True -> pure $ Just dlFile)
 {-# INLINABLE datalogProgramFile #-}
 
 readCSVFile :: FilePath -> IO [[String]]
@@ -251,3 +267,15 @@ splitOn c s =
    in x : splitOn c rest'
 {-# INLINABLE splitOn #-}
 
+locateSouffle :: IO (Maybe FilePath)
+locateSouffle = do
+  let locateCmd = (shell "whereis souffle")
+                    { std_out = CreatePipe
+                    }
+  (_, Just hout, _, locateCmdHandle) <- createProcess locateCmd
+  waitForProcess locateCmdHandle >>= \case
+    ExitFailure _ -> pure Nothing
+    ExitSuccess   -> do
+      fmap words (hGetContents hout) >>= \case
+        (_souffle : souffleBin : _) -> pure (souffleBin `deepseq` Just souffleBin)
+        _                           -> pure Nothing
