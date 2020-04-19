@@ -24,7 +24,7 @@ import Prelude hiding (init)
 
 import Control.DeepSeq (deepseq)
 import Control.Monad.State.Strict
-import Control.Monad.Trans.Reader
+import Control.Monad.Reader
 import Data.IORef
 import Data.Foldable (traverse_)
 import Data.List hiding (init)
@@ -50,12 +50,12 @@ newtype SouffleM a
   deriving (Functor, Applicative, Monad, MonadIO)
   via (ReaderT (Maybe FilePath) IO)
 
--- ^ Returns the underlying IO action.
+-- | Returns the underlying IO action.
 runSouffle :: SouffleM a -> IO a
 runSouffle (SouffleM m) = runReaderT m Nothing
 
 -- | Run a souffle interpreter that will look up the datalog program
--- in the given directory.
+--   in the given directory.
 runSouffleWith :: FilePath -> SouffleM a -> IO a
 runSouffleWith datalogProgramPath (SouffleM m) = runReaderT m (Just datalogProgramPath)
 
@@ -140,7 +140,7 @@ instance MonadSouffle SouffleM where
   init :: forall prog. Program prog => prog -> SouffleM (Maybe (Handle prog))
   init prg = SouffleM $ datalogProgramFile prg >>= \case
     Nothing -> pure Nothing
-    Just datalogExecutable -> lift $ do
+    Just datalogExecutable -> liftIO $ do
       tmpDir <- getCanonicalTemporaryDirectory
       souffleTempDir <- createTempDirectory tmpDir "souffle-haskell"
       let factDir = souffleTempDir </> "fact"
@@ -149,7 +149,7 @@ instance MonadSouffle SouffleM where
       createDirectoryIfMissing True outDir
       mSouffleBin <- mplus <$> lookupEnv "SOUFFLE_BIN"
                            <*> locateSouffle
-      forM mSouffleBin $ \souffleBin -> do
+      forM mSouffleBin $ \souffleBin ->
         fmap Handle $ newIORef $ HandleData
           { soufflePath = souffleBin
           , basePath    = souffleTempDir
@@ -223,7 +223,7 @@ instance MonadSouffle SouffleM where
   --   in terms of 'addFact', but this is done as a minor optimization.
   addFacts :: forall a prog f. (Fact a, ContainsFact prog a, Marshal a, Foldable f)
            => Handle prog -> f a -> SouffleM ()
-  addFacts (Handle ref) facts = SouffleM $ lift $ do
+  addFacts (Handle ref) facts = SouffleM $ liftIO $ do
     handle <- readIORef ref
     let relationName = factName (Proxy :: Proxy a)
     let factFile = factPath handle </> relationName <.> "facts"
@@ -233,14 +233,28 @@ instance MonadSouffle SouffleM where
 
 datalogProgramFile :: forall prog. Program prog => prog -> ReaderT (Maybe FilePath) IO (Maybe FilePath)
 datalogProgramFile _ =
-  mplus <$> ask
-        <*> lift (do
+  asks mplus
+        <*> liftIO (do
               dir <- fromMaybe "." <$> lookupEnv "DATALOG_DIR"
               let dlFile = dir </> programName (Proxy :: Proxy prog) <.> "dl"
               doesFileExist dlFile >>= \case
                 False -> pure Nothing
                 True -> pure $ Just dlFile)
 {-# INLINABLE datalogProgramFile #-}
+
+locateSouffle :: IO (Maybe FilePath)
+locateSouffle = do
+  let locateCmd = (shell "whereis souffle")
+                    { std_out = CreatePipe
+                    }
+  (_, Just hout, _, locateCmdHandle) <- createProcess locateCmd
+  waitForProcess locateCmdHandle >>= \case
+    ExitFailure _ -> pure Nothing
+    ExitSuccess   ->
+      fmap words (hGetContents hout) >>= \case
+        (_souffle : souffleBin : _) -> pure (souffleBin `deepseq` Just souffleBin)
+        _                           -> pure Nothing
+{-# INLINABLE locateSouffle #-}
 
 readCSVFile :: FilePath -> IO [[String]]
 readCSVFile path = doesFileExist path >>= \case
@@ -267,15 +281,3 @@ splitOn c s =
    in x : splitOn c rest'
 {-# INLINABLE splitOn #-}
 
-locateSouffle :: IO (Maybe FilePath)
-locateSouffle = do
-  let locateCmd = (shell "whereis souffle")
-                    { std_out = CreatePipe
-                    }
-  (_, Just hout, _, locateCmdHandle) <- createProcess locateCmd
-  waitForProcess locateCmdHandle >>= \case
-    ExitFailure _ -> pure Nothing
-    ExitSuccess   -> do
-      fmap words (hGetContents hout) >>= \case
-        (_souffle : souffleBin : _) -> pure (souffleBin `deepseq` Just souffleBin)
-        _                           -> pure Nothing
