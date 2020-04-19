@@ -54,11 +54,13 @@ newtype SouffleM a
 -- | Returns the underlying IO action.
 runSouffle :: SouffleM a -> IO a
 runSouffle (SouffleM m) = runReaderT m Nothing
+{-# INLINABLE runSouffle #-}
 
 -- | Run a souffle interpreter that will look up datalog programs
 --   in the given directory.
 runSouffleWith :: FilePath -> SouffleM a -> IO a
 runSouffleWith datalogProgramPath (SouffleM m) = runReaderT m (Just datalogProgramPath)
+{-# INLINABLE runSouffleWith #-}
 
 -- | A datatype representing a handle to a datalog program.
 --   The type parameter is used for keeping track of which program
@@ -131,13 +133,6 @@ instance MonadSouffle SouffleM where
   type Handler SouffleM = Handle
   type CollectFacts SouffleM c = Collect c
 
-  {- | Looks for a souffle interpreter.
-
-     The action will return 'Nothing' if it failed to find the Souffle interpreter and
-     load the Souffle program.
-     Otherwise it will return a 'Handle' that can be used in other functions
-     in this module.
-  -}
   init :: forall prog. Program prog => prog -> SouffleM (Maybe (Handle prog))
   init prg = SouffleM $ datalogProgramFile prg >>= \case
     Nothing -> pure Nothing
@@ -161,7 +156,6 @@ instance MonadSouffle SouffleM where
           }
   {-# INLINABLE init #-}
 
-  -- | Runs the Souffle program.
   run (Handle ref) = liftIO $ do
     handle <- readIORef ref
     -- Invoke the souffle binary using parameters, supposing that the facts are placed
@@ -175,18 +169,14 @@ instance MonadSouffle SouffleM where
         (datalogExec handle)
   {-# INLINABLE run #-}
 
-  -- | Sets the number of CPU cores this Souffle program should use.
   setNumThreads (Handle ref) n = liftIO $
     modifyIORef' ref (\h -> h { noOfThreads = n })
   {-# INLINABLE setNumThreads #-}
 
-  -- | Gets the number of CPU cores this Souffle program should use.
   getNumThreads (Handle ref) = liftIO $
     noOfThreads <$> readIORef ref
   {-# INLINABLE getNumThreads #-}
 
-  -- | Returns all facts of a program. This function makes use of type inference
-  --   to select the type of fact to return.
   getFacts :: forall a c prog. (Marshal a, Fact a, ContainsFact prog a, Collect c)
            => Handle prog -> SouffleM (c a)
   getFacts (Handle ref) = liftIO $ do
@@ -197,11 +187,6 @@ instance MonadSouffle SouffleM where
     pure $! facts  -- force facts before running to avoid issues with lazy IO
   {-# INLINABLE getFacts #-}
 
-  -- | Searches for a fact in a program.
-  --   Returns 'Nothing' if no matching fact was found; otherwise 'Just' the fact.
-  --
-  --   Conceptually equivalent to @List.find (== fact) \<$\> getFacts prog@, but this operation
-  --   can be implemented much faster.
   findFact :: (Fact a, ContainsFact prog a, Eq a)
            => Handle prog -> a -> SouffleM (Maybe a)
   findFact prog fact = do
@@ -209,7 +194,6 @@ instance MonadSouffle SouffleM where
     pure $ find (== fact) facts
   {-# INLINABLE findFact #-}
 
-  -- | Adds a fact to the program.
   addFact :: forall a prog. (Fact a, ContainsFact prog a, Marshal a)
           => Handle prog -> a -> SouffleM ()
   addFact (Handle ref) fact = liftIO $ do
@@ -220,8 +204,6 @@ instance MonadSouffle SouffleM where
     appendFile factFile $ intercalate "\t" line ++ "\n"
   {-# INLINABLE addFact #-}
 
-  -- | Adds multiple facts to the program. This function could be implemented
-  --   in terms of 'addFact', but this is done as a minor optimization.
   addFacts :: forall a prog f. (Fact a, ContainsFact prog a, Marshal a, Foldable f)
            => Handle prog -> f a -> SouffleM ()
   addFacts (Handle ref) facts = SouffleM $ liftIO $ do

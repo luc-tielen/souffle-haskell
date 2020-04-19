@@ -103,7 +103,9 @@ class Monad m => MonadSouffle m where
 
   {- | Initializes a Souffle program.
 
-     The action will return 'Nothing' if it failed to load the Souffle program.
+     The action will return 'Nothing' if it failed to load the Souffle C++
+     program or if it failed to find the Souffle interpreter (depending on
+     compiled/interpreted variant).
      Otherwise it will return a handle that can be used in other functions
      in this module.
   -}
