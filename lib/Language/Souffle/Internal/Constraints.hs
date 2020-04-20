@@ -1,4 +1,3 @@
-
 {-# LANGUAGE TypeFamilies, DataKinds, TypeOperators, UndecidableInstances #-}
 
 -- | A helper module for generating more user friendly type errors in the form
@@ -25,7 +24,7 @@ import qualified Data.Text.Lazy as TL
 --   structure of the data type.
 --
 --   A type error is returned if the passed in type is not a simple product type
---   consisting of only simple types like Int32 and String.
+--   consisting of only simple types like Int32, String and Text.
 type family SimpleProduct (a :: Type) (f :: Type -> Type) :: Constraint where
   SimpleProduct a f = (ProductLike a f, OnlySimpleFields a f)
 

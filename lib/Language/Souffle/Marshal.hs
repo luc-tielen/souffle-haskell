@@ -1,52 +1,52 @@
-
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# LANGUAGE DerivingVia, TypeFamilies #-}
-{-# LANGUAGE FlexibleInstances, FlexibleContexts, DataKinds #-}
-{-# LANGUAGE UndecidableInstances, DefaultSignatures #-}
-{-# LANGUAGE ScopedTypeVariables, TypeOperators #-}
+{-# LANGUAGE FlexibleInstances, FlexibleContexts, DeriveFunctor #-}
+{-# LANGUAGE DefaultSignatures, TypeOperators, RankNTypes #-}
 
 -- | This module exposes a uniform interface to marshal values
 --   to and from Souffle Datalog. This is done via the 'Marshal' typeclass
---   and 'MarshalT' monad transformer.
+--   and 'MarshalM' monad.
 --   Also, a mechanism is exposed for generically deriving marshalling
 --   and unmarshalling code for simple product types.
 module Language.Souffle.Marshal
-  ( MarshalT
-  , runMarshalT
-  , Marshal(..)
+  ( Marshal(..)
+  , PushF(..)
+  , PopF(..)
+  , MarshalM
+  , interpret
   ) where
 
-import Control.Monad.Reader
-import Control.Monad.Writer
-import Control.Monad.State
-import Control.Monad.Except
-import Control.Monad.RWS
+import Control.Monad.Free
 import GHC.Generics
-import Foreign.Ptr
 import Data.Int
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
-import qualified Language.Souffle.Internal as Internal
 import qualified Language.Souffle.Internal.Constraints as C
 
 
-type Tuple = Ptr Internal.Tuple
+-- | A data type used for deserializing a `Marshal`-able value
+--   from Souffle to Haskell, only used internally.
+data PopF a
+  = PopInt (Int32 -> a)
+  | PopStr (String -> a)
+  deriving Functor
 
--- | A monad transformer, used solely for marshalling and unmarshalling
---   between Haskell and Souffle Datalog.
-newtype MarshalT m a = MarshalT (ReaderT Tuple m a)
-  deriving ( Functor, Applicative, Monad
-           , MonadIO, MonadReader Tuple, MonadWriter w
-           , MonadState s, MonadRWS Tuple w s, MonadError e )
-  via ( ReaderT Tuple m )
-  deriving MonadTrans via (ReaderT Tuple)
+-- | A data type used for serializing a `Marshal`-able value
+--   from Haskell to Souffle, only used internally.
+data PushF a
+  = PushInt Int32 a
+  | PushStr String a
+  deriving Functor
 
--- | Execute the monad transformer and return the result.
---   The tuple that is passed in will be used to marshal the data back and forth.
-runMarshalT :: MarshalT m a -> Tuple -> m a
-runMarshalT (MarshalT m) = runReaderT m
-{-# INLINABLE runMarshalT #-}
+-- | The monad used for serializing and deserializing of values that
+--   implement the `Marshal` typeclass.
+type MarshalM = Free
 
+-- | Helper function for interpreting the actual (de-)serialization of values.
+--   This allows both the compiled and interpreted variant to handle
+--   (de-)serialization in their own way.
+interpret :: Monad m => (forall x. f x -> m x) -> MarshalM f a -> m a
+interpret = foldFree
+{-# INLINABLE interpret #-}
 
 {- | A typeclass for providing a uniform API to marshal/unmarshal values
      between Haskell and Souffle datalog.
@@ -69,54 +69,46 @@ instance Marshal Edge
 -}
 class Marshal a where
   -- | Marshals a value to the datalog side.
-  push :: MonadIO m => a -> MarshalT m ()
+  push :: a -> MarshalM PushF ()
   -- | Unmarshals a value from the datalog side.
-  pop :: MonadIO m => MarshalT m a
+  pop :: MarshalM PopF a
 
-  default push :: (Generic a, C.SimpleProduct a (Rep a), GMarshal (Rep a), MonadIO m)
-               => a -> MarshalT m ()
-  default pop :: (Generic a, C.SimpleProduct a (Rep a), GMarshal (Rep a), MonadIO m)
-              => MarshalT m a
+  default push :: (Generic a, C.SimpleProduct a (Rep a), GMarshal (Rep a))
+               => a -> MarshalM PushF ()
+  default pop :: (Generic a, C.SimpleProduct a (Rep a), GMarshal (Rep a))
+              => MarshalM PopF a
   push a = gpush (from a)
   {-# INLINABLE push #-}
   pop = to <$> gpop
   {-# INLINABLE pop #-}
 
 instance Marshal Int32 where
-  push int = do
-    tuple <- ask
-    liftIO $ Internal.tuplePushInt tuple int
+  push int = liftF (PushInt int ())
   {-# INLINABLE push #-}
-  pop = do
-    tuple <- ask
-    liftIO $ Internal.tuplePopInt tuple
+  pop  = liftF (PopInt id)
   {-# INLINABLE pop #-}
 
 instance Marshal String where
-  push str = do
-    tuple <- ask
-    liftIO $ Internal.tuplePushString tuple str
+  push str = liftF (PushStr str ())
   {-# INLINABLE push #-}
-  pop = do
-    tuple <- ask
-    liftIO $ Internal.tuplePopString tuple
+  pop  = liftF (PopStr id)
   {-# INLINABLE pop #-}
 
 instance Marshal T.Text where
   push = push . T.unpack
   {-# INLINABLE push #-}
-  pop = T.pack <$> pop
+  pop  = T.pack <$> pop
   {-# INLINABLE pop #-}
 
 instance Marshal TL.Text where
   push = push . TL.unpack
   {-# INLINABLE push #-}
-  pop = TL.pack <$> pop
+  pop  = TL.pack <$> pop
   {-# INLINABLE pop #-}
 
 class GMarshal f where
-  gpush :: MonadIO m => f a -> MarshalT m ()
-  gpop :: MonadIO m => MarshalT m (f a)
+  gpush :: f a -> MarshalM PushF ()
+  gpop  :: MarshalM PopF (f a)
 
 instance Marshal a => GMarshal (K1 i a) where
   gpush (K1 x) = push x
@@ -137,4 +129,3 @@ instance GMarshal a => GMarshal (M1 i c a) where
   {-# INLINABLE gpush #-}
   gpop = M1 <$> gpop
   {-# INLINABLE gpop #-}
-
