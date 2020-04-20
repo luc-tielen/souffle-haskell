@@ -13,11 +13,13 @@ module Language.Souffle.Interpreted
   ( Program(..)
   , Fact(..)
   , Marshal(..)
+  , Config(..)
   , Handle
   , SouffleM
   , MonadSouffle(..)
   , runSouffle
   , runSouffleWith
+  , defaultConfig
   , cleanup
   ) where
 
@@ -29,6 +31,7 @@ import Control.Monad.Reader
 import Data.IORef
 import Data.Foldable (traverse_)
 import Data.List hiding (init)
+import Data.Semigroup (Last(..))
 import Data.Maybe (fromMaybe)
 import Data.Proxy
 import qualified Data.Vector as V
@@ -47,19 +50,54 @@ import Text.Printf
 
 -- | A monad for executing Souffle-related actions in.
 newtype SouffleM a
-  = SouffleM (ReaderT (Maybe FilePath) IO a)
+  = SouffleM (ReaderT Config IO a)
   deriving (Functor, Applicative, Monad, MonadIO)
-  via (ReaderT (Maybe FilePath) IO)
+  via (ReaderT Config IO)
 
--- | Returns the underlying IO action.
+-- | A helper data type for storing the configurable settings of the
+--   interpreter.
+--
+--   - __cfgDatalogDir__: The directory where the datalog file(s) are located.
+--   - __cfgSouffleBin__: The name of the souffle binary. Has to be available in
+--   \$PATH or an absolute path needs to be provided. Note: Passing in `Nothing`
+--   will fail to start up the interpreter in the `MonadSouffle.init` function.
+data Config
+  = Config
+  { cfgDatalogDir :: FilePath
+  , cfgSouffleBin :: Maybe FilePath
+  } deriving Show
+
+-- | Retrieves the default config for the interpreter. These settings can
+--   be overridden using record update syntax if needed.
+--
+--   By default, the settings will be configured as follows:
+--
+--   - __cfgDatalogDir__: Looks at environment variable \$DATALOG_DIR,
+--   falls back to the current directory if not set.
+--   - __cfgSouffleBin__: Looks at environment variable \$SOUFFLE_BIN,
+--   or tries to locate the souffle binary using the which shell command
+--   if the variable is not set.
+defaultConfig :: MonadIO m => m Config
+defaultConfig = liftIO $ do
+  dlDir <- lookupEnv "DATALOG_DIR"
+  envSouffleBin <- fmap Last <$> lookupEnv "SOUFFLE_BIN"
+  locatedBin <- fmap Last <$> locateSouffle
+  let souffleBin = getLast <$> locatedBin <> envSouffleBin
+  pure $ Config (fromMaybe "." dlDir) souffleBin
+{-# INLINABLE defaultConfig #-}
+
+-- | Returns an IO action that will run the Souffle interpreter with
+--   default settings (see `defaultConfig`).
 runSouffle :: SouffleM a -> IO a
-runSouffle (SouffleM m) = runReaderT m Nothing
+runSouffle m = do
+  cfg <- defaultConfig
+  runSouffleWith cfg m
 {-# INLINABLE runSouffle #-}
 
--- | Run a souffle interpreter that will look up datalog programs
---   in the given directory.
-runSouffleWith :: FilePath -> SouffleM a -> IO a
-runSouffleWith datalogProgramPath (SouffleM m) = runReaderT m (Just datalogProgramPath)
+-- | Returns an IO action that will run the Souffle interpreter with
+--   the given interpreter settings.
+runSouffleWith :: Config -> SouffleM a -> IO a
+runSouffleWith cfg (SouffleM m) = runReaderT m cfg
 {-# INLINABLE runSouffleWith #-}
 
 -- | A datatype representing a handle to a datalog program.
@@ -136,16 +174,17 @@ instance MonadSouffle SouffleM where
   init :: forall prog. Program prog => prog -> SouffleM (Maybe (Handle prog))
   init prg = SouffleM $ datalogProgramFile prg >>= \case
     Nothing -> pure Nothing
-    Just datalogExecutable -> liftIO $ do
-      tmpDir <- getCanonicalTemporaryDirectory
-      souffleTempDir <- createTempDirectory tmpDir "souffle-haskell"
+    Just datalogExecutable -> do
+      souffleTempDir <- liftIO $ do
+        tmpDir <- getCanonicalTemporaryDirectory
+        createTempDirectory tmpDir "souffle-haskell"
       let factDir = souffleTempDir </> "fact"
-      let outDir  = souffleTempDir </> "out"
-      createDirectoryIfMissing True factDir
-      createDirectoryIfMissing True outDir
-      mSouffleBin <- mplus <$> lookupEnv "SOUFFLE_BIN"
-                           <*> locateSouffle
-      forM mSouffleBin $ \souffleBin ->
+          outDir  = souffleTempDir </> "out"
+      liftIO $ do
+        createDirectoryIfMissing True factDir
+        createDirectoryIfMissing True outDir
+      mSouffleBin <- asks cfgSouffleBin
+      liftIO $ forM mSouffleBin $ \souffleBin ->
         fmap Handle $ newIORef $ HandleData
           { soufflePath = souffleBin
           , basePath    = souffleTempDir
@@ -158,8 +197,8 @@ instance MonadSouffle SouffleM where
 
   run (Handle ref) = liftIO $ do
     handle <- readIORef ref
-    -- Invoke the souffle binary using parameters, supposing that the facts are placed
-    -- in the factPath, rendering the output into the outputPath
+    -- Invoke the souffle binary using parameters, supposing that the facts
+    -- are placed in the factPath, rendering the output into the outputPath.
     callCommand $
       printf "%s -F%s -D%s -j%d %s"
         (soufflePath handle)
@@ -214,15 +253,13 @@ instance MonadSouffle SouffleM where
     traverse_ (\line -> appendFile factFile (intercalate "\t" line ++ "\n")) factLines
   {-# INLINABLE addFacts #-}
 
-datalogProgramFile :: forall prog. Program prog => prog -> ReaderT (Maybe FilePath) IO (Maybe FilePath)
-datalogProgramFile _ =
-  asks mplus
-        <*> liftIO (do
-              dir <- fromMaybe "." <$> lookupEnv "DATALOG_DIR"
-              let dlFile = dir </> programName (Proxy :: Proxy prog) <.> "dl"
-              doesFileExist dlFile >>= \case
-                False -> pure Nothing
-                True -> pure $ Just dlFile)
+datalogProgramFile :: forall prog. Program prog => prog -> ReaderT Config IO (Maybe FilePath)
+datalogProgramFile _ = do
+  dir <- asks cfgDatalogDir
+  let dlFile = dir </> programName (Proxy :: Proxy prog) <.> "dl"
+  liftIO $ doesFileExist dlFile >>= \case
+    False -> pure Nothing
+    True -> pure $ Just dlFile
 {-# INLINABLE datalogProgramFile #-}
 
 locateSouffle :: IO (Maybe FilePath)
