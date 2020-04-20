@@ -19,6 +19,7 @@ in {
   souffle-shell = haskellPkgs.shellFor {
     packages = p: [ drv ];
     buildInputs = with haskellPkgs; [
+      pkgs.which
       souffle-master
       cabal-install
       hpack
