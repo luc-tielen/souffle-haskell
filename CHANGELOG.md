@@ -1,25 +1,22 @@
 
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to this project (as seen by library users) will be documented in this file.
 The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-haskell.git/CHANGELOG.md).
 
 ## [0.2.0] - 2020-04-22
 ### Added
 
-- Added Interpreted module. The location of the souffle interpreter and datalog input directory
-  can be controlled set via `SOUFFLE_BIN` and `DATALOG_DIR`. When invoked with the `runSouffle`,
-  if not given, souffle is looked up via `whereis souffle` and the input datalog files are searched,
-  in the active directory. When invoked with `runSouffleWith` the path for the datalog program needs
-  to be given. NOTE: For this mode the datalog program must render the output csv using
-  TAB characters as separators.
+- Added Language.Souffle.Interpreted module for running Souffle programs in interpreted mode.
+  NOTE: For this mode the CSV fact files must use TAB (`'\t'`) characters as separators.
+- In interpreted mode, you can configure where the library looks for datalog files or where
+  the souffle executable is located. For more information, see the `runSouffle` and `runSouffleWith`
+  functions in the Language.Souffle.Interpreted module.
 
 ### Changed
 
 - Introduced Language.Souffle.Class module as separation of the typeclass and the
-  Compiled module made the implementation of the Interpreted module easier.
-- Marshaling is now based on the free monad approach. The implementors of the
-  Souffle type class needs to give an interpretation of the Marshal expressions too.
+  Language.Souffle.Compiled module to offer a uniform API in both interpreted and compiled mode.
 
 ## [0.1.0] - 2019-12-21
 ### Added
