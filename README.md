@@ -2,12 +2,11 @@
 # Souffle-haskell
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/luc-tielen/souffle-haskell/blob/master/LICENSE)
+[![CircleCI](https://circleci.com/gh/luc-tielen/souffle-haskell.svg?style=svg&circle-token=07fcf633c70820100c529dda8869baa60d4b6dd8)](https://circleci.com/gh/luc-tielen/souffle-haskell)
 [![Hackage](https://img.shields.io/hackage/v/souffle-haskell?style=flat-square)](https://hackage.haskell.org/package/souffle-haskell)
 
 This repo provides Haskell bindings for performing analyses with the
 [Souffle Datalog language](https://github.com/souffle-lang/souffle).
-It does this by binding directly to an "embedded" Souffle program
-(previously generated with `souffle -g`).
 
 Fun fact: this library combines both functional programming (Haskell),
 logic programming (Datalog / Souffle) and imperative / OO programming (C / C++).
@@ -15,7 +14,7 @@ logic programming (Datalog / Souffle) and imperative / OO programming (C / C++).
 
 ## Motivating example
 
-Let's first write a datalog program that can check if 1 point
+Let's first write a datalog program that can check if one point
 is reachable from another:
 
 ```prolog
@@ -55,7 +54,7 @@ import Control.Monad.IO.Class
 import GHC.Generics
 import Data.Vector
 import qualified Language.Souffle.TH as Souffle
-import qualified Language.Souffle as Souffle
+import qualified Language.Souffle.Compiled as Souffle
 
 -- We only use template haskell for directly embedding the .cpp file into this file.
 -- If we do not do this, it will link incorrectly due to the way the
@@ -144,6 +143,7 @@ In your package.yaml / *.cabal file, make sure to add the following options
 
 ```yaml
 # ...
+
 cpp-options:
   - -D__EMBEDDED_SOUFFLE__
 
@@ -152,6 +152,71 @@ cpp-options:
 
 This will instruct the Souffle compiler to compile the C++ in such a way that
 it can be linked with other languages (including Haskell!).
+
+
+## Supported modes
+
+Souffle programs can be run in 2 ways. They can either run in **interpreted** mode
+(using the `souffle` CLI command), or they can be **compiled** to C++-code and
+called from a host program for improved efficiency. This library supports both
+modes (since version 0.2.0). The two variants have only a few minor differences
+and can be swapped fairly easily.
+
+
+### Interpreted mode
+
+This is probably the mode you want to start out with if you are developing a
+program that uses Datalog for computing certain relations. Interpreted mode
+offers quick development iterations (no compiling of C++ code each time you
+change your Datalog code). However because the Souffle code is interpreted,
+it can't offer the same speed as in compiled mode.
+
+The main differences with compiled mode are the following:
+
+1. You need to import `Language.Souffle.Interpreted`
+2. You need to call `Souffle.cleanup` after you no longer need the Souffle
+   functionality. This will clean up the generated CSV fact files located in
+   a temporary directory.
+3. You don't need to import `Language.Souffle.TH` to embed a Datalog program.
+
+
+#### Interpreter configuration
+
+The interpreter uses CSV files to read or write facts. The configuration
+allows specifiying where the fact directory is located. With the default
+configuration, it will try to lookup `DATALOG_DIR` in the environment and
+fall back to the current directory (or `.`).
+
+You can also configure which souffle executable will be used. By default,
+it will first look at the `SOUFFLE_BIN` environment variable. If this is
+not set, it will try to find the executable using the `which` shell-command.
+If it also can't find the executable this way, then it will fail to
+initialize the interpreter.
+
+For more information regarding configuration, take a look at the
+`runSouffleWith` function.
+
+The separators in the CSV fact files cannot be configured at the moment.
+A tab character (`'\t'`) is used to separate the different columns.
+
+
+### Compiled mode
+
+Once the prototyping phase of the Datalog algorithm is over, it is advised
+to switch over to the compiled mode. It offers much improved performance
+compared to the interpreted mode, at the cost of having to recompile your
+Datalog algorithm each time it changes.
+
+The main differences with interpreted mode are the following:
+
+1. Compile the Datalog code with `souffle -g`.
+2. You need to import `Language.Souffle.TH` to embed a Datalog program
+   using `Language.Souffle.TH.embedProgram`, as shown in the
+   [motivating example](#motivating-example).
+3. Remove `Souffle.cleanup` if it is present in your code, compiled mode
+   leaves no CSV artifacts.
+
+The [motivating example] is a complete example for the compiled mode.
 
 
 ## Contributing
