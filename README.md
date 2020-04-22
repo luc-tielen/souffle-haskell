@@ -216,7 +216,7 @@ The main differences with interpreted mode are the following:
 3. Remove `Souffle.cleanup` if it is present in your code, compiled mode
    leaves no CSV artifacts.
 
-The [motivating example] is a complete example for the compiled mode.
+The [motivating example](#motivating-example) is a complete example for the compiled mode.
 
 
 ## Contributing
