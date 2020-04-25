@@ -4,6 +4,13 @@
 All notable changes to this project (as seen by library users) will be documented in this file.
 The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-haskell.git/CHANGELOG.md).
 
+
+## [0.2.1] - 2020-04-25
+### Changed
+
+- Trimmed dependencies to make the library more lightweight.
+
+
 ## [0.2.0] - 2020-04-22
 ### Added
 
@@ -17,6 +24,7 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
 
 - Introduced Language.Souffle.Class module as separation of the typeclass and the
   Language.Souffle.Compiled module to offer a uniform API in both interpreted and compiled mode.
+
 
 ## [0.1.0] - 2019-12-21
 ### Added
