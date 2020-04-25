@@ -15,7 +15,6 @@ module Language.Souffle.Marshal
   , interpret
   ) where
 
-import Control.Monad.Free
 import GHC.Generics
 import Data.Int
 import qualified Data.Text as T
@@ -37,15 +36,40 @@ data PushF a
   | PushStr String a
   deriving Functor
 
+-- NOTE: Free is reimplemented here to avoid pulling in quite a few
+--       dependencies and since we only need 2 functions
+
 -- | The monad used for serializing and deserializing of values that
 --   implement the `Marshal` typeclass.
-type MarshalM = Free
+data MarshalM f a
+  = Pure a
+  | Free (f (MarshalM f a))
+  deriving Functor
+
+instance Functor f => Applicative (MarshalM f) where
+  pure = Pure
+  {-# INLINABLE pure #-}
+  Pure f <*> Pure a = Pure $ f a
+  Pure f <*> Free fa = f <$> Free fa
+  Free fa <*> m = Free $ fmap (<*> m) fa
+  {-# INLINABLE (<*>) #-}
+
+instance Functor f => Monad (MarshalM f) where
+  Pure a >>= f = f a
+  Free fa >>= f = Free $ fmap (>>= f) fa
+  {-# INLINABLE (>>=) #-}
+
+liftF :: Functor f => f a -> MarshalM f a
+liftF action = Free $ fmap pure action
+{-# INLINABLE liftF #-}
 
 -- | Helper function for interpreting the actual (de-)serialization of values.
 --   This allows both the compiled and interpreted variant to handle
 --   (de-)serialization in their own way.
 interpret :: Monad m => (forall x. f x -> m x) -> MarshalM f a -> m a
-interpret = foldFree
+interpret f = \case
+  Pure a -> pure a
+  Free fa -> f fa >>= interpret f
 {-# INLINABLE interpret #-}
 
 {- | A typeclass for providing a uniform API to marshal/unmarshal values
