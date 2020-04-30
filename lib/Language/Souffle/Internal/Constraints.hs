@@ -43,7 +43,7 @@ type family ProductLike (t :: Type) (f :: Type -> Type) :: Constraint where
               % "Cannot derive void type.")
 
 type family OnlySimpleFields (t :: Type) (f :: Type -> Type) :: Constraint where
-  OnlySimpleFields t (a :*: b) = (OnlySimpleField t a, OnlySimpleFields t b)
+  OnlySimpleFields t (a :*: b) = (OnlySimpleFields t a, OnlySimpleFields t b)
   OnlySimpleFields t (a :+: b) = (OnlySimpleFields t a, OnlySimpleFields t b)
   OnlySimpleFields t (M1 _ _ a) = OnlySimpleFields t a
   OnlySimpleFields _ U1 = ()

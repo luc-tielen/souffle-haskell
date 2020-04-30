@@ -4,6 +4,12 @@
 All notable changes to this project (as seen by library users) will be documented in this file.
 The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-haskell.git/CHANGELOG.md).
 
+## [0.2.2] - 2020-04-30
+### Changed
+
+- Fix compile time issue when generically deriving `Marshal` typeclass
+  for data types with more than 3 fields.
+
 
 ## [0.2.1] - 2020-04-25
 ### Changed
