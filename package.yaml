@@ -10,10 +10,10 @@ copyright:           2020 Luc Tielen
 category:            Logic Programming, Foreign Binding, Bindings
 github:              luc-tielen/souffle-haskell
 extra-source-files:
-- README.md
-- CHANGELOG.md
-- LICENSE
-- cbits/*.h
+  - README.md
+  - CHANGELOG.md
+  - LICENSE
+  - cbits/*.h
 
 system-build-tools: souffle
 
