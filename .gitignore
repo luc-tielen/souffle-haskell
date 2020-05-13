@@ -9,5 +9,4 @@ result
 result-*
 .history
 cbits/*.o
-*.dl
 upload-docs.sh

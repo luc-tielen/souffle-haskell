@@ -19,7 +19,7 @@ import Language.Haskell.TH.Syntax
 -- @
 -- module Main where
 -- import Language.Haskell.TH.Syntax as Souffle
--- Souffle.embedProgram "path/to/file.cpp"  -- NOTE: call directly on top level!
+-- Souffle.embedProgram "path\/to\/file.cpp"  -- NOTE: call directly on top level!
 -- @
 embedProgram :: String -> Q [Dec]
 embedProgram path = [] <$ qAddForeignFilePath LangCxx path
