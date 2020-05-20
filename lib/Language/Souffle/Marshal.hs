@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# LANGUAGE FlexibleInstances, FlexibleContexts, DataKinds, GADTs #-}
-{-# LANGUAGE DefaultSignatures, TypeOperators, RankNTypes, MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances, FlexibleContexts #-}
+{-# LANGUAGE DefaultSignatures, TypeOperators #-}
 
 -- | This module exposes a uniform interface to marshal values
 --   to and from Souffle Datalog. This is done via the 'Marshal' typeclass
@@ -9,8 +9,8 @@
 --   and unmarshalling code for simple product types.
 module Language.Souffle.Marshal
   ( Marshal(..)
-  , MonadMarshal(..)
-  , Direction(..) -- TODO remove
+  , MonadPush(..)
+  , MonadPop(..)
   ) where
 
 import GHC.Generics
@@ -19,15 +19,15 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Language.Souffle.Internal.Constraints as C
 
-data Direction = Push | Pop
+-- TODO docs
+class Monad m => MonadPush m where
+  pushInt :: Int32 -> m ()
+  pushString :: String -> m ()
 
--- TODO better name (emphasis on action?), make API simpler, docs
-class Monad (m d) => MonadMarshal d m where
-  pushInt :: (d ~ 'Push) => Int32 -> m d ()
-  pushString :: (d ~ 'Push) => String -> m d ()
-
-  popInt :: (d ~ 'Pop) => m d Int32
-  popString :: (d ~ 'Pop) => m d String
+-- TODO docs
+class Monad m => MonadPop m where
+  popInt :: m Int32
+  popString :: m String
 
 
 {- | A typeclass for providing a uniform API to marshal/unmarshal values
@@ -51,14 +51,16 @@ instance Marshal Edge
 -}
 class Marshal a where
   -- | Marshals a value to the datalog side.
-  push :: MonadMarshal 'Push m => a -> m 'Push ()
+  push :: MonadPush m => a -> m ()
   -- | Unmarshals a value from the datalog side.
-  pop :: MonadMarshal 'Pop m => m 'Pop a
+  pop :: MonadPop m => m a
 
-  default push :: (Generic a, C.SimpleProduct a (Rep a), GMarshal (Rep a), MonadMarshal 'Push m)
-               => a -> m 'Push ()
-  default pop :: (Generic a, C.SimpleProduct a (Rep a), GMarshal (Rep a), MonadMarshal 'Pop m)
-              => m 'Pop a
+  default push
+    :: (Generic a, C.SimpleProduct a (Rep a), GMarshal (Rep a), MonadPush m)
+    => a -> m ()
+  default pop
+    :: (Generic a, C.SimpleProduct a (Rep a), GMarshal (Rep a), MonadPop m)
+    => m a
   push a = gpush (from a)
   {-# INLINABLE push #-}
   pop = to <$> gpop
@@ -89,8 +91,8 @@ instance Marshal TL.Text where
   {-# INLINABLE pop #-}
 
 class GMarshal f where
-  gpush :: MonadMarshal 'Push m => f a -> m 'Push ()
-  gpop  :: MonadMarshal 'Pop m => m 'Pop (f a)
+  gpush :: MonadPush m => f a -> m ()
+  gpop  :: MonadPop m => m (f a)
 
 instance Marshal a => GMarshal (K1 i a) where
   gpush (K1 x) = push x

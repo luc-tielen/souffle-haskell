@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# LANGUAGE TypeFamilies, TypeOperators, DerivingVia, InstanceSigs, BangPatterns #-}
-{-# LANGUAGE DataKinds, FlexibleContexts, FlexibleInstances, MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies, DerivingVia, InstanceSigs, BangPatterns #-}
 
 -- | This module provides an implementation for the typeclasses defined in
 --   "Language.Souffle.Class".
@@ -52,17 +51,15 @@ type Tuple = Ptr Internal.Tuple
 
 -- | A monad used solely for marshalling and unmarshalling
 --   between Haskell and Souffle Datalog.
-newtype MarshalT (d :: Direction) a = MarshalT (ReaderT Tuple IO a)
+newtype CMarshal a = CMarshal (ReaderT Tuple IO a)
   deriving (Functor, Applicative, Monad, MonadIO, MonadReader Tuple)
   via ( ReaderT Tuple IO )
 
-{- TODO delete? or delete runPushT / runPopT?
-runM :: MarshalT d a -> Tuple -> IO a
-runM (MarshalT m) = runReaderT m
+runM :: CMarshal a -> Tuple -> IO a
+runM (CMarshal m) = runReaderT m
 {-# INLINABLE runM #-}
--}
 
-instance MonadMarshal d MarshalT where
+instance MonadPush CMarshal where
   pushInt int = do
     tuple <- ask
     liftIO $ Internal.tuplePushInt tuple int
@@ -73,6 +70,7 @@ instance MonadMarshal d MarshalT where
     liftIO $ Internal.tuplePushString tuple str
   {-# INLINABLE pushString #-}
 
+instance MonadPop CMarshal where
   popInt = do
     tuple <- ask
     liftIO $ Internal.tuplePopInt tuple
@@ -83,15 +81,6 @@ instance MonadMarshal d MarshalT where
     liftIO $ Internal.tuplePopString tuple
   {-# INLINABLE popString #-}
 
-runPushT :: MonadIO m => MarshalT 'Push () -> Tuple -> m ()
-runPushT (MarshalT m) = liftIO . runReaderT m
-{-# INLINABLE runPushT #-}
-
-runPopT :: (MonadIO m, Marshal a) => MarshalT 'Pop a -> Tuple -> m a
-runPopT (MarshalT m) = liftIO . runReaderT m
-{-# INLINABLE runPopT #-}
-
-
 class Collect c where
   collect :: Marshal a => Int -> ForeignPtr Internal.RelationIterator -> IO (c a)
 
@@ -101,7 +90,7 @@ instance Collect [] where
       go idx count acc _ | idx == count = pure acc
       go idx count !acc !it = do
         tuple <- Internal.relationIteratorNext it
-        result <- runPopT pop tuple
+        result <- runM pop tuple
         go (idx + 1) count (result : acc) it
   {-# INLINABLE collect #-}
 
@@ -113,7 +102,7 @@ instance Collect V.Vector where
       go vec idx count _ | idx == count = V.unsafeFreeze vec
       go vec idx count it = do
         tuple <- Internal.relationIteratorNext it
-        result <- runPopT pop tuple
+        result <- runM pop tuple
         MV.unsafeWrite vec idx result
         go vec (idx + 1) count it
   {-# INLINABLE collect #-}
@@ -171,7 +160,7 @@ instance MonadSouffle SouffleM where
     let relationName = factName (Proxy :: Proxy a)
     relation <- Internal.getRelation prog relationName
     tuple <- Internal.allocTuple relation
-    withForeignPtr tuple $ runPushT (push fact)
+    withForeignPtr tuple $ runM (push fact)
     found <- Internal.containsTuple relation tuple
     pure $ if found then Just fact else Nothing
   {-# INLINABLE findFact #-}
@@ -179,7 +168,7 @@ instance MonadSouffle SouffleM where
 addFact' :: Fact a => Ptr Internal.Relation -> a -> IO ()
 addFact' relation fact = do
   tuple <- Internal.allocTuple relation
-  withForeignPtr tuple $ runPushT (push fact)
+  withForeignPtr tuple $ runM (push fact)
   Internal.addTuple relation tuple
 {-# INLINABLE addFact' #-}
 

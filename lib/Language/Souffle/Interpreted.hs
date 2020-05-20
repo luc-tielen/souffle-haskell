@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# LANGUAGE DataKinds, FlexibleContexts, TypeFamilies, DerivingVia, InstanceSigs #-}
-{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies, DerivingVia, InstanceSigs #-}
 
 -- | This module provides an implementation for the `MonadSouffle` typeclass
 --   defined in "Language.Souffle.Class".
@@ -118,17 +117,18 @@ data HandleData = HandleData
   , noOfThreads :: Word64
   }
 
-newtype IMarshal (d :: Direction) a = IMarshal (State [String] a)
+newtype IMarshal a = IMarshal (State [String] a)
   deriving (Functor, Applicative, Monad, MonadState [String])
   via (State [String])
 
-instance MonadMarshal d IMarshal where
+instance MonadPush IMarshal where
   pushInt int = modify (show int:)
   {-# INLINABLE pushInt #-}
 
   pushString str = modify (str:)
   {-# INLINABLE pushString #-}
 
+instance MonadPop IMarshal where
   popInt = state $ \case
     [] -> error "Empty fact stack"
     (h:t) -> (read h, t)
@@ -139,11 +139,11 @@ instance MonadMarshal d IMarshal where
     (h:t) -> (h, t)
   {-# INLINABLE popString #-}
 
-popMarshalT :: IMarshal 'Pop a -> [String] -> a
+popMarshalT :: IMarshal a -> [String] -> a
 popMarshalT (IMarshal m) = evalState m
 {-# INLINABLE popMarshalT #-}
 
-pushMarshalT :: IMarshal 'Push a -> [String]
+pushMarshalT :: IMarshal a -> [String]
 pushMarshalT (IMarshal m) = reverse $ execState m []
 {-# INLINABLE pushMarshalT #-}
 
