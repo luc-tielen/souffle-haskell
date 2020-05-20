@@ -3,8 +3,7 @@
 {-# LANGUAGE DefaultSignatures, TypeOperators #-}
 
 -- | This module exposes a uniform interface to marshal values
---   to and from Souffle Datalog. This is done via the 'Marshal' typeclass
---   and 'MonadMarshal' monad.
+--   to and from Souffle Datalog. This is done via the 'Marshal' typeclass.
 --   Also, a mechanism is exposed for generically deriving marshalling
 --   and unmarshalling code for simple product types.
 module Language.Souffle.Marshal
@@ -19,16 +18,29 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Language.Souffle.Internal.Constraints as C
 
--- TODO docs
+{- | A typeclass for serializing primitive values from Haskell to Datalog.
+
+This typeclass is only used internally and subject to change.
+
+See also: 'MonadPop', 'Marshal'.
+-}
 class Monad m => MonadPush m where
+  -- | Marshals an integer to the datalog side.
   pushInt :: Int32 -> m ()
+  -- | Marshals a string to the datalog side.
   pushString :: String -> m ()
 
--- TODO docs
-class Monad m => MonadPop m where
-  popInt :: m Int32
-  popString :: m String
+{- | A typeclass for serializing primitive values from Datalog to Haskell.
 
+This typeclass is only used internally and subject to change.
+
+See also: 'MonadPush', 'Marshal'.
+-}
+class Monad m => MonadPop m where
+  -- | Unmarshals an integer from the datalog side.
+  popInt :: m Int32
+  -- | Unmarshals a string from the datalog side.
+  popString :: m String
 
 {- | A typeclass for providing a uniform API to marshal/unmarshal values
      between Haskell and Souffle datalog.
