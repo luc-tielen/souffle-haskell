@@ -1,18 +1,16 @@
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# LANGUAGE FlexibleInstances, FlexibleContexts, DeriveFunctor #-}
-{-# LANGUAGE DefaultSignatures, TypeOperators, RankNTypes #-}
+{-# LANGUAGE FlexibleInstances, FlexibleContexts, DataKinds, GADTs #-}
+{-# LANGUAGE DefaultSignatures, TypeOperators, RankNTypes, MultiParamTypeClasses #-}
 
 -- | This module exposes a uniform interface to marshal values
 --   to and from Souffle Datalog. This is done via the 'Marshal' typeclass
---   and 'MarshalM' monad.
+--   and 'MonadMarshal' monad.
 --   Also, a mechanism is exposed for generically deriving marshalling
 --   and unmarshalling code for simple product types.
 module Language.Souffle.Marshal
   ( Marshal(..)
-  , PushF(..)
-  , PopF(..)
-  , MarshalM
-  , interpret
+  , MonadMarshal(..)
+  , Direction(..) -- TODO remove
   ) where
 
 import GHC.Generics
@@ -21,56 +19,16 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Language.Souffle.Internal.Constraints as C
 
+data Direction = Push | Pop
 
--- | A data type used for deserializing a `Marshal`-able value
---   from Souffle to Haskell, only used internally.
-data PopF a
-  = PopInt (Int32 -> a)
-  | PopStr (String -> a)
-  deriving Functor
+-- TODO better name (emphasis on action?), make API simpler, docs
+class Monad (m d) => MonadMarshal d m where
+  pushInt :: (d ~ 'Push) => Int32 -> m d ()
+  pushString :: (d ~ 'Push) => String -> m d ()
 
--- | A data type used for serializing a `Marshal`-able value
---   from Haskell to Souffle, only used internally.
-data PushF a
-  = PushInt Int32 a
-  | PushStr String a
-  deriving Functor
+  popInt :: (d ~ 'Pop) => m d Int32
+  popString :: (d ~ 'Pop) => m d String
 
--- NOTE: Free is reimplemented here to avoid pulling in quite a few
---       dependencies and since we only need 2 functions
-
--- | The monad used for serializing and deserializing of values that
---   implement the `Marshal` typeclass.
-data MarshalM f a
-  = Pure a
-  | Free (f (MarshalM f a))
-  deriving Functor
-
-instance Functor f => Applicative (MarshalM f) where
-  pure = Pure
-  {-# INLINABLE pure #-}
-  Pure f <*> Pure a = Pure $ f a
-  Pure f <*> Free fa = f <$> Free fa
-  Free fa <*> m = Free $ fmap (<*> m) fa
-  {-# INLINABLE (<*>) #-}
-
-instance Functor f => Monad (MarshalM f) where
-  Pure a >>= f = f a
-  Free fa >>= f = Free $ fmap (>>= f) fa
-  {-# INLINABLE (>>=) #-}
-
-liftF :: Functor f => f a -> MarshalM f a
-liftF action = Free $ fmap pure action
-{-# INLINABLE liftF #-}
-
--- | Helper function for interpreting the actual (de-)serialization of values.
---   This allows both the compiled and interpreted variant to handle
---   (de-)serialization in their own way.
-interpret :: Monad m => (forall x. f x -> m x) -> MarshalM f a -> m a
-interpret f = \case
-  Pure a -> pure a
-  Free fa -> f fa >>= interpret f
-{-# INLINABLE interpret #-}
 
 {- | A typeclass for providing a uniform API to marshal/unmarshal values
      between Haskell and Souffle datalog.
@@ -93,46 +51,46 @@ instance Marshal Edge
 -}
 class Marshal a where
   -- | Marshals a value to the datalog side.
-  push :: a -> MarshalM PushF ()
+  push :: MonadMarshal 'Push m => a -> m 'Push ()
   -- | Unmarshals a value from the datalog side.
-  pop :: MarshalM PopF a
+  pop :: MonadMarshal 'Pop m => m 'Pop a
 
-  default push :: (Generic a, C.SimpleProduct a (Rep a), GMarshal (Rep a))
-               => a -> MarshalM PushF ()
-  default pop :: (Generic a, C.SimpleProduct a (Rep a), GMarshal (Rep a))
-              => MarshalM PopF a
+  default push :: (Generic a, C.SimpleProduct a (Rep a), GMarshal (Rep a), MonadMarshal 'Push m)
+               => a -> m 'Push ()
+  default pop :: (Generic a, C.SimpleProduct a (Rep a), GMarshal (Rep a), MonadMarshal 'Pop m)
+              => m 'Pop a
   push a = gpush (from a)
   {-# INLINABLE push #-}
   pop = to <$> gpop
   {-# INLINABLE pop #-}
 
 instance Marshal Int32 where
-  push int = liftF (PushInt int ())
+  push = pushInt
   {-# INLINABLE push #-}
-  pop  = liftF (PopInt id)
+  pop = popInt
   {-# INLINABLE pop #-}
 
 instance Marshal String where
-  push str = liftF (PushStr str ())
+  push = pushString
   {-# INLINABLE push #-}
-  pop  = liftF (PopStr id)
+  pop = popString
   {-# INLINABLE pop #-}
 
 instance Marshal T.Text where
   push = push . T.unpack
   {-# INLINABLE push #-}
-  pop  = T.pack <$> pop
+  pop = T.pack <$> pop
   {-# INLINABLE pop #-}
 
 instance Marshal TL.Text where
   push = push . TL.unpack
   {-# INLINABLE push #-}
-  pop  = TL.pack <$> pop
+  pop = TL.pack <$> pop
   {-# INLINABLE pop #-}
 
 class GMarshal f where
-  gpush :: f a -> MarshalM PushF ()
-  gpop  :: MarshalM PopF (f a)
+  gpush :: MonadMarshal 'Push m => f a -> m 'Push ()
+  gpop  :: MonadMarshal 'Pop m => m 'Pop (f a)
 
 instance Marshal a => GMarshal (K1 i a) where
   gpush (K1 x) = push x

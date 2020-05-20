@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# LANGUAGE DataKinds, FlexibleContexts, TypeFamilies, DerivingVia, InstanceSigs #-}
+{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses #-}
 
 -- | This module provides an implementation for the `MonadSouffle` typeclass
 --   defined in "Language.Souffle.Class".
@@ -117,41 +118,34 @@ data HandleData = HandleData
   , noOfThreads :: Word64
   }
 
-newtype IMarshal a = IMarshal (State [String] a)
-  deriving
-    ( Functor
-    , Applicative
-    , Monad
-    , MonadState [String]
-    )
+newtype IMarshal (d :: Direction) a = IMarshal (State [String] a)
+  deriving (Functor, Applicative, Monad, MonadState [String])
   via (State [String])
 
-popMarshalT :: MarshalM PopF a -> [String] -> a
-popMarshalT = runM . interpret popAlgM where
-  runM (IMarshal m) = evalState m
-  popAlgM (PopStr f) = do
-    str <- state (\case
-              [] -> error "Empty fact stack"
-              (h:t) -> (h, t))
-    pure $ f str
-  popAlgM (PopInt f) = do
-    int <- state (\case
-              [] -> error "Empty fact stack"
-              (h:t) -> (read h, t))
-    pure $ f int
+instance MonadMarshal d IMarshal where
+  pushInt int = modify (show int:)
+  {-# INLINABLE pushInt #-}
+
+  pushString str = modify (str:)
+  {-# INLINABLE pushString #-}
+
+  popInt = state $ \case
+    [] -> error "Empty fact stack"
+    (h:t) -> (read h, t)
+  {-# INLINABLE popInt #-}
+
+  popString = state $ \case
+    [] -> error "Empty fact stack"
+    (h:t) -> (h, t)
+  {-# INLINABLE popString #-}
+
+popMarshalT :: IMarshal 'Pop a -> [String] -> a
+popMarshalT (IMarshal m) = evalState m
 {-# INLINABLE popMarshalT #-}
 
-pushMarshalT :: MarshalM PushF a -> [String]
-pushMarshalT = runM . interpret pushAlgM where
-  runM (IMarshal m) = reverse $ execState m []
-  pushAlgM (PushInt i v) = do
-    modify (show i:)
-    pure v
-  pushAlgM (PushStr s v) = do
-    modify (s:)
-    pure v
+pushMarshalT :: IMarshal 'Push a -> [String]
+pushMarshalT (IMarshal m) = reverse $ execState m []
 {-# INLINABLE pushMarshalT #-}
-
 
 class Collect c where
   collect :: Marshal a => FilePath -> IO (c a)

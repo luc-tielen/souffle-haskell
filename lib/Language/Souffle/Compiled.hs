@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# LANGUAGE TypeFamilies, TypeOperators, DerivingVia, InstanceSigs, BangPatterns #-}
-{-# LANGUAGE DataKinds, FlexibleContexts #-}
+{-# LANGUAGE DataKinds, FlexibleContexts, FlexibleInstances, MultiParamTypeClasses #-}
 
 -- | This module provides an implementation for the typeclasses defined in
 --   "Language.Souffle.Class".
@@ -50,46 +50,47 @@ newtype SouffleM a
 
 type Tuple = Ptr Internal.Tuple
 
--- | A monad transformer, used solely for marshalling and unmarshalling
+-- | A monad used solely for marshalling and unmarshalling
 --   between Haskell and Souffle Datalog.
-newtype MarshalT m a = MarshalT (ReaderT Tuple m a)
-  deriving ( Functor, Applicative, Monad
-           , MonadIO, MonadReader Tuple, MonadWriter w
-           , MonadState s, MonadRWS Tuple w s, MonadError e )
-  via ( ReaderT Tuple m )
-  deriving MonadTrans via (ReaderT Tuple)
+newtype MarshalT (d :: Direction) a = MarshalT (ReaderT Tuple IO a)
+  deriving (Functor, Applicative, Monad, MonadIO, MonadReader Tuple)
+  via ( ReaderT Tuple IO )
 
-runM :: Monad m => MarshalT m a -> Tuple -> m a
+{- TODO delete? or delete runPushT / runPopT?
+runM :: MarshalT d a -> Tuple -> IO a
 runM (MarshalT m) = runReaderT m
 {-# INLINABLE runM #-}
+-}
 
--- | Execute the monad transformer and return the result.
---   The tuple that is passed in will be used to marshal the data back and forth.
-runPushT :: MonadIO m => MarshalM PushF a -> Tuple -> m a
-runPushT = runM . interpret pushAlgM where
-  pushAlgM (PushInt int v) = do
+instance MonadMarshal d MarshalT where
+  pushInt int = do
     tuple <- ask
     liftIO $ Internal.tuplePushInt tuple int
-    pure v
-  pushAlgM (PushStr str v) = do
+  {-# INLINABLE pushInt #-}
+
+  pushString str = do
     tuple <- ask
     liftIO $ Internal.tuplePushString tuple str
-    pure v
+  {-# INLINABLE pushString #-}
+
+  popInt = do
+    tuple <- ask
+    liftIO $ Internal.tuplePopInt tuple
+  {-# INLINABLE popInt #-}
+
+  popString = do
+    tuple <- ask
+    liftIO $ Internal.tuplePopString tuple
+  {-# INLINABLE popString #-}
+
+runPushT :: MonadIO m => MarshalT 'Push () -> Tuple -> m ()
+runPushT (MarshalT m) = liftIO . runReaderT m
 {-# INLINABLE runPushT #-}
 
--- | Execute the monad transformer and return the result.
---   The tuple that is passed in will be used to marshal the data back and forth.
-runPopT :: MonadIO m => MarshalM PopF a -> Tuple -> m a
-runPopT = runM . interpret popAlgM where
-  popAlgM (PopStr f) = MarshalT $ do
-    tuple <- ask
-    str   <- liftIO $ Internal.tuplePopString tuple
-    pure $ f str
-  popAlgM (PopInt f) = MarshalT $ do
-    tuple <- ask
-    int   <- liftIO $ Internal.tuplePopInt tuple
-    pure $ f int
+runPopT :: (MonadIO m, Marshal a) => MarshalT 'Pop a -> Tuple -> m a
+runPopT (MarshalT m) = liftIO . runReaderT m
 {-# INLINABLE runPopT #-}
+
 
 class Collect c where
   collect :: Marshal a => Int -> ForeignPtr Internal.RelationIterator -> IO (c a)
@@ -166,13 +167,13 @@ instance MonadSouffle SouffleM where
 
   findFact :: forall a prog. (Fact a, ContainsFact prog a)
            => Handle prog -> a -> SouffleM (Maybe a)
-  findFact (Handle prog) a = SouffleM $ do
+  findFact (Handle prog) fact = SouffleM $ do
     let relationName = factName (Proxy :: Proxy a)
     relation <- Internal.getRelation prog relationName
     tuple <- Internal.allocTuple relation
-    withForeignPtr tuple $ runPushT (push a)
+    withForeignPtr tuple $ runPushT (push fact)
     found <- Internal.containsTuple relation tuple
-    pure $ if found then Just a else Nothing
+    pure $ if found then Just fact else Nothing
   {-# INLINABLE findFact #-}
 
 addFact' :: Fact a => Ptr Internal.Relation -> a -> IO ()
