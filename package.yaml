@@ -15,8 +15,6 @@ extra-source-files:
   - LICENSE
   - cbits/*.h
 
-system-build-tools: souffle
-
 dependencies:
   - base >= 4.12 && < 5
   - mtl >= 2.0 && < 3
