@@ -177,6 +177,6 @@ instance MonadSouffleFileIO SouffleM where
   loadFiles (Handle prog) = SouffleM . Internal.loadAll prog
   {-# INLINABLE loadFiles #-}
 
-  writeFiles (Handle prog) = SouffleM $ Internal.printAll prog
+  writeFiles (Handle prog) = SouffleM . Internal.printAll prog
   {-# INLINABLE writeFiles #-}
 
