@@ -13,7 +13,8 @@ extra-source-files:
   - README.md
   - CHANGELOG.md
   - LICENSE
-  - cbits/*.h
+  - cbits/souffle/LICENSE
+  - cbits/**/*.h
 
 dependencies:
   - base >= 4.12 && < 5
@@ -51,8 +52,80 @@ ghc-options:
   - -fno-show-valid-hole-fits
   - -fno-sort-valid-hole-fits
 
-cpp-options:
+cxx-options:
   - -std=c++17
+
+include-dirs:
+  - cbits
+  - cbits/souffle
+
+install-includes:
+  - souffle/ReadStreamCSV.h
+  - souffle/CompiledSouffle.h
+  - souffle/SouffleInterface.h
+  - souffle/UnionFind.h
+  - souffle/EquivalenceRelation.h
+  - souffle/gzfstream.h
+  - souffle/swig/SwigInterface.h
+  - souffle/WriteStreamSQLite.h
+  - souffle/SignalHandler.h
+  - souffle/Util.h
+  - souffle/RamTypes.h
+  - souffle/Logger.h
+  - souffle/Table.h
+  - souffle/CompiledRelation.h
+  - souffle/ExplainTree.h
+  - souffle/LambdaBTree.h
+  - souffle/ReadStreamSQLite.h
+  - souffle/IterUtils.h
+  - souffle/ReadStream.h
+  - souffle/BTree.h
+  - souffle/IOSystem.h
+  - souffle/IODirectives.h
+  - souffle/SymbolTable.h
+  - souffle/EventProcessor.h
+  - souffle/PiggyList.h
+  - souffle/json11.h
+  - souffle/CompiledIndexUtils.h
+  - souffle/ParallelUtils.h
+  - souffle/CompiledTuple.h
+  - souffle/ExplainProvenanceImpl.h
+  - souffle/WriteStream.h
+  - souffle/CompiledRecord.h
+  - souffle/ProfileDatabase.h
+  - souffle/ProfileEvent.h
+  - souffle/ExplainProvenance.h
+  - souffle/profile/htmlJsChartistPlugin.h
+  - souffle/profile/htmlCssChartist.h
+  - souffle/profile/Tui.h
+  - souffle/profile/Relation.h
+  - souffle/profile/Cli.h
+  - souffle/profile/Iteration.h
+  - souffle/profile/Table.h
+  - souffle/profile/htmlJsChartistMin.h
+  - souffle/profile/ProgramRun.h
+  - souffle/profile/HtmlGenerator.h
+  - souffle/profile/UserInputReader.h
+  - souffle/profile/DataComparator.h
+  - souffle/profile/htmlJsMain.h
+  - souffle/profile/json11.h
+  - souffle/profile/Rule.h
+  - souffle/profile/htmlMain.h
+  - souffle/profile/ProfileDatabase.h
+  - souffle/profile/Reader.h
+  - souffle/profile/htmlJsTableSort.h
+  - souffle/profile/Row.h
+  - souffle/profile/StringUtils.h
+  - souffle/profile/CellInterface.h
+  - souffle/profile/Cell.h
+  - souffle/profile/OutputProcessor.h
+  - souffle/profile/htmlJsUtil.h
+  - souffle/profile/htmlCssStyle.h
+  - souffle/WriteStreamCSV.h
+  - souffle/CompiledOptions.h
+  - souffle/Brie.h
+  - souffle/BinaryConstraintOps.h
+  - souffle/Explain.h
 
 library:
   source-dirs:        lib
@@ -75,5 +148,5 @@ tests:
     dependencies:
       - hspec >= 2.6.1 && < 3.0.0
       - souffle-haskell
-    cpp-options:
+    cxx-options:
       - -D__EMBEDDED_SOUFFLE__
