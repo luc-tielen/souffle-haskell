@@ -62,7 +62,7 @@ type family CheckContains prog facts fact :: Constraint where
 --
 -- instance Program Path where
 --   type ProgramFacts Path = '[Edge, Reachable]
---   factName = const "path"
+--   programName = const "path"
 -- @
 class Program a where
   -- | A type level list of facts that belong to this program.
