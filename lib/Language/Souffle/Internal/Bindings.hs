@@ -104,14 +104,14 @@ foreign import ccall unsafe "souffle_run" run
 foreign import ccall unsafe "souffle_load_all" loadAll
   :: Ptr Souffle -> CString -> IO ()
 
-{-| Write out all facts of the program to CSV files
+{-| Write out all facts of the program to CSV files in a given directory
     (as defined in the Souffle program).
 
     You need to check if the pointer is not equal to 'nullPtr' before passing it
     to this function. Not doing so results in undefined behavior (in C++).
 -}
 foreign import ccall unsafe "souffle_print_all" printAll
-  :: Ptr Souffle -> IO ()
+  :: Ptr Souffle -> CString -> IO ()
 
 {-| Lookup a relation in the Souffle program.
 
