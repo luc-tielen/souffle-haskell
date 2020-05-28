@@ -52,6 +52,10 @@ ghc-options:
   - -fno-show-valid-hole-fits
   - -fno-sort-valid-hole-fits
 
+# dirty workaround for Template Haskell embedded C++ sources
+cpp-options:
+  - -std=c++17
+
 cxx-options:
   - -std=c++17
 
@@ -149,4 +153,7 @@ tests:
       - hspec >= 2.6.1 && < 3.0.0
       - souffle-haskell
     cxx-options:
+      - -D__EMBEDDED_SOUFFLE__
+    # dirty workaround for Template Haskell embedded C++ sources
+    cpp-options:
       - -D__EMBEDDED_SOUFFLE__
