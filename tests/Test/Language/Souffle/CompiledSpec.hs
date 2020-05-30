@@ -9,10 +9,7 @@ import Test.Hspec
 import GHC.Generics
 import Data.Maybe
 import qualified Data.Vector as V
-import qualified Language.Souffle.TH as Souffle
 import qualified Language.Souffle as Souffle
-
-Souffle.embedProgram "tests/fixtures/path.cpp"
 
 data Path = Path
 
