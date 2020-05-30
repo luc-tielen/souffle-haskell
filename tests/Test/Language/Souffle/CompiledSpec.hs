@@ -1,5 +1,4 @@
-{-# LANGUAGE TemplateHaskell, ScopedTypeVariables, DataKinds #-}
-{-# LANGUAGE TypeFamilies, DeriveGeneric #-}
+{-# LANGUAGE ScopedTypeVariables, DataKinds, TypeFamilies, DeriveGeneric #-}
 
 module Test.Language.Souffle.CompiledSpec
   ( module Test.Language.Souffle.CompiledSpec
