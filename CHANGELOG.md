@@ -5,13 +5,18 @@ All notable changes to this project (as seen by library users) will be documente
 The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-haskell.git/CHANGELOG.md).
 
 ## [???] - Unreleased
+### Changed
+
+- `writeFiles` now takes an extra `FilePath` argument for writing facts to a
+  certain directory.
+  
 ### Deleted
 
 - Language.Souffle.TH module is deleted because it is no longer needed anymore
   due to a change in the generated Souffle code. The generated code can now be
   correctly integrated by adding the files to `cxx-sources`
   in package.yaml / cabal file.
-
+  
 
 ## [0.2.3] - 2020-05-21
 ### Changed

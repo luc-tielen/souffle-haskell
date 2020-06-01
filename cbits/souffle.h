@@ -61,7 +61,7 @@ extern "C" {
      * You need to check if both pointers are non-NULL before passing it to this
      * function. Not doing so results in undefined behavior.
      */
-    void souffle_load_all(souffle_t* program, const char* directory);
+    void souffle_load_all(souffle_t* program, const char* input_directory);
 
     /*
      * Write out all facts of the program to CSV files
@@ -70,7 +70,7 @@ extern "C" {
      * You need to check if the pointer is non-NULL before passing it to this
      * function. Not doing so results in undefined behavior.
      */
-    void souffle_print_all(souffle_t* program);
+    void souffle_print_all(souffle_t* program, const char* output_directory);
 
     /*
      * Lookup a relation in the Souffle program.

@@ -83,13 +83,13 @@ run prog = withForeignPtr prog Bindings.run
 
 -- | Load all facts from files in a certain directory.
 loadAll :: ForeignPtr Souffle -> FilePath -> IO ()
-loadAll prog str = withForeignPtr prog $ withCString str . Bindings.loadAll
+loadAll prog inputDir = withForeignPtr prog $ withCString inputDir . Bindings.loadAll
 {-# INLINABLE loadAll #-}
 
--- | Write out all facts of the program to CSV files
+-- | Write out all facts of the program to CSV files in a certain directory
 --   (as defined in the Souffle program).
-printAll :: ForeignPtr Souffle -> IO ()
-printAll prog = withForeignPtr prog Bindings.printAll
+printAll :: ForeignPtr Souffle -> FilePath -> IO ()
+printAll prog outputDir = withForeignPtr prog $ withCString outputDir . Bindings.printAll
 {-# INLINABLE printAll #-}
 
 {-| Lookup a relation by name in the Souffle program.

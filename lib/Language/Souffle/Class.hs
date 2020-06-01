@@ -62,7 +62,7 @@ type family CheckContains prog facts fact :: Constraint where
 --
 -- instance Program Path where
 --   type ProgramFacts Path = '[Edge, Reachable]
---   factName = const "path"
+--   programName = const "path"
 -- @
 class Program a where
   -- | A type level list of facts that belong to this program.
@@ -253,36 +253,36 @@ class MonadSouffle m => MonadSouffleFileIO m where
   -- | Load all facts from files in a certain directory.
   loadFiles :: Handler m prog -> FilePath -> m ()
 
-  -- | Write out all facts of the program to CSV files
+  -- | Write out all facts of the program to CSV files in a certain directory
   --   (as defined in the Souffle program).
-  writeFiles :: Handler m prog -> m ()
+  writeFiles :: Handler m prog -> FilePath -> m ()
 
 instance MonadSouffleFileIO m => MonadSouffleFileIO (ReaderT r m) where
   loadFiles prog = lift . loadFiles prog
   {-# INLINABLE loadFiles #-}
-  writeFiles = lift . writeFiles
+  writeFiles prog = lift . writeFiles prog
   {-# INLINABLE writeFiles #-}
 
 instance (Monoid w, MonadSouffleFileIO m) => MonadSouffleFileIO (WriterT w m) where
   loadFiles prog = lift . loadFiles prog
   {-# INLINABLE loadFiles #-}
-  writeFiles = lift . writeFiles
+  writeFiles prog = lift . writeFiles prog
   {-# INLINABLE writeFiles #-}
 
 instance MonadSouffleFileIO m => MonadSouffleFileIO (StateT s m) where
   loadFiles prog = lift . loadFiles prog
   {-# INLINABLE loadFiles #-}
-  writeFiles = lift . writeFiles
+  writeFiles prog = lift . writeFiles prog
   {-# INLINABLE writeFiles #-}
 
 instance (MonadSouffleFileIO m, Monoid w) => MonadSouffleFileIO (RWST r w s m) where
   loadFiles prog = lift . loadFiles prog
   {-# INLINABLE loadFiles #-}
-  writeFiles = lift . writeFiles
+  writeFiles prog = lift . writeFiles prog
   {-# INLINABLE writeFiles #-}
 
 instance MonadSouffleFileIO m => MonadSouffleFileIO (ExceptT s m) where
   loadFiles prog = lift . loadFiles prog
   {-# INLINABLE loadFiles #-}
-  writeFiles = lift . writeFiles
+  writeFiles prog = lift . writeFiles prog
   {-# INLINABLE writeFiles #-}
