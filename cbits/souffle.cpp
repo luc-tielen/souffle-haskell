@@ -32,17 +32,18 @@ extern "C" {
         prog->run();
     }
 
-    void souffle_load_all(souffle_t* program, const char* directory) {
+    void souffle_load_all(souffle_t* program, const char* input_directory) {
         auto prog = reinterpret_cast<souffle::SouffleProgram*>(program);
         assert(prog);
-        assert(directory);
-        prog->loadAll(directory);
+        assert(input_directory);
+        prog->loadAll(input_directory);
     }
 
-    void souffle_print_all(souffle_t* program) {
+    void souffle_print_all(souffle_t* program, const char* output_directory) {
         auto prog = reinterpret_cast<souffle::SouffleProgram*>(program);
         assert(prog);
-        prog->printAll();
+        assert(output_directory);
+        prog->printAll(output_directory);
     }
 
     relation_t* souffle_relation(souffle_t* program, const char* relation_name) {
