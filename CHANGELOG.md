@@ -4,6 +4,12 @@
 All notable changes to this project (as seen by library users) will be documented in this file.
 The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-haskell.git/CHANGELOG.md).
 
+## [???] - Unreleased
+### Changed
+
+- `writeFiles` now takes an extra `FilePath` argument for writing facts to a
+  certain directory.
+
 ## [0.2.3] - 2020-05-21
 ### Changed
 
