@@ -59,7 +59,7 @@ import qualified Language.Souffle.Compiled as Souffle
 -- We define a data type representing our datalog program.
 data Path = Path
 
--- Facts are represent in Haskell as simple product types,
+-- Facts are represented in Haskell as simple product types,
 -- Numbers map to Int32, symbols to Strings / Text.
 
 data Edge = Edge String String
@@ -75,7 +75,7 @@ instance Souffle.Program Path where
   type ProgramFacts Path = [Edge, Reachable]
   programName = const "path"
 
--- By making a data type an instance of Edge, we give Haskell the
+-- By making a data type an instance of Fact, we give Haskell the
 -- necessary information to bind to the datalog fact.
 instance Souffle.Fact Edge where
   factName = const "edge"
