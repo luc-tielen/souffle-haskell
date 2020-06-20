@@ -49,8 +49,8 @@ instance Souffle.Program BadPath where
   type ProgramFacts BadPath = [Edge, Reachable]
   programName = const "bad_path"
 
-getTestTemplateDirectory :: IO FilePath
-getTestTemplateDirectory = do
+getTestTemporaryDirectory :: IO FilePath
+getTestTemporaryDirectory = do
   tmpDir <- getCanonicalTemporaryDirectory
   createTempDirectory tmpDir "souffle-haskell-test"
 
@@ -101,7 +101,7 @@ spec = describe "Souffle API" $ parallel $ do
 
     it "can retrieve facts from custom output directory" $ do
       cfg <- Souffle.defaultConfig
-      tmp <- getTestTemplateDirectory
+      tmp <- getTestTemporaryDirectory
       (edges, reachables) <- Souffle.runSouffleWith (cfg { Souffle.cfgOutputDir = Just tmp }) $ do
         prog <- fromJust <$> Souffle.init PathNoInput
         Souffle.run prog
@@ -139,8 +139,8 @@ spec = describe "Souffle API" $ parallel $ do
 
     it "adds a fact to a custom input directory" $ do
       cfg <- Souffle.defaultConfig
-      tmp <- getTestTemplateDirectory
-      join $ Souffle.runSouffleWith (cfg { Souffle.cfgOutputDir = Just tmp }) $ do -- Souffle
+      tmp <- getTestTemporaryDirectory
+      join $ Souffle.runSouffleWith (cfg { Souffle.cfgFactDir = Just tmp }) $ do -- Souffle
         prog <- fromJust <$> Souffle.init Path
         Souffle.addFact prog $ Edge "e" "f"
         Souffle.run prog

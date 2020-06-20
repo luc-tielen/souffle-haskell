@@ -63,13 +63,13 @@ newtype SouffleM a
 --
 --   - __cfgDatalogDir__: The directory where the datalog file(s) are located.
 --   - __cfgSouffleBin__: The name of the souffle binary. Has to be available in
---   - __cfgFactDir__: The directory where the initial input facts can be found
+--   \$PATH or an absolute path needs to be provided. Note: Passing in `Nothing`
+--   will fail to start up the interpreter in the `MonadSouffle.init` function.
+--   - __cfgFactDir__: The directory where the initial input fact file(s) can be found
 --   if present. If Nothing, then a temporary directory will be used, during the
 --   souffle session.
 --   - __cfgOutputDir__: The directory where the output facts file(s) are created.
---   If Nothing, it will be part of the template directory.
---   \$PATH or an absolute path needs to be provided. Note: Passing in `Nothing`
---   will fail to start up the interpreter in the `MonadSouffle.init` function.
+--   If Nothing, it will be part of the temporary directory.
 data Config
   = Config
   { cfgDatalogDir   :: FilePath
@@ -88,8 +88,8 @@ data Config
 --   - __cfgSouffleBin__: Looks at environment variable \$SOUFFLE_BIN,
 --   or tries to locate the souffle binary using the which shell command
 --   if the variable is not set.
---   - __cfgFactDir__: Set to Nothing, meaning it will be a template directory
---   - __cfgOutputDir__: Set to Nothing, neaning it will be a template directory
+--   - __cfgFactDir__: Will make use of a temporary directory.
+--   - __cfgOutputDir__: Will make use of a temporary directory.
 defaultConfig :: MonadIO m => m Config
 defaultConfig = liftIO $ do
   dlDir <- lookupEnv "DATALOG_DIR"
@@ -322,14 +322,14 @@ cleanup (Handle (refHandleData,refHandleStdOut,refHandleStdErr)) = liftIO $ do
   readIORef refHandleStdErr >>= mapM_ hClose
 {-# INLINABLE cleanup #-}
 
--- | Returns the handle for the stdout of the souffle interpreter. The client code, shouldn't
+-- | Returns the handle for the stdout of the souffle interpreter. You shouldn't
 --   call hClose on the handle as it is cleaned up in the cleanup step.
 souffleStdOut :: forall prog. Program prog => Handle prog -> SouffleM (Maybe IO.Handle)
 souffleStdOut (Handle (_,refHandleStdOut,_)) = liftIO $ do
   readIORef refHandleStdOut
 
--- | Returns the handle for the stderr of the souffle interpreter. The client code, shouldn't
---   call hClose on the handle as it is cleaned up in the cleanup step.
+-- | Returns the handle for the stderr of the souffle interpreter. You shouldn't
+--   call hClose on the handle as it is cleaned up in the cleanup step automatically.
 souffleStdErr :: forall prog. Program prog => Handle prog -> SouffleM (Maybe IO.Handle)
 souffleStdErr (Handle (_,_,refHandleStdErr)) = liftIO $ do
   readIORef refHandleStdErr
@@ -340,4 +340,3 @@ splitOn c s =
       rest' = drop 1 rest
    in x : splitOn c rest'
 {-# INLINABLE splitOn #-}
-
