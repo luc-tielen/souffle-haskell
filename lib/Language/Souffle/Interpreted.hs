@@ -27,7 +27,7 @@ module Language.Souffle.Interpreted
 
 import Prelude hiding (init)
 
-import Control.DeepSeq (deepseq)
+import Control.DeepSeq (deepseq, force)
 import Control.Exception (ErrorCall(..), throwIO)
 import Control.Monad.State.Strict
 import Control.Monad.Reader
@@ -37,6 +37,7 @@ import Data.List hiding (init)
 import Data.Semigroup (Last(..))
 import Data.Maybe (fromMaybe)
 import Data.Proxy
+import qualified Data.Text as T
 import qualified Data.Vector as V
 import Data.Word
 import Language.Souffle.Class
@@ -46,7 +47,6 @@ import System.Environment
 import System.Exit
 import System.FilePath
 import System.IO (hGetContents, hClose)
-import qualified System.IO as IO (Handle)
 import System.IO.Temp
 import System.Process
 import Text.Printf
@@ -116,7 +116,11 @@ runSouffleWith cfg (SouffleM m) = runReaderT m cfg
 -- | A datatype representing a handle to a datalog program.
 --   The type parameter is used for keeping track of which program
 --   type the handle belongs to for additional type safety.
-newtype Handle prog = Handle (IORef HandleData, IORef (Maybe IO.Handle), IORef (Maybe IO.Handle))
+data Handle prog = Handle
+  { handleData   :: IORef HandleData
+  , stdoutResult :: IORef (Maybe T.Text)
+  , stderrResult :: IORef (Maybe T.Text)
+  }
 
 -- | The data needed for the interpreter is the path where the souffle
 --   executable can be found, and a template directory where the program
@@ -199,7 +203,7 @@ instance MonadSouffle SouffleM where
         createDirectoryIfMissing True outDir
       mSouffleBin <- asks cfgSouffleBin
       liftIO $ forM mSouffleBin $ \souffleBin ->
-        Handle <$> ((,,)
+        Handle
           <$> (newIORef $ HandleData
                 { soufflePath = souffleBin
                 , basePath    = souffleTempDir
@@ -209,10 +213,10 @@ instance MonadSouffle SouffleM where
                 , noOfThreads = 1
                 })
           <*> newIORef Nothing
-          <*> newIORef Nothing)
+          <*> newIORef Nothing
   {-# INLINABLE init #-}
 
-  run (Handle (refHandleData,refHandleStdOut,refHandleStdErr)) = liftIO $ do
+  run (Handle refHandleData refHandleStdOut refHandleStdErr) = liftIO $ do
     handle <- readIORef refHandleData
     -- Invoke the souffle binary using parameters, supposing that the facts
     -- are placed in the factPath, rendering the output into the outputPath.
@@ -229,25 +233,32 @@ instance MonadSouffle SouffleM where
             , std_err = CreatePipe
             }
     (_, mStdOutHandle, mStdErrHandle, processHandle) <- createProcess_ "souffle-haskell" processToRun
-    writeIORef refHandleStdOut mStdOutHandle
-    writeIORef refHandleStdErr mStdErrHandle
     waitForProcess processHandle >>= \case
       ExitSuccess   -> pure ()
       ExitFailure c -> throwIO $ ErrorCall $ "Souffle exited with: " ++ show c
+    forM_ mStdOutHandle $ \stdoutHandle -> do
+      stdout <- T.pack <$> hGetContents stdoutHandle
+      writeIORef refHandleStdOut $! Just $! stdout
+      hClose stdoutHandle
+    forM_ mStdErrHandle $ \stderrHandle -> do
+      stderr <- T.pack <$> hGetContents stderrHandle
+      writeIORef refHandleStdErr $! Just $! stderr
+      hClose stderrHandle
+
   {-# INLINABLE run #-}
 
-  setNumThreads (Handle (ref,_,_)) n = liftIO $
-    modifyIORef' ref (\h -> h { noOfThreads = n })
+  setNumThreads handle n = liftIO $
+    modifyIORef' (handleData handle) (\h -> h { noOfThreads = n })
   {-# INLINABLE setNumThreads #-}
 
-  getNumThreads (Handle (ref,_,_)) = liftIO $
-    noOfThreads <$> readIORef ref
+  getNumThreads handle = liftIO $
+    noOfThreads <$> readIORef (handleData handle)
   {-# INLINABLE getNumThreads #-}
 
   getFacts :: forall a c prog. (Marshal a, Fact a, ContainsFact prog a, Collect c)
            => Handle prog -> SouffleM (c a)
-  getFacts (Handle (ref,_,_)) = liftIO $ do
-    handle <- readIORef ref
+  getFacts hndl = liftIO $ do
+    handle <- readIORef $ handleData hndl
     let relationName = factName (Proxy :: Proxy a)
     let factFile = outputPath handle </> relationName <.> "csv"
     facts <- collect factFile
@@ -263,8 +274,8 @@ instance MonadSouffle SouffleM where
 
   addFact :: forall a prog. (Fact a, ContainsFact prog a, Marshal a)
           => Handle prog -> a -> SouffleM ()
-  addFact (Handle (ref,_,_)) fact = liftIO $ do
-    handle <- readIORef ref
+  addFact hndl fact = liftIO $ do
+    handle <- readIORef $ handleData hndl
     let relationName = factName (Proxy :: Proxy a)
     let factFile = factPath handle </> relationName <.> "facts"
     let line = pushMarshalT (push fact)
@@ -273,8 +284,8 @@ instance MonadSouffle SouffleM where
 
   addFacts :: forall a prog f. (Fact a, ContainsFact prog a, Marshal a, Foldable f)
            => Handle prog -> f a -> SouffleM ()
-  addFacts (Handle (ref,_,_)) facts = SouffleM $ liftIO $ do
-    handle <- readIORef ref
+  addFacts hndl facts = SouffleM $ liftIO $ do
+    handle <- readIORef $ handleData hndl
     let relationName = factName (Proxy :: Proxy a)
     let factFile = factPath handle </> relationName <.> "facts"
     let factLines = map (pushMarshalT . push) (foldMap pure facts)
@@ -315,24 +326,18 @@ readCSVFile path = doesFileExist path >>= \case
 --   This functionality is only provided for the interpreted version since the
 --   compiled version directly (de-)serializes data via the C++ API.
 cleanup :: forall prog. Program prog => Handle prog -> SouffleM ()
-cleanup (Handle (refHandleData,refHandleStdOut,refHandleStdErr)) = liftIO $ do
-  handle <- readIORef refHandleData
+cleanup hndl  = liftIO $ do
+  handle <- readIORef $ handleData hndl
   traverse_ removeDirectoryRecursive [factPath handle, outputPath handle, basePath handle]
-  readIORef refHandleStdOut >>= mapM_ hClose
-  readIORef refHandleStdErr >>= mapM_ hClose
 {-# INLINABLE cleanup #-}
 
--- | Returns the handle for the stdout of the souffle interpreter. You shouldn't
---   call hClose on the handle as it is cleaned up in the cleanup step.
-souffleStdOut :: forall prog. Program prog => Handle prog -> SouffleM (Maybe IO.Handle)
-souffleStdOut (Handle (_,refHandleStdOut,_)) = liftIO $ do
-  readIORef refHandleStdOut
+-- | Returns the handle of stdout from the souffle interpreter.
+souffleStdOut :: forall prog. Program prog => Handle prog -> SouffleM (Maybe T.Text)
+souffleStdOut = liftIO . readIORef . stdoutResult
 
--- | Returns the handle for the stderr of the souffle interpreter. You shouldn't
---   call hClose on the handle as it is cleaned up in the cleanup step automatically.
-souffleStdErr :: forall prog. Program prog => Handle prog -> SouffleM (Maybe IO.Handle)
-souffleStdErr (Handle (_,_,refHandleStdErr)) = liftIO $ do
-  readIORef refHandleStdErr
+-- | Returns the content of stderr from the souffle interpreter.
+souffleStdErr :: forall prog. Program prog => Handle prog -> SouffleM (Maybe T.Text)
+souffleStdErr = liftIO . readIORef . stderrResult
 
 splitOn :: Char -> String -> [String]
 splitOn c s =

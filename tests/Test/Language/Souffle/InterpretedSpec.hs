@@ -190,6 +190,17 @@ spec = describe "Souffle API" $ parallel $ do
         , Reachable "a" "e", Reachable "b" "c", Reachable "b" "d"
         , Reachable "b" "e", Reachable "c" "d" ]
 
+    it "stdout and stderr are saved after run" $ do
+      (stdout, stderr) <- Souffle.runSouffle $ do
+        prog <- fromJust <$> Souffle.init PathNoInput
+        Souffle.run prog
+        out <- Souffle.souffleStdOut prog
+        err <- Souffle.souffleStdErr prog
+        Souffle.cleanup prog
+        pure (out, err)
+      stdout `shouldBe` (Just "")
+      stderr `shouldBe` (Just "")
+
   describe "configuring number of cores" $ parallel $
     it "is possible to configure number of cores" $ do
       results <- Souffle.runSouffle $ do
