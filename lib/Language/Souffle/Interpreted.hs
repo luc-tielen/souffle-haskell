@@ -244,7 +244,6 @@ instance MonadSouffle SouffleM where
       stderr <- T.pack <$> hGetContents stderrHandle
       writeIORef refHandleStdErr $! Just $! stderr
       hClose stderrHandle
-
   {-# INLINABLE run #-}
 
   setNumThreads handle n = liftIO $
@@ -257,8 +256,8 @@ instance MonadSouffle SouffleM where
 
   getFacts :: forall a c prog. (Marshal a, Fact a, ContainsFact prog a, Collect c)
            => Handle prog -> SouffleM (c a)
-  getFacts hndl = liftIO $ do
-    handle <- readIORef $ handleData hndl
+  getFacts handle = liftIO $ do
+    handle <- readIORef $ handleData handle
     let relationName = factName (Proxy :: Proxy a)
     let factFile = outputPath handle </> relationName <.> "csv"
     facts <- collect factFile
@@ -274,8 +273,8 @@ instance MonadSouffle SouffleM where
 
   addFact :: forall a prog. (Fact a, ContainsFact prog a, Marshal a)
           => Handle prog -> a -> SouffleM ()
-  addFact hndl fact = liftIO $ do
-    handle <- readIORef $ handleData hndl
+  addFact handle fact = liftIO $ do
+    handle <- readIORef $ handleData handle
     let relationName = factName (Proxy :: Proxy a)
     let factFile = factPath handle </> relationName <.> "facts"
     let line = pushMarshalT (push fact)
@@ -284,8 +283,8 @@ instance MonadSouffle SouffleM where
 
   addFacts :: forall a prog f. (Fact a, ContainsFact prog a, Marshal a, Foldable f)
            => Handle prog -> f a -> SouffleM ()
-  addFacts hndl facts = SouffleM $ liftIO $ do
-    handle <- readIORef $ handleData hndl
+  addFacts handle facts = liftIO $ do
+    handle <- readIORef $ handleData handle
     let relationName = factName (Proxy :: Proxy a)
     let factFile = factPath handle </> relationName <.> "facts"
     let factLines = map (pushMarshalT . push) (foldMap pure facts)
@@ -326,8 +325,8 @@ readCSVFile path = doesFileExist path >>= \case
 --   This functionality is only provided for the interpreted version since the
 --   compiled version directly (de-)serializes data via the C++ API.
 cleanup :: forall prog. Program prog => Handle prog -> SouffleM ()
-cleanup hndl  = liftIO $ do
-  handle <- readIORef $ handleData hndl
+cleanup handle  = liftIO $ do
+  handle <- readIORef $ handleData handle
   traverse_ removeDirectoryRecursive [factPath handle, outputPath handle, basePath handle]
 {-# INLINABLE cleanup #-}
 

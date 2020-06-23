@@ -190,7 +190,7 @@ spec = describe "Souffle API" $ parallel $ do
         , Reachable "a" "e", Reachable "b" "c", Reachable "b" "d"
         , Reachable "b" "e", Reachable "c" "d" ]
 
-    it "stdout and stderr are saved after run" $ do
+    it "saves stdout and stderr output after run" $ do
       (stdout, stderr) <- Souffle.runSouffle $ do
         prog <- fromJust <$> Souffle.init PathNoInput
         Souffle.run prog
