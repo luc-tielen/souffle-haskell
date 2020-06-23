@@ -198,8 +198,8 @@ spec = describe "Souffle API" $ parallel $ do
         err <- Souffle.souffleStdErr prog
         Souffle.cleanup prog
         pure (out, err)
-      stdout `shouldBe` (Just "")
-      stderr `shouldBe` (Just "")
+      stdout `shouldBe` Just ""
+      stderr `shouldBe` Just ""
 
   describe "configuring number of cores" $ parallel $
     it "is possible to configure number of cores" $ do
