@@ -13,7 +13,15 @@ extra-source-files:
   - README.md
   - CHANGELOG.md
   - LICENSE
-  - cbits/*.h
+  - cbits/souffle/LICENSE
+  - cbits/souffle/**/*.h
+
+build-type: Custom
+custom-setup:
+  dependencies:
+    - Cabal >= 3.0
+    - base >= 4.12 && < 5
+    - directory >= 1.3.3 && < 2
 
 dependencies:
   - base >= 4.12 && < 5
@@ -51,8 +59,15 @@ ghc-options:
   - -fno-show-valid-hole-fits
   - -fno-sort-valid-hole-fits
 
+cxx-options:
+  - -std=c++17
+
+# TODO remove once TH module is removed
 cpp-options:
   - -std=c++17
+
+include-dirs:
+  - cbits
 
 library:
   source-dirs:        lib
@@ -75,5 +90,8 @@ tests:
     dependencies:
       - hspec >= 2.6.1 && < 3.0.0
       - souffle-haskell
+    cxx-options:
+      - -D__EMBEDDED_SOUFFLE__
+    # TODO remove once TH module is removed
     cpp-options:
       - -D__EMBEDDED_SOUFFLE__

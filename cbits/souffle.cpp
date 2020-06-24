@@ -1,4 +1,4 @@
-#include "souffle/SouffleInterface.h"
+#include "souffle/src/SouffleInterface.h"
 #include "souffle.h"
 
 
