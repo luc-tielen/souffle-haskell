@@ -9,4 +9,7 @@ result
 result-*
 .history
 cbits/*.o
+# next line contains copied files from Souffle repo, used to create self-contained analysis
+cbits/souffle/*
+!cbits/souffle/.keep
 upload-docs.sh

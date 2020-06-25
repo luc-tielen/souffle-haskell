@@ -13,7 +13,7 @@ extra-source-files:
   - README.md
   - CHANGELOG.md
   - LICENSE
-  - cbits/souffle/LICENSE
+  - souffle/LICENSE
   - cbits/souffle/**/*.h
   - prepare_submodule.sh
 
@@ -69,9 +69,39 @@ cpp-options:
 
 include-dirs:
   - cbits
+  - cbits/souffle
 
 install-includes:
-  - cbits/souffle/**/*.h
+  - souffle/CompiledSouffle.h
+  - souffle/Brie.h
+  - souffle/CompiledIndexUtils.h
+  - souffle/CompiledRecord.h
+  - souffle/CompiledRelation.h
+  - souffle/CompiledTuple.h
+  - souffle/IODirectives.h
+  - souffle/ParallelUtils.h
+  - souffle/IOSystem.h
+  - souffle/RamTypes.h
+  - souffle/SignalHandler.h
+  - souffle/SouffleInterface.h
+  - souffle/SymbolTable.h
+  - souffle/Util.h
+  - souffle/WriteStream.h
+  - BTree.h
+  - EquivalenceRelation.h
+  - LambdaBTree.h
+  - UnionFind.h
+  - Util.h
+  - PiggyList.h
+  - ParallelUtils.h
+  - IterUtils.h
+  - Table.h
+  - ReadStream.h
+  - ReadStreamCSV.h
+  - ReadStreamSQLite.h
+  - IODirectives.h
+  - RamTypes.h
+  - SymbolTable.h
 
 library:
   source-dirs:        lib
