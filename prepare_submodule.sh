@@ -8,7 +8,7 @@ if [ -e .git ]; then
 fi
 
 SOUFFLE_VERSION="1.7.1"
-curl https://github.com/souffle-lang/souffle/archive/${SOUFFLE_VERSION}.tar.gz -L -o - | tar xz
+curl https://github.com/souffle-lang/souffle/archive/${SOUFFLE_VERSION}.tar.gz -sL -o - | tar xz
 mv souffle-${SOUFFLE_VERSION} cbits/souffle
 exit 0
 

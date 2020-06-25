@@ -15,6 +15,7 @@ extra-source-files:
   - LICENSE
   - cbits/souffle/LICENSE
   - cbits/souffle/**/*.h
+  - prepare_submodule.sh
 
 build-type: Custom
 custom-setup:
