@@ -13,7 +13,7 @@ stdenv.mkDerivation rec {
   version = "2.0.0";
 
   src = fetchFromGitHub {
-    owner  = "luc-tielen";
+    owner  = "souffle-lang";
     repo   = "souffle";
     rev    = version;
     sha256 = "1azn32x0xbbk8gagipb34qk3y1srm927j5d34w20isgjxir4xsnz";
