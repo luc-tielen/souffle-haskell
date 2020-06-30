@@ -1,3 +1,6 @@
+// NOTE: call souffle -g path.cpp path.dl in same directory as this file,
+// otherwise tests will fail.
+
 .decl edge(n: symbol, m: symbol)
 .decl reachable(n: symbol, m: symbol)
 

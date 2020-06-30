@@ -7,6 +7,7 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
 ## [???] - Unreleased
 ### Changed
 
+- souffle-haskell now supports Soufflé version 2.0.0.
 - `writeFiles` now takes an extra `FilePath` argument for writing facts to a
   certain directory.
   

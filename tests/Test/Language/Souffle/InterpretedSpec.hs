@@ -7,7 +7,11 @@ module Test.Language.Souffle.InterpretedSpec
 
 import Test.Hspec
 import GHC.Generics
+import Control.Monad (join)
 import Data.Maybe
+import Control.Monad.IO.Class (liftIO)
+import System.Directory
+import System.IO.Temp
 import qualified Data.Vector as V
 import qualified Language.Souffle.Interpreted as Souffle
 
@@ -45,6 +49,10 @@ instance Souffle.Program BadPath where
   type ProgramFacts BadPath = [Edge, Reachable]
   programName = const "bad_path"
 
+getTestTemporaryDirectory :: IO FilePath
+getTestTemporaryDirectory = do
+  tmpDir <- getCanonicalTemporaryDirectory
+  createTempDirectory tmpDir "souffle-haskell-test"
 
 spec :: Spec
 spec = describe "Souffle API" $ parallel $ do
@@ -91,13 +99,30 @@ spec = describe "Souffle API" $ parallel $ do
         pure results
       edges `shouldBe` ([] :: [Edge])
 
+    it "can retrieve facts from custom output directory" $ do
+      cfg <- Souffle.defaultConfig
+      tmp <- getTestTemporaryDirectory
+      (edges, reachables) <- Souffle.runSouffleWith (cfg { Souffle.cfgOutputDir = Just tmp }) $ do
+        prog <- fromJust <$> Souffle.init PathNoInput
+        Souffle.run prog
+        es <- Souffle.getFacts prog
+        rs <- Souffle.getFacts prog
+        Souffle.cleanup prog
+        pure (es , rs)
+      edges `shouldBe` V.fromList [Edge "a" "b", Edge "b" "c"]
+      reachables `shouldBe` V.fromList [Reachable "a" "b", Reachable "a" "c", Reachable "b" "c"]
+      outputDirExist <- doesDirectoryExist tmp
+      outputDirExist `shouldBe` False
+
   describe "addFact" $ parallel $ do
     it "adds a fact" $ do
       edges <- Souffle.runSouffle $ do
         prog <- fromJust <$> Souffle.init Path
         Souffle.addFact prog $ Edge "e" "f"
         Souffle.run prog
-        Souffle.getFacts prog
+        edges <- Souffle.getFacts prog
+        Souffle.cleanup prog
+        pure edges
       edges `shouldBe` [Edge "a" "b", Edge "b" "c", Edge "e" "f"]
 
     -- NOTE: this is different compared to compiled version (bug in Souffle?)
@@ -106,9 +131,25 @@ spec = describe "Souffle API" $ parallel $ do
         prog <- fromJust <$> Souffle.init PathNoInput
         Souffle.addFact prog $ Reachable "e" "f"
         Souffle.run prog
-        Souffle.getFacts prog
+        reachables <- Souffle.getFacts prog
+        Souffle.cleanup prog
+        pure reachables
       reachables `shouldBe`
         [ Reachable "a" "b", Reachable "a" "c", Reachable "b" "c" ]
+
+    it "adds a fact to a custom input directory" $ do
+      cfg <- Souffle.defaultConfig
+      tmp <- getTestTemporaryDirectory
+      join $ Souffle.runSouffleWith (cfg { Souffle.cfgFactDir = Just tmp }) $ do -- Souffle
+        prog <- fromJust <$> Souffle.init Path
+        Souffle.addFact prog $ Edge "e" "f"
+        Souffle.run prog
+        edges <- Souffle.getFacts prog
+        entries <- liftIO $ listDirectory tmp
+        Souffle.cleanup prog
+        pure $ do -- IO
+          edges `shouldBe` [Edge "a" "b", Edge "b" "c", Edge "e" "f"]
+          length entries `shouldNotBe` 0
 
   describe "addFacts" $ parallel $
     it "can add multiple facts at once" $ do
@@ -148,6 +189,17 @@ spec = describe "Souffle API" $ parallel $ do
         [ Reachable "a" "b", Reachable "a" "c", Reachable "a" "d"
         , Reachable "a" "e", Reachable "b" "c", Reachable "b" "d"
         , Reachable "b" "e", Reachable "c" "d" ]
+
+    it "saves stdout and stderr output after run" $ do
+      (stdout, stderr) <- Souffle.runSouffle $ do
+        prog <- fromJust <$> Souffle.init PathNoInput
+        Souffle.run prog
+        out <- Souffle.souffleStdOut prog
+        err <- Souffle.souffleStdErr prog
+        Souffle.cleanup prog
+        pure (out, err)
+      stdout `shouldBe` Just ""
+      stderr `shouldBe` Just ""
 
   describe "configuring number of cores" $ parallel $
     it "is possible to configure number of cores" $ do
