@@ -206,16 +206,16 @@ ind_0.printStats(o);
 class Sf_path : public SouffleProgram {
 private:
 static inline bool regex_wrapper(const std::string& pattern, const std::string& text) {
-   bool result = false; 
-   try { result = std::regex_match(text, std::regex(pattern)); } catch(...) { 
+   bool result = false;
+   try { result = std::regex_match(text, std::regex(pattern)); } catch(...) {
      std::cerr << "warning: wrong pattern provided for match(\"" << pattern << "\",\"" << text << "\").\n";
 }
    return result;
 }
 private:
 static inline std::string substr_wrapper(const std::string& str, size_t idx, size_t len) {
-   std::string result; 
-   try { result = str.substr(idx,len); } catch(...) { 
+   std::string result;
+   try { result = str.substr(idx,len); } catch(...) {
      std::cerr << "warning: wrong index position provided by substr(\"";
      std::cerr << str << "\"," << (int32_t)idx << "," << (int32_t)len << ") functor.\n";
    } return result;
@@ -239,7 +239,7 @@ souffle::RelationWrapper<0,t_btree_2__0_1__11,Tuple<RamDomain,2>,2,0> wrapper_re
 std::unique_ptr<t_btree_2__0_1__11> rel_4_reachable = std::make_unique<t_btree_2__0_1__11>();
 souffle::RelationWrapper<1,t_btree_2__0_1__11,Tuple<RamDomain,2>,2,0> wrapper_rel_4_reachable;
 public:
-Sf_path() : 
+Sf_path() :
 wrapper_rel_3_edge(*rel_3_edge,symTable,"edge",std::array<const char *,2>{{"s:symbol","s:symbol"}},std::array<const char *,2>{{"n","m"}}),
 
 wrapper_rel_4_reachable(*rel_4_reachable,symTable,"reachable",std::array<const char *,2>{{"s:symbol","s:symbol"}},std::array<const char *,2>{{"n","m"}}){
@@ -366,7 +366,7 @@ IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll
 }
 }
 void subroutine_1(const std::vector<RamDomain>& args, std::vector<RamDomain>& ret) {
-SignalHandler::instance()->setMsg(R"_(reachable(x,y) :- 
+SignalHandler::instance()->setMsg(R"_(reachable(x,y) :-
    edge(x,y).
 in file /Users/luc/personal/souffle-hs/tests/fixtures/path.dl [14:1-14:31])_");
 if(!(rel_3_edge->empty())) {
@@ -389,7 +389,7 @@ rel_1_delta_reachable->insert(tuple,READ_OP_CONTEXT(rel_1_delta_reachable_op_ctx
 }
 ();iter = 0;
 for(;;) {
-SignalHandler::instance()->setMsg(R"_(reachable(x,z) :- 
+SignalHandler::instance()->setMsg(R"_(reachable(x,z) :-
    edge(x,y),
    reachable(y,z).
 in file /Users/luc/personal/souffle-hs/tests/fixtures/path.dl [15:1-15:48])_");
@@ -466,7 +466,7 @@ R"()",
 1);
 if (!opt.parse(argc,argv)) return 1;
 souffle::Sf_path obj;
-#if defined(_OPENMP) 
+#if defined(_OPENMP)
 obj.setNumThreads(opt.getNumJobs());
 
 #endif

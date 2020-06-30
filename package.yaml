@@ -51,9 +51,6 @@ ghc-options:
   - -fno-show-valid-hole-fits
   - -fno-sort-valid-hole-fits
 
-cpp-options:
-  - -std=c++17
-
 cxx-options:
   - -std=c++17
 
@@ -72,11 +69,12 @@ tests:
   souffle-haskell-test:
     main:             test.hs
     source-dirs:      tests
+    cxx-sources:      tests/fixtures/*.cpp
     when:
       - condition: os(darwin)
         extra-libraries: c++
     dependencies:
       - hspec >= 2.6.1 && < 3.0.0
       - souffle-haskell
-    cpp-options:
+    cxx-options:
       - -D__EMBEDDED_SOUFFLE__

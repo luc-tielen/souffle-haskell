@@ -45,7 +45,7 @@ in the following way:
 
 ```haskell
 -- Enable some necessary extensions:
-{-# LANGUAGE TemplateHaskell, ScopedTypeVariables, DataKinds, TypeFamilies, DeriveGeneric #-}
+{-# LANGUAGE ScopedTypeVariables, DataKinds, TypeFamilies, DeriveGeneric #-}
 
 module Main ( main ) where
 
@@ -53,13 +53,7 @@ import Data.Foldable ( traverse_ )
 import Control.Monad.IO.Class
 import GHC.Generics
 import Data.Vector
-import qualified Language.Souffle.TH as Souffle
 import qualified Language.Souffle.Compiled as Souffle
-
--- We only use template haskell for directly embedding the .cpp file into this file.
--- If we do not do this, it will link incorrectly due to the way the
--- C++ code is generated.
-Souffle.embedProgram "/path/to/path.cpp"
 
 
 -- We define a data type representing our datalog program.
@@ -138,20 +132,25 @@ be set correctly.
 Without Nix, you will have to follow the manual install instructions
 on the [Souffle website](https://souffle-lang.github.io/install).
 
-In your package.yaml / *.cabal file, make sure to add the following options
+In your package.yaml or .cabal file, make sure to add the following options
 (assuming package.yaml here):
 
 ```yaml
 # ...
 
-cpp-options:
+cxx-options:
   - -D__EMBEDDED_SOUFFLE__
+cxx-sources:
+  - /path/to/FILE.cpp  # be sure to change this according to what you need!
 
 # ...
 ```
 
 This will instruct the Souffle compiler to compile the C++ in such a way that
 it can be linked with other languages (including Haskell!).
+
+For an example, take a look at the configuration for the
+[test suite](https://github.com/luc-tielen/souffle-haskell/blob/master/package.yaml#L68-L80) of this project.
 
 
 ## Supported modes
@@ -177,7 +176,6 @@ The main differences with compiled mode are the following:
 2. You need to call `Souffle.cleanup` after you no longer need the Souffle
    functionality. This will clean up the generated CSV fact files located in
    a temporary directory.
-3. You don't need to import `Language.Souffle.TH` to embed a Datalog program.
 
 
 #### Interpreter configuration
@@ -210,10 +208,7 @@ Datalog algorithm each time it changes.
 The main differences with interpreted mode are the following:
 
 1. Compile the Datalog code with `souffle -g`.
-2. You need to import `Language.Souffle.TH` to embed a Datalog program
-   using `Language.Souffle.TH.embedProgram`, as shown in the
-   [motivating example](#motivating-example).
-3. Remove `Souffle.cleanup` if it is present in your code, compiled mode
+2. Remove `Souffle.cleanup` if it is present in your code, compiled mode
    leaves no CSV artifacts.
 
 The [motivating example](#motivating-example) is a complete example for the compiled mode.
