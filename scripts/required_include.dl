@@ -17,6 +17,6 @@ required_include(file) :-
 transitively_includes(a, b) :-
   includes(a, b).
 transitively_includes(a, b) :-
-  includes(a, b),
-  transitively_includes(b, c).
+  includes(a, c),
+  transitively_includes(c, b).
 
