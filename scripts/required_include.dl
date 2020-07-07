@@ -1,0 +1,22 @@
+.decl includes(file_a: symbol, file_b: symbol)
+.decl transitively_includes(file_a: symbol, file_b: symbol)
+.decl top_level_include(file: symbol)
+.decl required_include(file: symbol)
+
+.input includes
+.input top_level_include
+.output required_include
+
+
+required_include(file) :-
+  top_level_include(file).
+required_include(file) :-
+  top_level_include(a),
+  transitively_includes(a, file).
+
+transitively_includes(a, b) :-
+  includes(a, b).
+transitively_includes(a, b) :-
+  includes(a, b),
+  transitively_includes(b, c).
+
