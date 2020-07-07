@@ -1,4 +1,4 @@
-{-# LANGUAGE ViewPatterns, DataKinds, TypeFamilies, DeriveGeneric, DeriveAnyClass #-}
+{-# LANGUAGE DataKinds, TypeFamilies, DeriveGeneric, DeriveAnyClass #-}
 
 module Main ( main ) where
 
@@ -23,10 +23,10 @@ import qualified Language.Souffle.Interpreted as Souffle
 data Includes = Includes FilePath FilePath
   deriving (Eq, Show, Generic, Souffle.Marshal)
 
-data TopLevelInclude = TopLevelInclude FilePath
+newtype TopLevelInclude = TopLevelInclude FilePath
   deriving (Eq, Show, Generic, Souffle.Marshal)
 
-data RequiredInclude = RequiredInclude FilePath
+newtype RequiredInclude = RequiredInclude FilePath
   deriving (Eq, Show, Generic, Souffle.Marshal)
 
 data Handle = Handle
@@ -60,7 +60,7 @@ main :: IO ()
 main = do
   pwd <- getCurrentDirectory
   gitRoot <- getGitRootDirectory
-  when (pwd /= gitRoot) $ do
+  when (pwd /= gitRoot) $
     putStrLn "You need to run this script in the root directory of this repo! Aborting."
 
   run "git submodule update --init --recursive"
@@ -79,14 +79,14 @@ parseInclude s = either (const Nothing) Just (P.runParser parser "" s) where
   parser :: P.Parsec Void String FilePath
   parser = takeFileName <$> do
     P.chunk "#include" *> P.space1
-    P.between quotes quotes $ do
+    P.between quotes quotes $
       P.takeWhile1P Nothing (\c -> c /= ' ' && c /= '"')
   quotes = P.char '"'
 
 parseIncludes :: FilePath -> IO [Includes]
 parseIncludes file =
   let file' = takeFileName file
-   in map (file' `Includes`) . mapMaybe parseInclude . lines <$> readFile file
+  in map (file' `Includes`) . mapMaybe parseInclude . lines <$> readFile file
 
 copyHeaders :: IO [FilePath]
 copyHeaders = do
@@ -95,12 +95,13 @@ copyHeaders = do
   includes <- concat <$> traverse parseIncludes headers
   cfg <- Souffle.defaultConfig
   let config = cfg { Souffle.cfgDatalogDir = "./scripts" }
-  requiredIncludes <- Souffle.runSouffleWith config $ do
+  requiredIncludes <- Souffle.runSouffleWith config $
     Souffle.init Handle >>= \case
       Nothing -> error "Failed to load Souffle program. Aborting."
       Just prog -> do
-        Souffle.addFacts prog $ [ TopLevelInclude "SouffleInterface.h"
-                                , TopLevelInclude "CompiledSouffle.h"]
+        Souffle.addFacts prog [ TopLevelInclude "SouffleInterface.h"
+                              , TopLevelInclude "CompiledSouffle.h"
+                              ]
         Souffle.addFacts prog includes
         Souffle.run prog
         Souffle.getFacts prog
