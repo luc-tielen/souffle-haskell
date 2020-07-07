@@ -63,21 +63,39 @@ install-includes:
   - RamTypes.h
   - MiscUtil.h
   - SymbolTable.h
+  - json11.h
   - FunctionalUtil.h
   - StreamUtil.h
   - StringUtil.h
+  - ReadStreamCSV.h
+  - ReadStream.h
   - ContainerUtil.h
   - FileUtil.h
+  - gzfstream.h
   - CompiledTuple.h
   - RecordTable.h
   - Brie.h
   - CacheUtil.h
   - SouffleInterface.h
+  - EventProcessor.h
+  - ProfileDatabase.h
+  - WriteStreamSQLite.h
   - WriteStream.h
   - ParallelUtil.h
+  - LambdaBTree.h
+  - BTree.h
+  - WriteStreamCSV.h
+  - tinyformat.h
   - IOSystem.h
+  - ReadStreamSQLite.h
+  - UnionFind.h
+  - PiggyList.h
   - ProfileEvent.h
+  - DataComparator.h
+  - CellInterface.h
+  - Row.h
   - Table.h
+  - SerialisationStream.h
   - CompiledSouffle.h
   - EquivalenceRelation.h
   - IterUtils.h
