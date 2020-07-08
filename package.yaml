@@ -60,49 +60,46 @@ include-dirs:
   - cbits/souffle
 
 install-includes:
-  - souffle/utility/StreamUtil.h
-  - souffle/utility/ContainerUtil.h
-  - souffle/utility/MiscUtil.h
-  - souffle/ReadStream.h
   - souffle/RamTypes.h
-  - souffle/RecordTable.h
-  - souffle/SerialisationStream.h
+  - souffle/utility/MiscUtil.h
   - souffle/SymbolTable.h
   - souffle/json11.h
+  - souffle/utility/FunctionalUtil.h
+  - souffle/utility/StreamUtil.h
   - souffle/utility/StringUtil.h
-  - souffle/profile/CellInterface.h
-  - souffle/profile/DataComparator.h
-  - souffle/profile/Row.h
-  - souffle/ProfileDatabase.h
-  - souffle/ProfileEvent.h
-  - souffle/profile/Table.h
-  - souffle/utility/ParallelUtil.h
+  - souffle/ReadStreamCSV.h
+  - souffle/ReadStream.h
+  - souffle/utility/ContainerUtil.h
+  - souffle/utility/FileUtil.h
+  - souffle/gzfstream.h
+  - souffle/CompiledTuple.h
+  - souffle/RecordTable.h
+  - souffle/Brie.h
+  - souffle/utility/CacheUtil.h
   - souffle/SouffleInterface.h
-  - souffle/utility/tinyformat.h
-  - souffle/PiggyList.h
+  - souffle/EventProcessor.h
+  - souffle/ProfileDatabase.h
+  - souffle/WriteStreamSQLite.h
+  - souffle/WriteStream.h
   - souffle/LambdaBTree.h
   - souffle/BTree.h
-  - souffle/utility/CacheUtil.h
-  - souffle/utility/FileUtil.h
-  - souffle/utility/FunctionalUtil.h
-  - souffle/EquivalenceRelation.h
-  - souffle/UnionFind.h
+  - souffle/utility/ParallelUtil.h
   - souffle/WriteStreamCSV.h
-  - souffle/WriteStream.h
-  - souffle/gzfstream.h
-  - souffle/ReadStreamCSV.h
+  - souffle/utility/tinyformat.h
   - souffle/IOSystem.h
   - souffle/ReadStreamSQLite.h
-  - souffle/WriteStreamSQLite.h
-  - souffle/IterUtils.h
-  - souffle/EventProcessor.h
-  - souffle/CompiledTuple.h
-  - souffle/utility/EvaluatorUtil.h
-  - souffle/Logger.h
+  - souffle/UnionFind.h
+  - souffle/PiggyList.h
+  - souffle/ProfileEvent.h
+  - souffle/SerialisationStream.h
   - souffle/CompiledSouffle.h
-  - souffle/Brie.h
+  - souffle/EquivalenceRelation.h
+  - souffle/IterUtils.h
   - souffle/SignalHandler.h
+  - souffle/Table.h
+  - souffle/utility/EvaluatorUtil.h
   - souffle/CompiledOptions.h
+  - souffle/Logger.h
 
 library:
   source-dirs:        lib
