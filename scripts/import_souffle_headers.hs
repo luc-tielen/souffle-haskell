@@ -11,6 +11,8 @@ import System.Directory
 import System.FilePath
 import System.Process
 import Control.Monad
+import Control.Monad.Extra
+import Control.Applicative
 import Data.List
 import Data.Maybe
 import Data.Void
@@ -74,35 +76,44 @@ getGitRootDirectory :: IO FilePath
 getGitRootDirectory =
   filter (/= '\n') <$> runWithResult "git rev-parse --show-toplevel"
 
-parseInclude :: String -> Maybe FilePath
-parseInclude s = either (const Nothing) Just (P.runParser parser "" s) where
-  parser :: P.Parsec Void String FilePath
-  parser = do
+parseIncludes :: String -> [FilePath]
+parseIncludes s = either (const []) catMaybes $ P.runParser parser "" s where
+  parser :: P.Parsec Void String [Maybe FilePath]
+  parser = many (includeParser <|> skipRestOfLine) <* P.eof
+  includeParser = do
     P.chunk "#include" *> P.space1
-    P.between quotes quotes $
-      P.takeWhile1P Nothing (\c -> c /= ' ' && c /= '"')
+    P.lookAhead (P.char '"' <|> P.char '<') >>= \case
+      '"' -> do
+        include <- P.between quotes quotes $ P.takeWhile1P Nothing (/= '"')
+        void skipRestOfLine
+        pure $ Just include
+      _ -> pure Nothing
   quotes = P.char '"'
+  skipRestOfLine = Nothing <$ (P.takeWhileP Nothing (/= '\n') *> P.newline)
+
+parseIncludesInHeader :: FilePath -> IO [Includes]
+parseIncludesInHeader file = f <$> readFile file where
+  f = map ((file `Includes`) . normalizeFilePath dir) . parseIncludes
+  dir = takeDirectory file
 
 normalizeFilePath :: FilePath -> FilePath -> FilePath
 normalizeFilePath dir file = normalize $ dir </> file' where
   file' = if "souffle/" `isPrefixOf` file then file \\ "souffle/" else file
   normalize = withExplodedPath (reverse . removeParentDirRefs . reverse)
-  withExplodedPath f = joinPath . f . splitPath
   removeParentDirRefs = \case
     ("../":_:xs) -> removeParentDirRefs xs
     (x:xs) -> x:removeParentDirRefs xs
     [] -> []
 
-parseIncludes :: FilePath -> IO [Includes]
-parseIncludes file =
-  let dir = takeDirectory file
-   in map ((file `Includes`) . normalizeFilePath dir) . mapMaybe parseInclude . lines <$> readFile file
-
 copyHeaders :: IO [FilePath]
 copyHeaders = do
   headers <- filter (".h" `isSuffixOf`) . lines
           <$> runWithResult "find souffle -type f"
-  includes <- concat <$> traverse parseIncludes headers
+  includes <- concatMapM parseIncludesInHeader headers
+  traverse copyHeader =<< computeRequiredIncludes includes
+
+computeRequiredIncludes :: [Includes] -> IO [FilePath]
+computeRequiredIncludes includes = do
   cfg <- Souffle.defaultConfig
   let config = cfg { Souffle.cfgDatalogDir = "./scripts" }
   requiredIncludes <- Souffle.runSouffleWith config $
@@ -115,17 +126,19 @@ copyHeaders = do
         Souffle.addFacts prog includes
         Souffle.run prog
         Souffle.getFacts prog
-  let requiredIncludes' = map (\(RequiredInclude include) -> include) requiredIncludes
-  forM requiredIncludes' copyHeader
+  pure $ map (\(RequiredInclude include) -> include) requiredIncludes
 
 copyHeader :: FilePath -> IO FilePath
 copyHeader file = do
   header <- head . filter (file `isSuffixOf`) . lines
         <$> runWithResult "find souffle/ -type f"
-  let header' = joinPath $ drop 2 $ splitPath header
+  let header' = withExplodedPath (drop 2) header
       dir = headerDir </> takeDirectory header'
       destination = replaceDirectory header' dir
   createDirectoryIfMissing True dir
   copyFile header destination
   pure header'
+
+withExplodedPath :: ([FilePath] -> [FilePath]) -> FilePath -> FilePath
+withExplodedPath f = joinPath . f . splitPath
 
