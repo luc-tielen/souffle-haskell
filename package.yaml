@@ -61,46 +61,46 @@ include-dirs:
 
 install-includes:
   - RamTypes.h
-  - MiscUtil.h
+  - utility/MiscUtil.h
   - SymbolTable.h
   - json11.h
-  - FunctionalUtil.h
-  - StreamUtil.h
-  - StringUtil.h
+  - utility/FunctionalUtil.h
+  - utility/StreamUtil.h
+  - utility/StringUtil.h
   - ReadStreamCSV.h
   - ReadStream.h
-  - ContainerUtil.h
-  - FileUtil.h
+  - utility/ContainerUtil.h
+  - utility/FileUtil.h
   - gzfstream.h
   - CompiledTuple.h
   - RecordTable.h
   - Brie.h
-  - CacheUtil.h
+  - utility/CacheUtil.h
   - SouffleInterface.h
   - EventProcessor.h
   - ProfileDatabase.h
   - WriteStreamSQLite.h
   - WriteStream.h
-  - ParallelUtil.h
+  - utility/ParallelUtil.h
   - LambdaBTree.h
   - BTree.h
   - WriteStreamCSV.h
-  - tinyformat.h
+  - utility/tinyformat.h
   - IOSystem.h
   - ReadStreamSQLite.h
   - UnionFind.h
   - PiggyList.h
   - ProfileEvent.h
-  - DataComparator.h
-  - CellInterface.h
-  - Row.h
-  - Table.h
+  - profile/DataComparator.h
+  - profile/CellInterface.h
+  - profile/Row.h
+  - profile/Table.h
   - SerialisationStream.h
   - CompiledSouffle.h
   - EquivalenceRelation.h
   - IterUtils.h
   - SignalHandler.h
-  - EvaluatorUtil.h
+  - utility/EvaluatorUtil.h
   - CompiledOptions.h
   - Logger.h
 
@@ -136,5 +136,5 @@ executables:
     source-dirs:      scripts
     dependencies:
       - souffle-haskell
-      - megaparsec >= 8.0.0 && < 9
+      - megaparsec >= 7.0.5 && < 8
       - containers >= 0.6.2.1 && < 1

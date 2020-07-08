@@ -106,13 +106,16 @@ copyHeaders = do
         Souffle.run prog
         Souffle.getFacts prog
   let requiredIncludes' = map (\(RequiredInclude include) -> include) requiredIncludes
-  forM_ requiredIncludes' copyHeader
-  pure requiredIncludes'
+  forM requiredIncludes' copyHeader
 
-copyHeader :: FilePath -> IO ()
+copyHeader :: FilePath -> IO FilePath
 copyHeader file = do
-  let destination = headerDir <> file
-  header <- head . filter (file `isSuffixOf`) . lines
+  header <- head . filter (("/" </> file) `isSuffixOf`) . lines
         <$> runWithResult "find souffle/ -type f"
+  let header' = joinPath $ drop 2 $ splitPath header
+      dir = headerDir </> takeDirectory header'
+      destination = replaceDirectory header' dir
+  createDirectoryIfMissing True dir
   copyFile header destination
+  pure header'
 
