@@ -68,7 +68,7 @@ main = do
   run $ "cp souffle/LICENSE " <> headerDir
   files <- copyHeaders
   putStrLn "Replace 'install-includes' in your package.yaml with the following:"
-  putStrLn . unlines $ map ("  - " <>) files
+  putStrLn . unlines $ map ("  - souffle/" <>) files
 
 getGitRootDirectory :: IO FilePath
 getGitRootDirectory =
