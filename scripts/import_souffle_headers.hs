@@ -77,16 +77,26 @@ getGitRootDirectory =
 parseInclude :: String -> Maybe FilePath
 parseInclude s = either (const Nothing) Just (P.runParser parser "" s) where
   parser :: P.Parsec Void String FilePath
-  parser = takeFileName <$> do
+  parser = do
     P.chunk "#include" *> P.space1
     P.between quotes quotes $
       P.takeWhile1P Nothing (\c -> c /= ' ' && c /= '"')
   quotes = P.char '"'
 
+normalizeFilePath :: FilePath -> FilePath -> FilePath
+normalizeFilePath dir file = normalize $ dir </> file' where
+  file' = if "souffle/" `isPrefixOf` file then file \\ "souffle/" else file
+  normalize = withExplodedPath (reverse . removeParentDirRefs . reverse)
+  withExplodedPath f = joinPath . f . splitPath
+  removeParentDirRefs = \case
+    ("../":_:xs) -> removeParentDirRefs xs
+    (x:xs) -> x:removeParentDirRefs xs
+    [] -> []
+
 parseIncludes :: FilePath -> IO [Includes]
 parseIncludes file =
-  let file' = takeFileName file
-  in map (file' `Includes`) . mapMaybe parseInclude . lines <$> readFile file
+  let dir = takeDirectory file
+   in map ((file `Includes`) . normalizeFilePath dir) . mapMaybe parseInclude . lines <$> readFile file
 
 copyHeaders :: IO [FilePath]
 copyHeaders = do
@@ -99,8 +109,8 @@ copyHeaders = do
     Souffle.init Handle >>= \case
       Nothing -> error "Failed to load Souffle program. Aborting."
       Just prog -> do
-        Souffle.addFacts prog [ TopLevelInclude "SouffleInterface.h"
-                              , TopLevelInclude "CompiledSouffle.h"
+        Souffle.addFacts prog [ TopLevelInclude "souffle/src/SouffleInterface.h"
+                              , TopLevelInclude "souffle/src/CompiledSouffle.h"
                               ]
         Souffle.addFacts prog includes
         Souffle.run prog
@@ -110,7 +120,7 @@ copyHeaders = do
 
 copyHeader :: FilePath -> IO FilePath
 copyHeader file = do
-  header <- head . filter (("/" </> file) `isSuffixOf`) . lines
+  header <- head . filter (file `isSuffixOf`) . lines
         <$> runWithResult "find souffle/ -type f"
   let header' = joinPath $ drop 2 $ splitPath header
       dir = headerDir </> takeDirectory header'
