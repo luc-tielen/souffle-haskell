@@ -7,17 +7,19 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
 ## [???] - Unreleased
 ### Changed
 
+- Libraries using souffle-haskell are now "self-contained": if a project
+  depends on such a library, it will not require to also have Souffle installed.
 - souffle-haskell now supports Soufflé version 2.0.0.
 - `writeFiles` now takes an extra `FilePath` argument for writing facts to a
   certain directory.
-  
+
 ### Deleted
 
 - Language.Souffle.TH module is deleted because it is no longer needed anymore
   due to a change in the generated Souffle code. The generated code can now be
   correctly integrated by adding the files to `cxx-sources`
   in package.yaml / cabal file.
-  
+
 
 ## [0.2.3] - 2020-05-21
 ### Changed
