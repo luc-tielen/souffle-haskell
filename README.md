@@ -152,6 +152,14 @@ it can be linked with other languages (including Haskell!).
 For an example, take a look at the configuration for the
 [test suite](https://github.com/luc-tielen/souffle-haskell/blob/master/package.yaml#L68-L80) of this project.
 
+If you run into C++ compilation issues when using stack, this might be because
+the `-std=c++17` flag is not being used correctly when compiling souffle-haskell.
+To fix this, you can add the following to your `stack.yaml`:
+
+```yaml
+ghc-options:
+  souffle-haskell: -optcxx-std=c++17
+```
 
 ## Supported modes
 
