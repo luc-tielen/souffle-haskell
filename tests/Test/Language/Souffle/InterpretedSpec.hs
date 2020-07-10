@@ -12,6 +12,7 @@ import Data.Maybe
 import Control.Monad.IO.Class (liftIO)
 import System.Directory
 import System.IO.Temp
+import qualified Data.Array as A
 import qualified Data.Vector as V
 import qualified Language.Souffle.Interpreted as Souffle
 
@@ -90,6 +91,17 @@ spec = describe "Souffle API" $ parallel $ do
         pure (es , rs)
       edges `shouldBe` V.fromList [Edge "a" "b", Edge "b" "c"]
       reachables `shouldBe` V.fromList [Reachable "a" "b", Reachable "a" "c", Reachable "b" "c"]
+
+    it "can retrieve facts as an array" $ do
+      (edges, reachables) <- Souffle.runSouffle $ do
+        prog <- fromJust <$> Souffle.init PathNoInput
+        Souffle.run prog
+        es <- Souffle.getFacts prog
+        rs <- Souffle.getFacts prog
+        Souffle.cleanup prog
+        pure (es , rs)
+      edges `shouldBe` A.listArray (0 :: Int, 1) [Edge "a" "b", Edge "b" "c"]
+      reachables `shouldBe` A.listArray (0 :: Int, 2) [Reachable "a" "b", Reachable "a" "c", Reachable "b" "c"]
 
     it "returns no facts if program hasn't run yet" $ do
       edges <- Souffle.runSouffle $ do

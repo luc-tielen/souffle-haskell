@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# LANGUAGE TypeFamilies, DerivingVia, InstanceSigs, BangPatterns #-}
+{-# LANGUAGE FlexibleInstances, TypeFamilies, DerivingVia, InstanceSigs, BangPatterns #-}
 
 -- | This module provides an implementation for the typeclasses defined in
 --   "Language.Souffle.Class".
@@ -27,6 +27,9 @@ import Control.Monad.RWS.Strict
 import Control.Monad.Reader
 import Data.Foldable ( traverse_ )
 import Data.Proxy
+import qualified Data.Array as A
+import qualified Data.Array.IO as A
+import qualified Data.Array.Unsafe as A
 import qualified Data.Vector as V
 import qualified Data.Vector.Mutable as MV
 import Foreign.ForeignPtr
@@ -105,6 +108,25 @@ instance Collect V.Vector where
         result <- runM pop tuple
         MV.unsafeWrite vec idx result
         go vec (idx + 1) count it
+  {-# INLINABLE collect #-}
+
+instance Collect (A.Array Int) where
+  collect factCount iterator = do
+    array <- A.newArray_ (0, factCount - 1)
+    go array 0 factCount iterator
+    where
+      go :: Marshal a
+         => A.IOArray Int a
+         -> Int
+         -> Int
+         -> ForeignPtr Internal.RelationIterator
+         -> IO (A.Array Int a)
+      go array idx count _ | idx == count = A.unsafeFreeze array
+      go array idx count it = do
+        tuple <- Internal.relationIteratorNext it
+        result <- runM pop tuple
+        A.writeArray array idx result
+        go array (idx + 1) count it
   {-# INLINABLE collect #-}
 
 instance MonadSouffle SouffleM where
