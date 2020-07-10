@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# LANGUAGE TypeFamilies, DerivingVia, InstanceSigs #-}
+{-# LANGUAGE FlexibleInstances, TypeFamilies, DerivingVia, InstanceSigs #-}
 
 -- | This module provides an implementation for the `MonadSouffle` typeclass
 --   defined in "Language.Souffle.Class".
@@ -37,6 +37,7 @@ import Data.List hiding (init)
 import Data.Semigroup (Last(..))
 import Data.Maybe (fromMaybe)
 import Data.Proxy
+import qualified Data.Array as A
 import qualified Data.Text as T
 import qualified Data.Vector as V
 import Data.Word
@@ -176,6 +177,13 @@ instance Collect [] where
 
 instance Collect V.Vector where
   collect factFile = V.fromList <$!> collect factFile
+  {-# INLINABLE collect #-}
+
+instance Collect (A.Array Int) where
+  collect factFile = do
+    facts <- collect factFile
+    let count = length facts
+    pure $! A.listArray (0, count - 1) facts
   {-# INLINABLE collect #-}
 
 instance MonadSouffle SouffleM where
