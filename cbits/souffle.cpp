@@ -178,6 +178,7 @@ extern "C"
 
     void souffle_tuple_pop_string(tuple_t *tuple, char **result)
     {
+        assert(result);
         std::string value;
         tuple_pop_value(tuple, &value);
         *result = strdup(value.c_str());
