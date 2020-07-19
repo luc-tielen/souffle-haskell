@@ -155,7 +155,15 @@ extern "C"
         rel->insert(*t);
     }
 
-    void souffle_tuple_pop_int(tuple_t *tuple, int32_t *result)
+    void souffle_tuple_pop_int32(tuple_t *tuple, int32_t *result)
+    {
+        auto t = reinterpret_cast<souffle::tuple *>(tuple);
+        assert(t);
+        assert(result);
+        *t >> *result;
+    }
+
+    void souffle_tuple_pop_uint32(tuple_t *tuple, uint32_t *result)
     {
         auto t = reinterpret_cast<souffle::tuple *>(tuple);
         assert(t);

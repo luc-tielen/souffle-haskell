@@ -184,7 +184,7 @@ extern "C"
     void souffle_tuple_push_string(tuple_t *tuple, const char *value);
 
     /*
-     * Extracts an integer value from a tuple.
+     * Extracts a 32 bit signed integer value from a tuple.
      * You need to check if the passed pointer is non-NULL before passing it
      * to this function. Not doing so results in undefined behavior.
      *
@@ -192,7 +192,18 @@ extern "C"
      * in a crash.
      * The popped integer will be stored in the result pointer.
      */
-    void souffle_tuple_pop_int(tuple_t *tuple, int32_t *result);
+    void souffle_tuple_pop_int32(tuple_t *tuple, int32_t *result);
+
+    /*
+     * Extracts a 32 bit unsigned integer value from a tuple.
+     * You need to check if the passed pointer is non-NULL before passing it
+     * to this function. Not doing so results in undefined behavior.
+     *
+     * Extracting an integer value from a tuple that expects another type results
+     * in a crash.
+     * The popped integer will be stored in the result pointer.
+     */
+    void souffle_tuple_pop_uint32(tuple_t *tuple, uint32_t *result);
 
     /*
      * Extracts a string value from a tuple.
