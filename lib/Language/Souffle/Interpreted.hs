@@ -140,17 +140,25 @@ newtype IMarshal a = IMarshal (State [String] a)
   via (State [String])
 
 instance MonadPush IMarshal where
-  pushInt int = modify (show int:)
-  {-# INLINABLE pushInt #-}
+  pushInt32 int = modify (show int:)
+  {-# INLINABLE pushInt32 #-}
+
+  pushUInt32 int = modify (show int:)
+  {-# INLINABLE pushUInt32 #-}
 
   pushString str = modify (str:)
   {-# INLINABLE pushString #-}
 
 instance MonadPop IMarshal where
-  popInt = state $ \case
+  popInt32 = state $ \case
     [] -> error "Empty fact stack"
     (h:t) -> (read h, t)
-  {-# INLINABLE popInt #-}
+  {-# INLINABLE popInt32 #-}
+
+  popUInt32 = state $ \case
+    [] -> error "Empty fact stack"
+    (h:t) -> (read h, t)
+  {-# INLINABLE popUInt32 #-}
 
   popString = state $ \case
     [] -> error "Empty fact stack"

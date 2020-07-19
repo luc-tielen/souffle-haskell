@@ -14,6 +14,7 @@ module Language.Souffle.Marshal
 
 import GHC.Generics
 import Data.Int
+import Data.Word
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Language.Souffle.Internal.Constraints as C
@@ -25,8 +26,10 @@ This typeclass is only used internally and subject to change.
 See also: 'MonadPop', 'Marshal'.
 -}
 class Monad m => MonadPush m where
-  -- | Marshals an integer to the datalog side.
-  pushInt :: Int32 -> m ()
+  -- | Marshals a signed 32 bit integer to the datalog side.
+  pushInt32 :: Int32 -> m ()
+  -- | Marshals an unsigned 32 bit integer to the datalog side.
+  pushUInt32 :: Word32 -> m ()
   -- | Marshals a string to the datalog side.
   pushString :: String -> m ()
 
@@ -37,8 +40,10 @@ This typeclass is only used internally and subject to change.
 See also: 'MonadPush', 'Marshal'.
 -}
 class Monad m => MonadPop m where
-  -- | Unmarshals an integer from the datalog side.
-  popInt :: m Int32
+  -- | Unmarshals a signed 32 bir integer from the datalog side.
+  popInt32 :: m Int32
+  -- | Unmarshals an unsigned 32 bir integer from the datalog side.
+  popUInt32 :: m Word32
   -- | Unmarshals a string from the datalog side.
   popString :: m String
 
@@ -79,9 +84,15 @@ class Marshal a where
   {-# INLINABLE pop #-}
 
 instance Marshal Int32 where
-  push = pushInt
+  push = pushInt32
   {-# INLINABLE push #-}
-  pop = popInt
+  pop = popInt32
+  {-# INLINABLE pop #-}
+
+instance Marshal Word32 where
+  push = pushUInt32
+  {-# INLINABLE push #-}
+  pop = popUInt32
   {-# INLINABLE pop #-}
 
 instance Marshal String where

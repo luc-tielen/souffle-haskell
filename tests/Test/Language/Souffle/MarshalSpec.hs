@@ -10,9 +10,13 @@ import GHC.Generics
 import Language.Souffle.Marshal
 import Data.Text
 import Data.Int
+import Data.Word
 
 
 data Edge = Edge String String
+  deriving (Eq, Show, Generic)
+
+newtype EdgeUInt = EdgeUInt Word32
   deriving (Eq, Show, Generic)
 
 data EdgeStrict = EdgeStrict !String !String
@@ -49,6 +53,7 @@ data LargeRecord
 
 
 instance Marshal Edge
+instance Marshal EdgeUInt
 instance Marshal EdgeStrict
 instance Marshal EdgeUnpacked
 instance Marshal EdgeSynonyms

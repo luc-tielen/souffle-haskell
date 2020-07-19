@@ -11,6 +11,7 @@ import Type.Errors.Pretty
 import GHC.Generics
 import Data.Kind
 import Data.Int
+import Data.Word
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 
@@ -58,9 +59,10 @@ type family DirectlyMarshallable (a :: Type) (b :: Type) :: Constraint where
   DirectlyMarshallable _ T.Text = ()
   DirectlyMarshallable _ TL.Text = ()
   DirectlyMarshallable _ Int32 = ()
+  DirectlyMarshallable _ Word32 = ()
   DirectlyMarshallable _ String = ()
   DirectlyMarshallable t a =
     TypeError ( "Error while generating marshalling code for " <> t <> ":"
-              % "Can only marshal values of Int32, String and Text directly"
+              % "Can only marshal values of Int32, Word32, String and Text directly"
              <> ", but found " <> a <> " type instead.")
 
