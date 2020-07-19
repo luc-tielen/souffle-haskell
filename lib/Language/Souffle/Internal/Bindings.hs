@@ -23,9 +23,11 @@ module Language.Souffle.Internal.Bindings
   , freeTuple
   , addTuple
   , containsTuple
-  , tuplePushInt
+  , tuplePushInt32
+  , tuplePushUInt32
   , tuplePushString
-  , tuplePopInt
+  , tuplePopInt32
+  , tuplePopUInt32
   , tuplePopString
   ) where
 
@@ -204,7 +206,7 @@ foreign import ccall unsafe "souffle_tuple_add" addTuple
 foreign import ccall unsafe "souffle_contains_tuple" containsTuple
   :: Ptr Relation -> Ptr Tuple -> IO CBool
 
-{-| Pushes an integer value into a tuple.
+{-| Pushes a 32 bit signed integer value into a tuple.
 
     You need to check if the passed pointer is not equal to 'nullPtr' before
     passing it to this function. Not doing so results in undefined behavior (in C++).
@@ -213,8 +215,20 @@ foreign import ccall unsafe "souffle_contains_tuple" containsTuple
     in a crash. Pushing a value into a tuple when it already is "full"
     also results in a crash.
 -}
-foreign import ccall unsafe "souffle_tuple_push_int" tuplePushInt
+foreign import ccall unsafe "souffle_tuple_push_int32" tuplePushInt32
   :: Ptr Tuple -> CInt -> IO ()
+
+{-| Pushes a 32 bit unsigned integer value into a tuple.
+
+    You need to check if the passed pointer is not equal to 'nullPtr' before
+    passing it to this function. Not doing so results in undefined behavior (in C++).
+
+    Pushing an integer value onto a tuple that expects another type results
+    in a crash. Pushing a value into a tuple when it already is "full"
+    also results in a crash.
+-}
+foreign import ccall unsafe "souffle_tuple_push_uint32" tuplePushUInt32
+  :: Ptr Tuple -> CUInt -> IO ()
 
 {-| Pushes a string value into a tuple.
 
@@ -228,7 +242,7 @@ foreign import ccall unsafe "souffle_tuple_push_int" tuplePushInt
 foreign import ccall unsafe "souffle_tuple_push_string" tuplePushString
   :: Ptr Tuple -> CString -> IO ()
 
-{-| Extracts an integer value from a tuple.
+{-| Extracts a 32 bit signed integer value from a tuple.
 
     You need to check if the passed pointer is not equal to 'nullPtr' before passing it
     to this function. Not doing so results in undefined behavior.
@@ -239,8 +253,22 @@ foreign import ccall unsafe "souffle_tuple_push_string" tuplePushString
 
     The popped integer will be stored in the pointer that is passed in.
 -}
-foreign import ccall unsafe "souffle_tuple_pop_int" tuplePopInt
+foreign import ccall unsafe "souffle_tuple_pop_int32" tuplePopInt32
   :: Ptr Tuple -> Ptr CInt -> IO ()
+
+{-| Extracts a 32 bit unsigned integer value from a tuple.
+
+    You need to check if the passed pointer is not equal to 'nullPtr' before passing it
+    to this function. Not doing so results in undefined behavior.
+
+    Extracting an integer value from a tuple that expects another type results
+    in a crash. Extracting a value from a tuple when it is already "empty"
+    also results in a crash.
+
+    The popped integer will be stored in the pointer that is passed in.
+-}
+foreign import ccall unsafe "souffle_tuple_pop_uint32" tuplePopUInt32
+  :: Ptr Tuple -> Ptr CUInt -> IO ()
 
 {-| Extracts a string value from a tuple.
 

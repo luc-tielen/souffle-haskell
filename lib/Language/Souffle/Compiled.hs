@@ -63,10 +63,15 @@ runM (CMarshal m) = runReaderT m
 {-# INLINABLE runM #-}
 
 instance MonadPush CMarshal where
-  pushInt int = do
+  pushInt32 int = do
     tuple <- ask
-    liftIO $ Internal.tuplePushInt tuple int
-  {-# INLINABLE pushInt #-}
+    liftIO $ Internal.tuplePushInt32 tuple int
+  {-# INLINABLE pushInt32 #-}
+
+  pushUInt32 int = do
+    tuple <- ask
+    liftIO $ Internal.tuplePushUInt32 tuple int
+  {-# INLINABLE pushUInt32 #-}
 
   pushString str = do
     tuple <- ask
@@ -74,10 +79,15 @@ instance MonadPush CMarshal where
   {-# INLINABLE pushString #-}
 
 instance MonadPop CMarshal where
-  popInt = do
+  popInt32 = do
     tuple <- ask
-    liftIO $ Internal.tuplePopInt tuple
-  {-# INLINABLE popInt #-}
+    liftIO $ Internal.tuplePopInt32 tuple
+  {-# INLINABLE popInt32 #-}
+
+  popUInt32 = do
+    tuple <- ask
+    liftIO $ Internal.tuplePopUInt32 tuple
+  {-# INLINABLE popUInt32 #-}
 
   popString = do
     tuple <- ask

@@ -1,15 +1,17 @@
-
 # Changelog
 
 All notable changes to this project (as seen by library users) will be documented in this file.
 The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-haskell.git/CHANGELOG.md).
 
 ## [???] - Unreleased
+
 ### Added
 
 - getFacts can now return facts in a fixed size array (from the array package).
+- Added support for facts containing "unsigned" values.
 
 ## [1.0.0] - 2020-07-09
+
 ### Changed
 
 - Libraries using souffle-haskell are now "self-contained": if a project
@@ -25,27 +27,27 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
   correctly integrated by adding the files to `cxx-sources`
   in package.yaml / cabal file.
 
-
 ## [0.2.3] - 2020-05-21
+
 ### Changed
 
 - Optimize performance when marshalling and unmarshalling facts.
 
-
 ## [0.2.2] - 2020-04-30
+
 ### Changed
 
 - Fix compile time issue when generically deriving `Marshal` typeclass
   for data types with more than 3 fields.
 
-
 ## [0.2.1] - 2020-04-25
+
 ### Changed
 
 - Trimmed dependencies to make the library more lightweight.
 
-
 ## [0.2.0] - 2020-04-22
+
 ### Added
 
 - Added Language.Souffle.Interpreted module for running Souffle programs in interpreted mode.
@@ -59,8 +61,8 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
 - Introduced Language.Souffle.Class module as separation of the typeclass and the
   Language.Souffle.Compiled module to offer a uniform API in both interpreted and compiled mode.
 
-
 ## [0.1.0] - 2019-12-21
+
 ### Added
 
 - Added Marshal instance for lazy and strict Text
@@ -71,8 +73,8 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
   This allows for a more efficient representation in memory as well
   as being able to allocate all needed memory once before collecting facts.
 
-
 ## [0.0.1] - 2019-10-23
+
 ### Added
 
 - Initial version of the library

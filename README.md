@@ -1,4 +1,3 @@
-
 # Souffle-haskell
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/luc-tielen/souffle-haskell/blob/master/LICENSE)
@@ -10,7 +9,6 @@ This repo provides Haskell bindings for performing analyses with the
 
 Fun fact: this library combines both functional programming (Haskell),
 logic programming (Datalog / Souffle) and imperative / OO programming (C / C++).
-
 
 ## Motivating example
 
@@ -60,7 +58,7 @@ import qualified Language.Souffle.Compiled as Souffle
 data Path = Path
 
 -- Facts are represented in Haskell as simple product types,
--- Numbers map to Int32, symbols to Strings / Text.
+-- Numbers map to Int32, unsigned to Word32, symbols to Strings / Text.
 
 data Edge = Edge String String
   deriving (Eq, Show, Generic)
@@ -121,7 +119,6 @@ main = Souffle.runSouffle $ do
 For more examples of how to use the top level API, you can also take a look at
 the tests.
 
-
 ## Getting started
 
 This library assumes that the Souffle include paths are properly set.
@@ -141,7 +138,7 @@ In your package.yaml or .cabal file, make sure to add the following options
 cxx-options:
   - -D__EMBEDDED_SOUFFLE__
 cxx-sources:
-  - /path/to/FILE.cpp  # be sure to change this according to what you need!
+  - /path/to/FILE.cpp # be sure to change this according to what you need!
 
 # ...
 ```
@@ -169,7 +166,6 @@ called from a host program for improved efficiency. This library supports both
 modes (since version 0.2.0). The two variants have only a few minor differences
 and can be swapped fairly easily.
 
-
 ### Interpreted mode
 
 This is probably the mode you want to start out with if you are developing a
@@ -184,7 +180,6 @@ The main differences with compiled mode are the following:
 2. You need to call `Souffle.cleanup` after you no longer need the Souffle
    functionality. This will clean up the generated CSV fact files located in
    a temporary directory.
-
 
 #### Interpreter configuration
 
@@ -205,7 +200,6 @@ For more information regarding configuration, take a look at the
 The separators in the CSV fact files cannot be configured at the moment.
 A tab character (`'\t'`) is used to separate the different columns.
 
-
 ### Compiled mode
 
 Once the prototyping phase of the Datalog algorithm is over, it is advised
@@ -221,11 +215,9 @@ The main differences with interpreted mode are the following:
 
 The [motivating example](#motivating-example) is a complete example for the compiled mode.
 
-
 ## Contributing
 
 TLDR: Nix-based project; the Makefile contains the most commonly used commands.
-
 
 Long version:
 
@@ -245,9 +237,7 @@ $ make lint       # runs the linter
 $ make hoogle     # starts a local hoogle webserver
 ```
 
-
 ## Issues
 
 Found an issue or missing a piece of functionality?
 Please open an issue with a description of the problem.
-

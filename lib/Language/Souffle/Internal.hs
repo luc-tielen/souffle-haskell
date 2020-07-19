@@ -25,9 +25,11 @@ module Language.Souffle.Internal
   , allocTuple
   , addTuple
   , containsTuple
-  , tuplePushInt
+  , tuplePushInt32
+  , tuplePushUInt32
   , tuplePushString
-  , tuplePopInt
+  , tuplePopInt32
+  , tuplePopUInt32
   , tuplePopString
   ) where
 
@@ -148,9 +150,14 @@ containsTuple relation tuple = withForeignPtr tuple $ \ptr ->
 {-# INLINABLE containsTuple #-}
 
 -- | Pushes an integer value into a tuple.
-tuplePushInt :: Ptr Tuple -> Int32 -> IO ()
-tuplePushInt tuple i = Bindings.tuplePushInt tuple (CInt i)
-{-# INLINABLE tuplePushInt #-}
+tuplePushInt32 :: Ptr Tuple -> Int32 -> IO ()
+tuplePushInt32 tuple i = Bindings.tuplePushInt32 tuple (CInt i)
+{-# INLINABLE tuplePushInt32 #-}
+
+-- | Pushes an integer value into a tuple.
+tuplePushUInt32 :: Ptr Tuple -> Word32 -> IO ()
+tuplePushUInt32 tuple i = Bindings.tuplePushUInt32 tuple (CUInt i)
+{-# INLINABLE tuplePushUInt32 #-}
 
 -- | Pushes a string value into a tuple.
 tuplePushString :: Ptr Tuple -> String -> IO ()
@@ -158,13 +165,21 @@ tuplePushString tuple str =
   withCString str $ Bindings.tuplePushString tuple
 {-# INLINABLE tuplePushString #-}
 
--- | Extracts an integer value from a tuple.
-tuplePopInt :: Ptr Tuple -> IO Int32
-tuplePopInt tuple = alloca $ \ptr -> do
-  Bindings.tuplePopInt tuple ptr
+-- | Extracts a 32 bit signed integer value from a tuple.
+tuplePopInt32 :: Ptr Tuple -> IO Int32
+tuplePopInt32 tuple = alloca $ \ptr -> do
+  Bindings.tuplePopInt32 tuple ptr
   (CInt res) <- peek ptr
   pure res
-{-# INLINABLE tuplePopInt #-}
+{-# INLINABLE tuplePopInt32 #-}
+
+-- | Extracts a 32 bit unsigned integer value from a tuple.
+tuplePopUInt32 :: Ptr Tuple -> IO Word32
+tuplePopUInt32 tuple = alloca $ \ptr -> do
+  Bindings.tuplePopUInt32 tuple ptr
+  (CUInt res) <- peek ptr
+  pure res
+{-# INLINABLE tuplePopUInt32 #-}
 
 -- | Extracts a string value from a tuple.
 tuplePopString :: Ptr Tuple -> IO String
