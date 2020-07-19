@@ -1,6 +1,23 @@
 #include "souffle/SouffleInterface.h"
 #include "souffle.h"
 
+template <typename T>
+void tuple_push_value(tuple_t *tuple, const T &value)
+{
+    auto t = reinterpret_cast<souffle::tuple *>(tuple);
+    assert(t);
+    *t << value;
+}
+
+template <typename T>
+void tuple_pop_value(tuple_t *tuple, T *result)
+{
+    auto t = reinterpret_cast<souffle::tuple *>(tuple);
+    assert(t);
+    assert(result);
+    *t >> *result;
+}
+
 extern "C"
 {
     souffle_t *souffle_init(const char *progName)
@@ -127,23 +144,17 @@ extern "C"
 
     void souffle_tuple_push_int32(tuple_t *tuple, int32_t value)
     {
-        auto t = reinterpret_cast<souffle::tuple *>(tuple);
-        assert(t);
-        *t << value;
+        tuple_push_value(tuple, value);
     }
 
     void souffle_tuple_push_uint32(tuple_t *tuple, uint32_t value)
     {
-        auto t = reinterpret_cast<souffle::tuple *>(tuple);
-        assert(t);
-        *t << value;
+        tuple_push_value(tuple, value);
     }
 
     void souffle_tuple_push_string(tuple_t *tuple, const char *value)
     {
-        auto t = reinterpret_cast<souffle::tuple *>(tuple);
-        assert(t);
-        *t << value;
+        tuple_push_value(tuple, value);
     }
 
     void souffle_tuple_add(relation_t *relation, tuple_t *tuple)
@@ -157,27 +168,18 @@ extern "C"
 
     void souffle_tuple_pop_int32(tuple_t *tuple, int32_t *result)
     {
-        auto t = reinterpret_cast<souffle::tuple *>(tuple);
-        assert(t);
-        assert(result);
-        *t >> *result;
+        tuple_pop_value(tuple, result);
     }
 
     void souffle_tuple_pop_uint32(tuple_t *tuple, uint32_t *result)
     {
-        auto t = reinterpret_cast<souffle::tuple *>(tuple);
-        assert(t);
-        assert(result);
-        *t >> *result;
+        tuple_pop_value(tuple, result);
     }
 
     void souffle_tuple_pop_string(tuple_t *tuple, char **result)
     {
-        auto t = reinterpret_cast<souffle::tuple *>(tuple);
-        assert(t);
-        assert(result);
         std::string value;
-        *t >> value;
+        tuple_pop_value(tuple, &value);
         *result = strdup(value.c_str());
     }
 }
