@@ -27,9 +27,11 @@ module Language.Souffle.Internal
   , containsTuple
   , tuplePushInt32
   , tuplePushUInt32
+  , tuplePushFloat
   , tuplePushString
   , tuplePopInt32
   , tuplePopUInt32
+  , tuplePopFloat
   , tuplePopString
   ) where
 
@@ -154,10 +156,15 @@ tuplePushInt32 :: Ptr Tuple -> Int32 -> IO ()
 tuplePushInt32 tuple i = Bindings.tuplePushInt32 tuple (CInt i)
 {-# INLINABLE tuplePushInt32 #-}
 
--- | Pushes an integer value into a tuple.
+-- | Pushes an unsigned integer value into a tuple.
 tuplePushUInt32 :: Ptr Tuple -> Word32 -> IO ()
 tuplePushUInt32 tuple i = Bindings.tuplePushUInt32 tuple (CUInt i)
 {-# INLINABLE tuplePushUInt32 #-}
+
+-- | Pushes a float value into a tuple.
+tuplePushFloat :: Ptr Tuple -> Float -> IO ()
+tuplePushFloat tuple f = Bindings.tuplePushFloat tuple (CFloat f)
+{-# INLINABLE tuplePushFloat #-}
 
 -- | Pushes a string value into a tuple.
 tuplePushString :: Ptr Tuple -> String -> IO ()
@@ -180,6 +187,14 @@ tuplePopUInt32 tuple = alloca $ \ptr -> do
   (CUInt res) <- peek ptr
   pure res
 {-# INLINABLE tuplePopUInt32 #-}
+
+-- | Extracts a float value from a tuple.
+tuplePopFloat :: Ptr Tuple -> IO Float
+tuplePopFloat tuple = alloca $ \ptr -> do
+  Bindings.tuplePopFloat tuple ptr
+  (CFloat res) <- peek ptr
+  pure res
+{-# INLINABLE tuplePopFloat #-}
 
 -- | Extracts a string value from a tuple.
 tuplePopString :: Ptr Tuple -> IO String

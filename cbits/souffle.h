@@ -174,6 +174,16 @@ extern "C"
     void souffle_tuple_push_uint32(tuple_t *tuple, uint32_t value);
 
     /*
+     * Pushes a float value into a tuple.
+     * You need to check if the passed pointer is non-NULL before passing it
+     * to this function. Not doing so results in undefined behavior.
+     *
+     * Pushing a float value onto a tuple that expects another type results
+     * in a crash.
+     */
+    void souffle_tuple_push_float(tuple_t *tuple, float value);
+
+    /*
      * Pushes a string value into a tuple.
      * You need to check if the passed pointer is non-NULL before passing it
      * to this function. Not doing so results in undefined behavior.
@@ -204,6 +214,17 @@ extern "C"
      * The popped integer will be stored in the result pointer.
      */
     void souffle_tuple_pop_uint32(tuple_t *tuple, uint32_t *result);
+
+    /*
+     * Extracts a float value from a tuple.
+     * You need to check if the passed pointer is non-NULL before passing it
+     * to this function. Not doing so results in undefined behavior.
+     *
+     * Extracting a float value from a tuple that expects another type results
+     * in a crash.
+     * The popped integer will be stored in the result pointer.
+     */
+    void souffle_tuple_pop_float(tuple_t *tuple, float *result);
 
     /*
      * Extracts a string value from a tuple.

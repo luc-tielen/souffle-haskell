@@ -19,6 +19,9 @@ data Edge = Edge String String
 newtype EdgeUInt = EdgeUInt Word32
   deriving (Eq, Show, Generic)
 
+newtype FloatValue = FloatValue Float
+  deriving (Eq, Show, Generic)
+
 data EdgeStrict = EdgeStrict !String !String
   deriving (Eq, Show, Generic)
 
@@ -54,6 +57,7 @@ data LargeRecord
 
 instance Marshal Edge
 instance Marshal EdgeUInt
+instance Marshal FloatValue
 instance Marshal EdgeStrict
 instance Marshal EdgeUnpacked
 instance Marshal EdgeSynonyms

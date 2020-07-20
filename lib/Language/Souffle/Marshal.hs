@@ -30,6 +30,8 @@ class Monad m => MonadPush m where
   pushInt32 :: Int32 -> m ()
   -- | Marshals an unsigned 32 bit integer to the datalog side.
   pushUInt32 :: Word32 -> m ()
+  -- | Marshals a float to the datalog side.
+  pushFloat :: Float -> m ()
   -- | Marshals a string to the datalog side.
   pushString :: String -> m ()
 
@@ -44,6 +46,8 @@ class Monad m => MonadPop m where
   popInt32 :: m Int32
   -- | Unmarshals an unsigned 32 bir integer from the datalog side.
   popUInt32 :: m Word32
+  -- | Unmarshals a float from the datalog side.
+  popFloat :: m Float
   -- | Unmarshals a string from the datalog side.
   popString :: m String
 
@@ -93,6 +97,12 @@ instance Marshal Word32 where
   push = pushUInt32
   {-# INLINABLE push #-}
   pop = popUInt32
+  {-# INLINABLE pop #-}
+
+instance Marshal Float where
+  push = pushFloat
+  {-# INLINABLE push #-}
+  pop = popFloat
   {-# INLINABLE pop #-}
 
 instance Marshal String where
