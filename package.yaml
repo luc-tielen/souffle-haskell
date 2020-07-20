@@ -1,14 +1,14 @@
-name:                souffle-haskell
-synopsis:            Souffle Datalog bindings for Haskell
-description:         Souffle Datalog bindings for Haskell.
-version:             1.0.0
-homepage:            https://github.com/luc-tielen/souffle-haskell#README.md
-license:             MIT
-author:              Luc Tielen
-maintainer:          luc.tielen@gmail.com
-copyright:           2020 Luc Tielen
-category:            Logic Programming, Foreign Binding, Bindings
-github:              luc-tielen/souffle-haskell
+name: souffle-haskell
+synopsis: Souffle Datalog bindings for Haskell
+description: Souffle Datalog bindings for Haskell.
+version: 1.0.0
+homepage: https://github.com/luc-tielen/souffle-haskell#README.md
+license: MIT
+author: Luc Tielen
+maintainer: luc.tielen@gmail.com
+copyright: 2020 Luc Tielen
+category: Logic Programming, Foreign Binding, Bindings
+github: luc-tielen/souffle-haskell
 extra-source-files:
   - README.md
   - CHANGELOG.md
@@ -103,8 +103,8 @@ install-includes:
   - souffle/Logger.h
 
 library:
-  source-dirs:        lib
-  cxx-sources:        cbits/*.cpp
+  source-dirs: lib
+  cxx-sources: cbits/*.cpp
   cxx-options:
     - -Wall
   when:
@@ -115,14 +115,16 @@ library:
 
 tests:
   souffle-haskell-test:
-    main:             test.hs
-    source-dirs:      tests
-    cxx-sources:      tests/fixtures/*.cpp
+    main: test.hs
+    source-dirs: tests
+    cxx-sources: tests/fixtures/*.cpp
     when:
       - condition: os(darwin)
         extra-libraries: c++
     dependencies:
       - hspec >= 2.6.1 && < 3.0.0
+      - hspec-hedgehog == 0.*
+      - hedgehog == 1.*
       - souffle-haskell
     cxx-options:
       - -D__EMBEDDED_SOUFFLE__
@@ -130,8 +132,8 @@ tests:
 # NOTE: only used when having to update the souffle C headers
 executables:
   import-souffle-headers:
-    main:             import_souffle_headers.hs
-    source-dirs:      scripts
+    main: import_souffle_headers.hs
+    source-dirs: scripts
     dependencies:
       - souffle-haskell
       - megaparsec >= 7.0.5 && < 8
