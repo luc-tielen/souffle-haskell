@@ -1,5 +1,5 @@
 
-{-# LANGUAGE DeriveGeneric, TypeFamilies, DataKinds #-}
+{-# LANGUAGE DeriveGeneric, TypeFamilies, DataKinds, RankNTypes #-}
 
 module Test.Language.Souffle.MarshalSpec
   ( module Test.Language.Souffle.MarshalSpec
@@ -18,7 +18,10 @@ import Data.Word
 import Data.Maybe ( fromJust )
 import Control.Monad.IO.Class ( liftIO )
 import Language.Souffle.Marshal
-import qualified Language.Souffle.Interpreted as Souffle
+import qualified Language.Souffle.Marshal as Souffle
+import qualified Language.Souffle.Class as Souffle
+import qualified Language.Souffle.Compiled as Compiled
+import qualified Language.Souffle.Interpreted as Interpreted
 
 
 data Edge = Edge String String
@@ -126,6 +129,9 @@ instance Souffle.Program RoundTrip where
     [StringFact, TextFact, LazyTextFact, Int32Fact, Word32Fact, FloatFact]
   programName = const "round_trip"
 
+type RoundTripAction
+  = forall a. (Souffle.Fact a, Souffle.ContainsFact RoundTrip a)
+  => a -> PropertyT IO a
 
 spec :: Spec
 spec = describe "Marshalling" $ parallel $ do
@@ -135,51 +141,61 @@ spec = describe "Marshalling" $ parallel $ do
       42 `shouldBe` 42
 
   describe "data transfer between Haskell and Souffle" $ parallel $ do
-    let run fact = liftIO $ Souffle.runSouffle $ do
-          handle <- fromJust <$> Souffle.init RoundTrip
-          Souffle.addFact handle fact
-          Souffle.run handle
-          fact' <- Prelude.head <$> Souffle.getFacts handle
-          Souffle.cleanup handle
-          pure fact'
+    let roundTripTests :: RoundTripAction -> Spec
+        roundTripTests run = do
+          it "can serialize and deserialize String values" $ hedgehog $ do
+            str <- forAll $ Gen.string (Range.linear 0 10) Gen.unicode
+            let fact = StringFact str
+            fact' <- run fact
+            fact === fact'
 
-    it "can serialize and deserialize String values" $ hedgehog $ do
-      str <- forAll $ Gen.string (Range.linear 0 10) Gen.unicode
-      let fact = StringFact str
-      fact' <- run fact
-      fact === fact'
+          it "can serialize and deserialize lazy Text" $ hedgehog $ do
+            str <- forAll $ Gen.string (Range.linear 0 10) Gen.unicode
+            let fact = LazyTextFact (TL.pack str)
+            fact' <- run fact
+            fact === fact'
 
-    it "can serialize and deserialize lazy Text" $ hedgehog $ do
-      str <- forAll $ Gen.string (Range.linear 0 10) Gen.unicode
-      let fact = LazyTextFact (TL.pack str)
-      fact' <- run fact
-      fact === fact'
+          it "can serialize and deserialize strict Text values" $ hedgehog $ do
+            str <- forAll $ Gen.text (Range.linear 0 10) Gen.unicode
+            let fact = TextFact str
+            fact' <- run fact
+            fact === fact'
 
-    it "can serialize and deserialize strict Text values" $ hedgehog $ do
-      str <- forAll $ Gen.text (Range.linear 0 10) Gen.unicode
-      let fact = TextFact str
-      fact' <- run fact
-      fact === fact'
+          it "can serialize and deserialize Int32 values" $ hedgehog $ do
+            x <- forAll $ Gen.int32 (Range.linear minBound maxBound)
+            let fact = Int32Fact x
+            fact' <- run fact
+            fact === fact'
 
-    it "can serialize and deserialize Int32 values" $ hedgehog $ do
-      x <- forAll $ Gen.int32 (Range.linear minBound maxBound)
-      let fact = Int32Fact x
-      fact' <- run fact
-      fact === fact'
+          it "can serialize and deserialize Word32 values" $ hedgehog $ do
+            x <- forAll $ Gen.word32 (Range.linear minBound maxBound)
+            let fact = Word32Fact x
+            fact' <- run fact
+            fact === fact'
 
-    it "can serialize and deserialize Word32 values" $ hedgehog $ do
-      x <- forAll $ Gen.word32 (Range.linear minBound maxBound)
-      let fact = Word32Fact x
-      fact' <- run fact
-      fact === fact'
+          {- TODO: enable this test once souffle floating point conversions are fixed
+          it "can serialize and deserialize Float values" $ hedgehog $ do
+            let epsilon = 1e-6
+                fmin = -1e9
+                fmax =  1e9
+            x <- forAll $ Gen.float (Range.exponentialFloat fmin fmax)
+            let fact = FloatFact x
+            FloatFact x' <- run fact
+            (abs (x' - x) < epsilon) === True
+          -}
 
-    {- TODO: enable this test once souffle floating point conversions are fixed
-    it "can serialize and deserialize Float values" $ hedgehog $ do
-      let epsilon = 1e-6
-          fmin = -1e9
-          fmax =  1e9
-      x <- forAll $ Gen.float (Range.exponentialFloat fmin fmax)
-      let fact = FloatFact x
-      FloatFact x' <- run fact
-      (abs (x' - x) < epsilon) === True
-    -}
+    describe "interpreted mode" $ parallel $
+      roundTripTests $ \fact -> liftIO $ Interpreted.runSouffle $ do
+        handle <- fromJust <$> Interpreted.init RoundTrip
+        Interpreted.addFact handle fact
+        Interpreted.run handle
+        fact' <- Prelude.head <$> Interpreted.getFacts handle
+        Interpreted.cleanup handle
+        pure fact'
+
+    describe "compiled mode" $ parallel $
+      roundTripTests $ \fact -> liftIO $ Compiled.runSouffle $ do
+        handle <- fromJust <$> Compiled.init RoundTrip
+        Compiled.addFact handle fact
+        Compiled.run handle
+        Prelude.head <$> Compiled.getFacts handle
