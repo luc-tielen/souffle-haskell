@@ -10,10 +10,10 @@ let
     overrides = self: super: {
       neat-interpolation = dontCheck super.neat-interpolation;
       type-errors-pretty = doJailbreak super.type-errors-pretty;
-      hspec-hedgehog = builtins.fetchTarball {
+      hspec-hedgehog = self.callCabal2nix "hspec-hedgehog" (builtins.fetchTarball {
         url = "https://github.com/parsonsmatt/hspec-hedgehog/archive/0.0.1.1.tar.gz";
         sha256 = "sha256:1058x99b8sgqywrps36ajkib72d3qym3df1bypyd45vffz71fxb0";
-      };
+      }) {};
     };
   };
   source = nix-gitignore.gitignoreSource [ ] ./.;
