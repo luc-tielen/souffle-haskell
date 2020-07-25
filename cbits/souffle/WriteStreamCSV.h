@@ -25,6 +25,7 @@
 #endif
 
 #include <cstddef>
+#include <iomanip>
 #include <iostream>
 #include <map>
 #include <ostream>
@@ -72,10 +73,11 @@ public:
     WriteFileCSV(const std::map<std::string, std::string>& rwOperation, const SymbolTable& symbolTable,
             const RecordTable& recordTable)
             : WriteStreamCSV(rwOperation, symbolTable, recordTable),
-              file(rwOperation.at("filename"), std::ios::out | std::ios::binary) {
+              file(getFileName(rwOperation), std::ios::out | std::ios::binary) {
         if (getOr(rwOperation, "headers", "false") == "true") {
             file << rwOperation.at("attributeNames") << std::endl;
         }
+        file << std::setprecision(std::numeric_limits<RamFloat>::max_digits10);
     }
 
     ~WriteFileCSV() override = default;
@@ -90,6 +92,21 @@ protected:
     void writeNextTuple(const RamDomain* tuple) override {
         writeNextTupleCSV(file, tuple);
     }
+
+    /**
+     * Return given filename or construct from relation name.
+     * Default name is [configured path]/[relation name].csv
+     *
+     * @param rwOperation map of IO configuration options
+     * @return input filename
+     */
+    static std::string getFileName(const std::map<std::string, std::string>& rwOperation) {
+        auto name = getOr(rwOperation, "filename", rwOperation.at("name") + ".csv");
+        if (name.front() != '/') {
+            name = getOr(rwOperation, "output-dir", ".") + "/" + name;
+        }
+        return name;
+    }
 };
 
 #ifdef USE_LIBZ
@@ -98,10 +115,11 @@ public:
     WriteGZipFileCSV(const std::map<std::string, std::string>& rwOperation, const SymbolTable& symbolTable,
             const RecordTable& recordTable)
             : WriteStreamCSV(rwOperation, symbolTable, recordTable),
-              file(rwOperation.at("filename"), std::ios::out | std::ios::binary) {
+              file(getFileName(rwOperation), std::ios::out | std::ios::binary) {
         if (getOr(rwOperation, "headers", "false") == "true") {
             file << rwOperation.at("attributeNames") << std::endl;
         }
+        file << std::setprecision(std::numeric_limits<RamFloat>::max_digits10);
     }
 
     ~WriteGZipFileCSV() override = default;
@@ -113,6 +131,21 @@ protected:
 
     void writeNextTuple(const RamDomain* tuple) override {
         writeNextTupleCSV(file, tuple);
+    }
+
+    /**
+     * Return given filename or construct from relation name.
+     * Default name is [configured path]/[relation name].csv
+     *
+     * @param rwOperation map of IO configuration options
+     * @return input filename
+     */
+    static std::string getFileName(const std::map<std::string, std::string>& rwOperation) {
+        auto name = getOr(rwOperation, "filename", rwOperation.at("name") + ".csv.gz");
+        if (name.front() != '/') {
+            name = getOr(rwOperation, "output-dir", ".") + "/" + name;
+        }
+        return name;
     }
 
     gzfstream::ogzfstream file;
@@ -129,6 +162,7 @@ public:
             std::cout << "\n" << rwOperation.at("attributeNames");
         }
         std::cout << "\n===============\n";
+        std::cout << std::setprecision(std::numeric_limits<RamFloat>::max_digits10);
     }
 
     ~WriteCoutCSV() override {

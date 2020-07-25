@@ -10,7 +10,7 @@ let
 in
 stdenv.mkDerivation rec {
   pname = "souffle";
-  version = "f062651a5b90dc5e14b3df173fdb35961da5bd72";
+  version = "2d9d05a226bdf2da3d6f44afa8a73fd2615c8c9a";
 
   src = builtins.fetchGit {
     url  = "git://github.com/souffle-lang/souffle.git";
@@ -33,7 +33,7 @@ stdenv.mkDerivation rec {
       --replace '-Werror' '-Werror -Wno-error=deprecated -Wno-error=other'
 
     substituteInPlace configure.ac \
-      --replace "m4_esyscmd([git describe --tags --always | tr -d '\n'])" "${version}"
+      --replace "souffle_version=$(git describe --tags --always)" "souffle_version=${version}"
   '';
 
   postInstall = ''

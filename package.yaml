@@ -85,9 +85,10 @@ install-includes:
   - souffle/LambdaBTree.h
   - souffle/BTree.h
   - souffle/utility/ParallelUtil.h
+  - souffle/WriteStreamJSON.h
   - souffle/WriteStreamCSV.h
-  - souffle/utility/tinyformat.h
   - souffle/IOSystem.h
+  - souffle/ReadStreamJSON.h
   - souffle/ReadStreamSQLite.h
   - souffle/UnionFind.h
   - souffle/PiggyList.h
@@ -95,12 +96,12 @@ install-includes:
   - souffle/SerialisationStream.h
   - souffle/CompiledSouffle.h
   - souffle/EquivalenceRelation.h
-  - souffle/IterUtils.h
   - souffle/SignalHandler.h
   - souffle/Table.h
   - souffle/utility/EvaluatorUtil.h
   - souffle/CompiledOptions.h
   - souffle/Logger.h
+  - souffle/utility/tinyformat.h
 
 library:
   source-dirs: lib
