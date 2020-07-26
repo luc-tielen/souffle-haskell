@@ -11,6 +11,11 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
 - Added support for facts containing "unsigned" values.
 - Added support for facts containing "float" values.
 
+### Fixed
+
+- The `run` function in `Language.Souffle.Interpeted` now always closes
+  stdout and stderr handles of the external souffle process.
+
 ### Removed
 
 - `Language.Souffle` module is removed since it only existed due to legacy
@@ -18,7 +23,6 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
   using souffle-haskell in (interpreted or compiled mode). If you experience
   compilation errors, rename all imports of `Language.Souffle` to
   `Language.Souffle.Compiled`.
-
 
 ## [1.0.0] - 2020-07-09
 

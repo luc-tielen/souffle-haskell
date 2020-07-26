@@ -28,7 +28,7 @@ module Language.Souffle.Interpreted
 import Prelude hiding (init)
 
 import Control.DeepSeq (deepseq)
-import Control.Exception (ErrorCall(..), throwIO)
+import Control.Exception (ErrorCall(..), throwIO, bracket)
 import Control.Monad.State.Strict
 import Control.Monad.Reader
 import Data.IORef
@@ -250,18 +250,23 @@ instance MonadSouffle SouffleM where
             , std_out = CreatePipe
             , std_err = CreatePipe
             }
-    (_, mStdOutHandle, mStdErrHandle, processHandle) <- createProcess_ "souffle-haskell" processToRun
-    waitForProcess processHandle >>= \case
-      ExitSuccess   -> pure ()
-      ExitFailure c -> throwIO $ ErrorCall $ "Souffle exited with: " ++ show c
-    forM_ mStdOutHandle $ \stdoutHandle -> do
-      stdout <- T.pack <$> hGetContents stdoutHandle
-      writeIORef refHandleStdOut $! Just $! stdout
-      hClose stdoutHandle
-    forM_ mStdErrHandle $ \stderrHandle -> do
-      stderr <- T.pack <$> hGetContents stderrHandle
-      writeIORef refHandleStdErr $! Just $! stderr
-      hClose stderrHandle
+    bracket
+      (createProcess_ "souffle-haskell" processToRun)
+      (\(_, mStdOutHandle, mStdErrHandle, _) -> do
+        traverse_ hClose mStdOutHandle
+        traverse_ hClose mStdErrHandle
+      )
+      (\(_, mStdOutHandle, mStdErrHandle, processHandle) -> do
+        waitForProcess processHandle >>= \case
+          ExitSuccess   -> pure ()
+          ExitFailure c -> throwIO $ ErrorCall $ "Souffle exited with: " ++ show c
+        forM_ mStdOutHandle $ \stdoutHandle -> do
+          stdout <- T.pack <$!> hGetContents stdoutHandle
+          writeIORef refHandleStdOut $! Just $! stdout
+        forM_ mStdErrHandle $ \stderrHandle -> do
+          stderr <- T.pack <$!> hGetContents stderrHandle
+          writeIORef refHandleStdErr $! Just $! stderr
+      )
   {-# INLINABLE run #-}
 
   setNumThreads handle n = liftIO $
