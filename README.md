@@ -159,6 +159,13 @@ ghc-options:
   souffle-haskell: -optcxx-std=c++17
 ```
 
+## Documentation
+
+The documentation for the library can be found on
+[Hackage](https://hackage.haskell.org/package/souffle-haskell).
+`Language.Souffle.Class` is a good starting point for getting an overview of
+the top level API.
+
 ## Supported modes
 
 Souffle programs can be run in 2 ways. They can either run in **interpreted** mode
