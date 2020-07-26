@@ -9,7 +9,7 @@ import GHC.Generics
 import Data.Maybe
 import qualified Data.Array as A
 import qualified Data.Vector as V
-import qualified Language.Souffle as Souffle
+import qualified Language.Souffle.Compiled as Souffle
 
 data Path = Path
 

@@ -11,6 +11,15 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
 - Added support for facts containing "unsigned" values.
 - Added support for facts containing "float" values.
 
+### Removed
+
+- `Language.Souffle` module is removed since it only existed due to legacy
+  reasons. This removal forces users to be explicit about the mode they are
+  using souffle-haskell in (interpreted or compiled mode). If you experience
+  compilation errors, rename all imports of `Language.Souffle` to
+  `Language.Souffle.Compiled`.
+
+
 ## [1.0.0] - 2020-07-09
 
 ### Changed
