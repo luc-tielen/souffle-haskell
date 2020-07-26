@@ -125,7 +125,7 @@ instance Souffle.Marshal Word32Fact
 instance Souffle.Marshal FloatFact
 
 instance Souffle.Program RoundTrip where
-  type ProgramFacts RoundTrip = 
+  type ProgramFacts RoundTrip =
     [StringFact, TextFact, LazyTextFact, Int32Fact, Word32Fact, FloatFact]
   programName = const "round_trip"
 
@@ -173,7 +173,6 @@ spec = describe "Marshalling" $ parallel $ do
             fact' <- run fact
             fact === fact'
 
-          {- TODO: enable this test once souffle floating point conversions are fixed
           it "can serialize and deserialize Float values" $ hedgehog $ do
             let epsilon = 1e-6
                 fmin = -1e9
@@ -182,7 +181,6 @@ spec = describe "Marshalling" $ parallel $ do
             let fact = FloatFact x
             FloatFact x' <- run fact
             (abs (x' - x) < epsilon) === True
-          -}
 
     describe "interpreted mode" $ parallel $
       roundTripTests $ \fact -> liftIO $ Interpreted.runSouffle $ do
