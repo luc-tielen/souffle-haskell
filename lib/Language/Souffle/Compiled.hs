@@ -73,6 +73,11 @@ instance MonadPush CMarshal where
     liftIO $ Internal.tuplePushUInt32 tuple int
   {-# INLINABLE pushUInt32 #-}
 
+  pushFloat float = do
+    tuple <- ask
+    liftIO $ Internal.tuplePushFloat tuple float
+  {-# INLINABLE pushFloat #-}
+
   pushString str = do
     tuple <- ask
     liftIO $ Internal.tuplePushString tuple str
@@ -88,6 +93,11 @@ instance MonadPop CMarshal where
     tuple <- ask
     liftIO $ Internal.tuplePopUInt32 tuple
   {-# INLINABLE popUInt32 #-}
+
+  popFloat = do
+    tuple <- ask
+    liftIO $ Internal.tuplePopFloat tuple
+  {-# INLINABLE popFloat #-}
 
   popString = do
     tuple <- ask

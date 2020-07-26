@@ -146,6 +146,9 @@ instance MonadPush IMarshal where
   pushUInt32 int = modify (show int:)
   {-# INLINABLE pushUInt32 #-}
 
+  pushFloat float = modify (show float:)
+  {-# INLINABLE pushFloat #-}
+
   pushString str = modify (str:)
   {-# INLINABLE pushString #-}
 
@@ -159,6 +162,11 @@ instance MonadPop IMarshal where
     [] -> error "Empty fact stack"
     (h:t) -> (read h, t)
   {-# INLINABLE popUInt32 #-}
+
+  popFloat = state $ \case
+    [] -> error "Empty fact stack"
+    (h:t) -> (read h, t)
+  {-# INLINABLE popFloat #-}
 
   popString = state $ \case
     [] -> error "Empty fact stack"

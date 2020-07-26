@@ -58,7 +58,8 @@ import qualified Language.Souffle.Compiled as Souffle
 data Path = Path
 
 -- Facts are represented in Haskell as simple product types,
--- Numbers map to Int32, unsigned to Word32, symbols to Strings / Text.
+-- Numbers map to Int32, unsigned to Word32, floats to Float,
+-- symbols to Strings / Text.
 
 data Edge = Edge String String
   deriving (Eq, Show, Generic)

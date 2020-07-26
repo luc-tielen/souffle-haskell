@@ -26,9 +26,11 @@ module Language.Souffle.Internal.Bindings
   , tuplePushInt32
   , tuplePushUInt32
   , tuplePushString
+  , tuplePushFloat
   , tuplePopInt32
   , tuplePopUInt32
   , tuplePopString
+  , tuplePopFloat
   ) where
 
 import Prelude hiding ( init )
@@ -230,6 +232,18 @@ foreign import ccall unsafe "souffle_tuple_push_int32" tuplePushInt32
 foreign import ccall unsafe "souffle_tuple_push_uint32" tuplePushUInt32
   :: Ptr Tuple -> CUInt -> IO ()
 
+{-| Pushes a float value into a tuple.
+
+    You need to check if the passed pointer is not equal to 'nullPtr' before
+    passing it to this function. Not doing so results in undefined behavior (in C++).
+
+    Pushing a float value onto a tuple that expects another type results
+    in a crash. Pushing a value into a tuple when it already is "full"
+    also results in a crash.
+-}
+foreign import ccall unsafe "souffle_tuple_push_float" tuplePushFloat
+  :: Ptr Tuple -> CFloat -> IO ()
+
 {-| Pushes a string value into a tuple.
 
     You need to check if the passed pointer is not equal to 'nullPtr' before
@@ -269,6 +283,20 @@ foreign import ccall unsafe "souffle_tuple_pop_int32" tuplePopInt32
 -}
 foreign import ccall unsafe "souffle_tuple_pop_uint32" tuplePopUInt32
   :: Ptr Tuple -> Ptr CUInt -> IO ()
+
+{-| Extracts a float value from a tuple.
+
+    You need to check if the passed pointer is not equal to 'nullPtr' before passing it
+    to this function. Not doing so results in undefined behavior.
+
+    Extracting a float value from a tuple that expects another type results
+    in a crash. Extracting a value from a tuple when it is already "empty"
+    also results in a crash.
+
+    The popped float will be stored in the pointer that is passed in.
+-}
+foreign import ccall unsafe "souffle_tuple_pop_float" tuplePopFloat
+  :: Ptr Tuple -> Ptr CFloat -> IO ()
 
 {-| Extracts a string value from a tuple.
 

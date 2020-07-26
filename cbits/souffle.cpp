@@ -152,6 +152,11 @@ extern "C"
         tuple_push_value(tuple, value);
     }
 
+    void souffle_tuple_push_float(tuple_t *tuple, float value)
+    {
+        tuple_push_value(tuple, value);
+    }
+
     void souffle_tuple_push_string(tuple_t *tuple, const char *value)
     {
         tuple_push_value(tuple, value);
@@ -172,6 +177,11 @@ extern "C"
     }
 
     void souffle_tuple_pop_uint32(tuple_t *tuple, uint32_t *result)
+    {
+        tuple_pop_value(tuple, result);
+    }
+
+    void souffle_tuple_pop_float(tuple_t *tuple, float *result)
     {
         tuple_pop_value(tuple, result);
     }

@@ -1,0 +1,15 @@
+.decl string_fact(x: symbol)
+.input string_fact
+.output string_fact
+
+.decl number_fact(x: number)
+.input number_fact
+.output number_fact
+
+.decl unsigned_fact(x: unsigned)
+.input unsigned_fact
+.output unsigned_fact
+
+.decl float_fact(x: float)
+.input float_fact
+.output float_fact

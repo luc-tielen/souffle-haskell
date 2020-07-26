@@ -10,13 +10,12 @@ let
 in
 stdenv.mkDerivation rec {
   pname = "souffle";
-  version = "2.0.0";
+  version = "2d9d05a226bdf2da3d6f44afa8a73fd2615c8c9a";
 
-  src = fetchFromGitHub {
-    owner  = "souffle-lang";
-    repo   = "souffle";
+  src = builtins.fetchGit {
+    url  = "git://github.com/souffle-lang/souffle.git";
+    ref = "master";
     rev    = version;
-    sha256 = "1azn32x0xbbk8gagipb34qk3y1srm927j5d34w20isgjxir4xsnz";
   };
 
   nativeBuildInputs = [ autoreconfHook bison flex mcpp doxygen graphviz makeWrapper perl ];
@@ -34,7 +33,7 @@ stdenv.mkDerivation rec {
       --replace '-Werror' '-Werror -Wno-error=deprecated -Wno-error=other'
 
     substituteInPlace configure.ac \
-      --replace "m4_esyscmd([git describe --tags --always | tr -d '\n'])" "${version}"
+      --replace "souffle_version=$(git describe --tags --always)" "souffle_version=${version}"
   '';
 
   postInstall = ''

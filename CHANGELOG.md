@@ -9,6 +9,7 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
 
 - getFacts can now return facts in a fixed size array (from the array package).
 - Added support for facts containing "unsigned" values.
+- Added support for facts containing "float" values.
 
 ## [1.0.0] - 2020-07-09
 
