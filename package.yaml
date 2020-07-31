@@ -126,6 +126,7 @@ tests:
       - hspec >= 2.6.1 && < 3.0.0
       - hspec-hedgehog == 0.*
       - hedgehog == 1.*
+      - neat-interpolation == 0.*
       - souffle-haskell
     cxx-options:
       - -D__EMBEDDED_SOUFFLE__
