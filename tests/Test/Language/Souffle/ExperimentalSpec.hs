@@ -9,7 +9,6 @@ module Test.Language.Souffle.ExperimentalSpec
 import Test.Hspec
 import GHC.Generics
 import Data.Int
-import qualified Data.Text as T
 import Language.Souffle.Experimental
 import Language.Souffle.Experimental.Render
 import NeatInterpolation
@@ -31,8 +30,7 @@ data Reachable = Reachable String String
 spec :: Spec
 spec = fdescribe "Souffle DSL" $ parallel $ do
   describe "code generation" $ parallel $ do
-    let (==>) :: DSL a -> T.Text -> IO ()
-        prog ==> txt = render (runDSL prog) `shouldBe` (txt <> "\n")
+    let prog ==> txt = render (runDSL prog) `shouldBe` (txt <> "\n")
 
     it "can render an empty program" $ do
       render (runDSL $ pure ()) `shouldBe` ""

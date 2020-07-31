@@ -68,7 +68,7 @@ type family TupleOf (ts :: [Type]) where
 
 
 class ToAtoms (ts :: [Type]) where
-  toAtoms :: TypeInfo a ts -> TupleOf ts -> NonEmpty Atom
+  toAtoms :: TypeInfo a ts -> TupleOf ts -> NonEmpty (Atom ctx)
 
 instance MapConstraint ToAtom '[t] => ToAtoms '[t] where
   toAtoms _ a = toAtom a :| []
@@ -111,7 +111,7 @@ instance MapConstraint ToAtom [t1, t2, t3, t4, t5, t6, t7, t8, t9, t10]
   -- Only facts with up to 10 arguments are currently supported.
 
 class ToAtom a where
-  toAtom :: a -> Atom
+  toAtom :: a -> Atom ctx
 
 instance ToAtom Int32 where toAtom = Int
 instance ToAtom String where toAtom = Str

@@ -31,26 +31,26 @@ import Data.Proxy
 import Data.List.NonEmpty (NonEmpty(..))
 
 
-newtype Predicate p ts
-  = Predicate (forall f. Fragment f => TupleOf (Structure p) -> f)
+newtype Predicate p
+  = Predicate (forall f ctx. Fragment f ctx => TupleOf (Structure p) -> f ctx ())
 
-newtype DSL a = DSL (Writer [DL] a)
-  deriving (Functor, Applicative, Monad, MonadWriter [DL])
-  via (Writer [DL])
+newtype DSL ctx a = DSL (Writer [DL ctx] a)
+  deriving (Functor, Applicative, Monad, MonadWriter [DL ctx])
+  via (Writer [DL ctx])
 
-runDSL :: DSL a -> DL
+runDSL :: DSL 'Definition' a -> DL 'Program'
 runDSL (DSL a) = Program $ execWriter a
 
-addDefinition :: DL -> DSL ()
+addDefinition :: DL 'Definition' -> DSL 'Definition' ()
 addDefinition dl = tell [dl]
 
-data Head = Head Name (NonEmpty Atom)
+data Head ctx a = Head Name (NonEmpty (Atom ctx))
 
-newtype Block a = Block (Writer [DL] a)
-  deriving (Functor, Applicative, Monad, MonadWriter [DL])
-  via (Writer [DL])
+newtype Block ctx a = Block (Writer [DL ctx] a)
+  deriving (Functor, Applicative, Monad, MonadWriter [DL ctx])
+  via (Writer [DL ctx])
 
-instance Alternative Block where
+instance Alternative (Block ctx) where
   empty = error "'empty' is not implemented for 'Block'"
   block1 <|> block2 = do
     let rules1 = combineRules $ runBlock block1
@@ -58,7 +58,7 @@ instance Alternative Block where
     tell [Or rules1 rules2]
     pure undefined
 
-runBlock :: Block a -> [DL]
+runBlock :: Block ctx a -> [DL ctx]
 runBlock (Block m) = execWriter m
 
 typeDef :: forall a ts. ts ~ Structure a
@@ -66,7 +66,7 @@ typeDef :: forall a ts. ts ~ Structure a
         => ToAtoms ts
         => KnownSymbol (NameFor a)
         => Direction
-        -> DSL (Predicate a ts)
+        -> DSL 'Definition' (Predicate a)
 typeDef d = do
   let name = nameFor (Proxy :: Proxy a)
       definition = TypeDef name d (getTypes (Proxy :: Proxy ts))
@@ -75,28 +75,28 @@ typeDef d = do
   addDefinition definition
   pure $ Predicate $ toFragment name . toAtoms typeInfo
 
-(|-) :: Head -> Block () -> DSL ()
+(|-) :: Head 'Relation' a -> Block 'Relation' () -> DSL 'Definition' ()
 Head name atoms |- block =
   let rules = runBlock block
       relation = Relation name atoms (combineRules rules)
   in addDefinition relation
 
-combineRules :: [DL] -> DL
+combineRules :: [DL ctx] -> DL ctx
 combineRules rules =
   if null rules
     then error "A block should consist of atleast 1 predicate."
     else foldl1 And rules
 
-class Fragment f where
-  toFragment :: Name -> NonEmpty Atom -> f
+class Fragment f ctx where
+  toFragment :: Name -> NonEmpty (Atom ctx) -> f ctx ()
 
-instance Fragment Head where
+instance Fragment Head ctx where
   toFragment = Head
 
-instance ty ~ () => Fragment (Block ty) where
+instance Fragment Block ctx where
   toFragment name atoms = tell [Fact name atoms]
 
-instance ty ~ () => Fragment (DSL ty) where
+instance Fragment DSL 'Definition' where
   toFragment name atoms = addDefinition $ Fact name atoms
 
 
@@ -114,5 +114,4 @@ class GetDLType t where
 
 instance GetDLType Int32 where getType = const DLInt
 instance GetDLType String where getType = const DLString
-
 

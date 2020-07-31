@@ -1,3 +1,5 @@
+{-# LANGUAGE GADTs, DataKinds #-}
+
 module Language.Souffle.Experimental.Render
   ( render
   ) where
@@ -7,7 +9,7 @@ import Data.List.NonEmpty ( toList )
 import qualified Data.Text as T
 
 
-render :: DL -> T.Text
+render :: DL ctx -> T.Text
 render = \case
   Program stmts ->
     T.unlines $ fmap render stmts
@@ -42,10 +44,10 @@ renderType x = \case
   DLString -> x' <> ": symbol"
   where x' = "t" <> T.pack (show x)
 
-renderAtoms :: [Atom] -> T.Text
+renderAtoms :: [Atom ctx] -> T.Text
 renderAtoms = T.intercalate ", " . fmap renderAtom
 
-renderAtom :: Atom -> T.Text
+renderAtom :: Atom ctx -> T.Text
 renderAtom = \case
   Int x -> T.pack $ show x
   Str s -> "\"" <> T.pack s <> "\""
