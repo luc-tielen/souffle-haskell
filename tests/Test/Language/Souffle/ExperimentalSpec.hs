@@ -11,6 +11,7 @@ import GHC.Generics
 import Data.Int
 import qualified Data.Text as T
 import Language.Souffle.Experimental
+import Language.Souffle.Experimental.Render
 import NeatInterpolation
 
 
