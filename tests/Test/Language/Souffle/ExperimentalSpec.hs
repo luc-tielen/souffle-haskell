@@ -8,9 +8,11 @@ module Test.Language.Souffle.ExperimentalSpec
 
 import Test.Hspec
 import GHC.Generics
+import Control.Applicative
 import Data.Int
 import Language.Souffle.Experimental
 import Language.Souffle.Experimental.Render
+import Language.Souffle.Experimental.Types (Atom(Var))
 import NeatInterpolation
 
 
@@ -92,12 +94,13 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
         triple("cde", 1000, "fgh").
         |]
 
-{- TODO
     it "can render a relation with a single rule" $ do
       let prog = do
             Predicate edge <- typeDef @Edge In
             Predicate reachable <- typeDef @Reachable Out
-            reachable("a", "b") |- edge("a", "b")
+            let a = Var "a"
+                b = Var "b"
+            reachable(a, b) |- edge(a, b)
       prog ==> [text|
         .decl edge(t1: symbol, t2: symbol)
         .input edge
@@ -107,14 +110,98 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
           edge(a, b).
         |]
 
-    it "can render a relation with multiple rules" pending
+    it "can render a relation with multiple rules" $ do
+      let prog = do
+            Predicate edge <- typeDef @Edge In
+            Predicate reachable <- typeDef @Reachable Out
+            let a = Var "a"
+                b = Var "b"
+            reachable(a, b) |- do
+              edge(a, a)
+              edge(b, b)
+              edge(a, b)
+      prog ==> [text|
+        .decl edge(t1: symbol, t2: symbol)
+        .input edge
+        .decl reachable(t1: symbol, t2: symbol)
+        .output reachable
+        reachable(a, b) :-
+          edge(a, a),
+          edge(b, b),
+          edge(a, b).
+        |]
 
-    it "can render a relation with a logical or in the rule block" pending
+    it "can render a relation with a logical or in the rule block" $ do
+      let prog = do
+            Predicate edge <- typeDef @Edge In
+            Predicate reachable <- typeDef @Reachable Out
+            let a = Var "a"
+                b = Var "b"
+            reachable(a, b) |- do
+              let rules1 = do
+                    edge(a, a)
+                    edge(b, b)
+                  rules2 = do
+                    edge(a, b)
+                    edge(b, a)
+              rules1 <|> rules2
+      prog ==> [text|
+        .decl edge(t1: symbol, t2: symbol)
+        .input edge
+        .decl reachable(t1: symbol, t2: symbol)
+        .output reachable
+        reachable(a, b) :-
+          edge(a, a),
+          edge(b, b);
+          edge(a, b),
+          edge(b, a).
+        |]
 
-    it "can render a relation with multiple clauses" pending
+    it "can render a relation with multiple clauses" $ do
+      let prog = do
+            Predicate edge <- typeDef @Edge In
+            Predicate reachable <- typeDef @Reachable Out
+            let a = Var "a"
+                b = Var "b"
+                c = Var "c"
+            reachable(a, b) |- edge(a, b)
+            reachable(a, b) |- do
+              edge(a, c)
+              reachable(c, b)
+      prog ==> [text|
+        .decl edge(t1: symbol, t2: symbol)
+        .input edge
+        .decl reachable(t1: symbol, t2: symbol)
+        .output reachable
+        reachable(a, b) :-
+          edge(a, b).
+        reachable(a, b) :-
+          edge(a, c),
+          reachable(c, b).
+        |]
+
+    it "can render a mix of and- and or- clauses correctly" $ do
+      let prog = do
+            Predicate edge <- typeDef @Edge In
+            Predicate reachable <- typeDef @Reachable Out
+            let a = Var "a"
+                b = Var "b"
+                c = Var "c"
+            reachable(a, b) |- do
+              edge(a, c) <|> edge(a, b)
+              reachable(c, b)
+      prog ==> [text|
+        .decl edge(t1: symbol, t2: symbol)
+        .input edge
+        .decl reachable(t1: symbol, t2: symbol)
+        .output reachable
+        reachable(a, b) :-
+          (edge(a, c);
+          edge(a, b)),
+          reachable(c, b).
+        |]
 
     it "can render a logical negation in rule block" pending
--}
 
 {- TODO convert to test
    TODO "internal" fact

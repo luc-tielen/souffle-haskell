@@ -1,8 +1,8 @@
 
-{-# LANGUAGE RankNTypes, TypeFamilies, DataKinds #-}
+{-# LANGUAGE GADTs, RankNTypes, TypeFamilies, DataKinds #-}
 {-# LANGUAGE TypeOperators, UndecidableInstances, FlexibleContexts #-}
 {-# LANGUAGE FunctionalDependencies, FlexibleInstances, DerivingVia #-}
-{-# LANGUAGE ScopedTypeVariables, PolyKinds #-}
+{-# LANGUAGE ScopedTypeVariables, PolyKinds, InstanceSigs #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 module Language.Souffle.Experimental
@@ -32,7 +32,8 @@ import Data.List.NonEmpty (NonEmpty(..))
 
 
 newtype Predicate p
-  = Predicate (forall f ctx. Fragment f ctx => TupleOf (Structure p) -> f ctx ())
+  = Predicate (forall f ctx. Fragment f ctx
+              => TupleOf (MapType (Atom ctx) (Structure p)) -> f ctx ())
 
 newtype DSL ctx a = DSL (Writer [DL ctx] a)
   deriving (Functor, Applicative, Monad, MonadWriter [DL ctx])
@@ -44,7 +45,8 @@ runDSL (DSL a) = Program $ execWriter a
 addDefinition :: DL 'Definition' -> DSL 'Definition' ()
 addDefinition dl = tell [dl]
 
-data Head ctx a = Head Name (NonEmpty (Atom ctx))
+data Head ctx unused where
+  Head :: Name -> NonEmpty SimpleAtom -> Head 'Relation' ()
 
 newtype Block ctx a = Block (Writer [DL ctx] a)
   deriving (Functor, Applicative, Monad, MonadWriter [DL ctx])
@@ -73,7 +75,7 @@ typeDef d = do
       typeInfo :: TypeInfo a ts
       typeInfo = TypeInfo
   addDefinition definition
-  pure $ Predicate $ toFragment name . toAtoms typeInfo
+  pure $ Predicate $ toFragment typeInfo name
 
 (|-) :: Head 'Relation' a -> Block 'Relation' () -> DSL 'Definition' ()
 Head name atoms |- block =
@@ -88,16 +90,22 @@ combineRules rules =
     else foldl1 And rules
 
 class Fragment f ctx where
-  toFragment :: Name -> NonEmpty (Atom ctx) -> f ctx ()
+  toFragment :: ToAtoms ts => TypeInfo a ts -> Name -> Tuple ctx ts -> f ctx ()
 
-instance Fragment Head ctx where
-  toFragment = Head
+instance Fragment Head 'Relation' where
+  toFragment typeInfo name atoms =
+    let atoms' = toAtoms (Proxy :: Proxy 'Relation') typeInfo atoms
+     in Head name atoms'
 
 instance Fragment Block ctx where
-  toFragment name atoms = tell [Fact name atoms]
+  toFragment typeInfo name atoms =
+    let atoms' = toAtoms (Proxy :: Proxy ctx) typeInfo atoms -- toAtoms typeInfo (Proxy :: Proxy ctx) atoms
+    in tell [Fact name atoms']
 
 instance Fragment DSL 'Definition' where
-  toFragment name atoms = addDefinition $ Fact name atoms
+  toFragment typeInfo name atoms =
+    let atoms' = toAtoms (Proxy :: Proxy 'Definition') typeInfo atoms
+     in addDefinition $ Fact name atoms'
 
 
 class GetDLTypes (ts :: [Type]) where

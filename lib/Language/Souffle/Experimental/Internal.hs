@@ -1,14 +1,16 @@
 
 {-# LANGUAGE TypeFamilies, TypeOperators, DataKinds, UndecidableInstances #-}
 {-# LANGUAGE FlexibleContexts, FlexibleInstances, TypeApplications, PolyKinds #-}
+{-# LANGUAGE MultiParamTypeClasses, GADTs #-}
 
 module Language.Souffle.Experimental.Internal
   ( TypeInfo(..)
   , Structure
   , NameFor
   , nameFor
-  , MapConstraint
+  , MapType
   , TupleOf
+  , Tuple
   , ToAtoms(..)
   ) where
 
@@ -16,7 +18,6 @@ import Language.Souffle.Experimental.Types
 import GHC.Generics
 import GHC.TypeLits
 import Data.Kind
-import Data.Int
 import Data.Proxy
 import Data.Char ( toLower )
 import Data.List.NonEmpty ( NonEmpty(..) )
@@ -49,11 +50,14 @@ type family NameFor a where
 type family GetName (repr :: Type -> Type) :: Symbol where
   GetName (D1 ('MetaData name _ _ _) _) = name
 
-type family MapConstraint (c :: Type -> Constraint) (xs :: [Type]) :: Constraint where
-  MapConstraint _ '[] = ()
-  MapConstraint c (x ': xs) = (c x, MapConstraint c xs)
 
-type family TupleOf (ts :: [Type]) where
+type family MapType (f :: Type -> Type) (ts :: [Type]) :: [Type] where
+  MapType _ '[] = '[]
+  MapType f (t ': ts) = f t ': MapType f ts
+
+type Tuple ctx ts = TupleOf (MapType (Atom ctx) ts)
+
+type family TupleOf (ts :: [Type]) = t where
   TupleOf '[t] = t
   TupleOf '[t1, t2] = (t1, t2)
   TupleOf '[t1, t2, t3] = (t1, t2, t3)
@@ -64,55 +68,56 @@ type family TupleOf (ts :: [Type]) where
   TupleOf '[t1, t2, t3, t4, t5, t6, t7, t8] = (t1, t2, t3, t4, t5, t6, t7, t8)
   TupleOf '[t1, t2, t3, t4, t5, t6, t7, t8, t9] = (t1, t2, t3, t4, t5, t6, t7, t8, t9)
   TupleOf '[t1, t2, t3, t4, t5, t6, t7, t8, t9, t10] = (t1, t2, t3, t4, t5, t6, t7, t8, t9, t10)
-  -- Only facts with up to 10 arguments are currently supported.
-
+  -- NOTE: Only facts with up to 10 arguments are currently supported.
 
 class ToAtoms (ts :: [Type]) where
-  toAtoms :: TypeInfo a ts -> TupleOf ts -> NonEmpty (Atom ctx)
+  toAtoms :: Proxy ctx -> TypeInfo a ts -> Tuple ctx ts -> NonEmpty SimpleAtom
 
-instance MapConstraint ToAtom '[t] => ToAtoms '[t] where
-  toAtoms _ a = toAtom a :| []
+instance ToAtoms '[t] where
+  toAtoms _ _ a =
+    toAtom a :| []
 
-instance MapConstraint ToAtom [t1, t2] => ToAtoms [t1, t2] where
-  toAtoms _ (a, b) = toAtom a :| [toAtom b]
+instance ToAtoms '[t1, t2] where
+  toAtoms _ _ (a, b) =
+    toAtom a :| [toAtom b]
 
-instance MapConstraint ToAtom [t1, t2, t3] => ToAtoms [t1, t2, t3] where
-  toAtoms _ (a, b, c) = toAtom a :| [toAtom b, toAtom c]
+instance ToAtoms '[t1, t2, t3] where
+  toAtoms _ _ (a, b, c) =
+    toAtom a :| [toAtom b, toAtom c]
 
-instance MapConstraint ToAtom [t1, t2, t3, t4] => ToAtoms [t1, t2, t3, t4] where
-  toAtoms _ (a, b, c, d) = toAtom a :| [toAtom b, toAtom c, toAtom d]
+instance ToAtoms '[t1, t2, t3, t4] where
+  toAtoms _ _ (a, b, c, d) =
+    toAtom a :| [toAtom b, toAtom c, toAtom d]
 
-instance MapConstraint ToAtom [t1, t2, t3, t4, t5] => ToAtoms [t1, t2, t3, t4, t5] where
-  toAtoms _ (a, b, c, d, e) = toAtom a :| [toAtom b, toAtom c, toAtom d, toAtom e]
+instance ToAtoms '[t1, t2, t3, t4, t5] where
+  toAtoms _ _ (a, b, c, d, e) =
+    toAtom a :| [toAtom b, toAtom c, toAtom d, toAtom e]
 
-instance MapConstraint ToAtom [t1, t2, t3, t4, t5, t6] => ToAtoms [t1, t2, t3, t4, t5, t6] where
-  toAtoms _ (a, b, c, d, e, f) = toAtom a :| [toAtom b, toAtom c, toAtom d, toAtom e, toAtom f]
+instance ToAtoms '[t1, t2, t3, t4, t5, t6] where
+  toAtoms _ _ (a, b, c, d, e, f) =
+    toAtom a :| [toAtom b, toAtom c, toAtom d, toAtom e, toAtom f]
 
-instance MapConstraint ToAtom [t1, t2, t3, t4, t5, t6, t7]
-  => ToAtoms [t1, t2, t3, t4, t5, t6, t7] where
-  toAtoms _ (a, b, c, d, e, f, g) =
+instance ToAtoms '[t1, t2, t3, t4, t5, t6, t7] where
+  toAtoms _ _ (a, b, c, d, e, f, g) =
     toAtom a :| [toAtom b, toAtom c, toAtom d, toAtom e, toAtom f, toAtom g]
 
-instance MapConstraint ToAtom [t1, t2, t3, t4, t5, t6, t7, t8]
-  => ToAtoms [t1, t2, t3, t4, t5, t6, t7, t8] where
-  toAtoms _ (a, b, c, d, e, f, g, h) =
+instance ToAtoms '[t1, t2, t3, t4, t5, t6, t7, t8] where
+  toAtoms _ _ (a, b, c, d, e, f, g, h) =
     toAtom a :| [toAtom b, toAtom c, toAtom d, toAtom e, toAtom f, toAtom g, toAtom h]
 
-instance MapConstraint ToAtom [t1, t2, t3, t4, t5, t6, t7, t8, t9]
-  => ToAtoms [t1, t2, t3, t4, t5, t6, t7, t8, t9] where
-  toAtoms _ (a, b, c, d, e, f, g, h, i) =
+instance ToAtoms '[t1, t2, t3, t4, t5, t6, t7, t8, t9] where
+  toAtoms _ _ (a, b, c, d, e, f, g, h, i) =
     toAtom a :| [toAtom b, toAtom c, toAtom d, toAtom e, toAtom f, toAtom g, toAtom h, toAtom i]
 
-instance MapConstraint ToAtom [t1, t2, t3, t4, t5, t6, t7, t8, t9, t10]
-  => ToAtoms [t1, t2, t3, t4, t5, t6, t7, t8, t9, t10] where
-  toAtoms _ (a, b, c, d, e, f, g, h, i, j) =
+instance ToAtoms '[t1, t2, t3, t4, t5, t6, t7, t8, t9, t10] where
+  toAtoms _ _ (a, b, c, d, e, f, g, h, i, j) =
     toAtom a :| [ toAtom b, toAtom c, toAtom d, toAtom e, toAtom f
                 , toAtom g, toAtom h, toAtom i, toAtom j ]
-  -- Only facts with up to 10 arguments are currently supported.
+-- NOTE: Only facts with up to 10 arguments are currently supported.
 
-class ToAtom a where
-  toAtom :: a -> Atom ctx
-
-instance ToAtom Int32 where toAtom = Int
-instance ToAtom String where toAtom = Str
+toAtom :: Atom ctx t -> SimpleAtom
+toAtom = \case
+  Var v -> V v
+  Str s -> S s
+  Int x -> I x
 
