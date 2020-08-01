@@ -11,6 +11,7 @@ module Language.Souffle.Experimental
   , DL
   , Direction(..)
   , runDSL
+  , var
   , typeDef
   , (|-)
   , Head
@@ -24,24 +25,37 @@ module Language.Souffle.Experimental
 import Language.Souffle.Experimental.Internal
 import Language.Souffle.Experimental.Types
 import Control.Monad.Writer
+import Control.Monad.State
 import Control.Applicative
 import GHC.TypeLits
 import Data.Kind
+import Data.Maybe (fromMaybe)
 import Data.Int
 import Data.Proxy
 import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.Map as Map
+import Data.Map ( Map )
 
 
 newtype Predicate p
   = Predicate (forall f ctx. Fragment f ctx
               => TupleOf (MapType (Atom ctx) (Structure p)) -> f ctx ())
 
-newtype DSL ctx a = DSL (Writer [DL] a)
-  deriving (Functor, Applicative, Monad, MonadWriter [DL])
-  via (Writer [DL])
+type VarMap = Map VarName Int
+
+newtype DSL ctx a = DSL (StateT VarMap (Writer [DL]) a)
+  deriving (Functor, Applicative, Monad, MonadWriter [DL], MonadState VarMap)
+  via (StateT VarMap (Writer [DL]))
 
 runDSL :: DSL 'Definition' a -> DL
-runDSL (DSL a) = Program $ execWriter a
+runDSL (DSL a) = Program $ execWriter (evalStateT a mempty)
+
+var :: VarName -> DSL ctx (Atom 'Relation' ty)
+var name = do
+  count <- fromMaybe 0 <$> gets (Map.lookup name)
+  modify $ Map.insert name (count + 1)
+  let varName = if count == 0 then name else name <> "_" <> show count
+  pure $ Var varName
 
 addDefinition :: DL -> DSL 'Definition' ()
 addDefinition dl = tell [dl]

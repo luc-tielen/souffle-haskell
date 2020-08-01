@@ -12,8 +12,8 @@ import Control.Applicative
 import Data.Int
 import Language.Souffle.Experimental
 import Language.Souffle.Experimental.Render
-import Language.Souffle.Experimental.Types (Atom(Var))
 import NeatInterpolation
+
 
 data IntFact = IntFact Int32
   deriving Generic
@@ -97,8 +97,8 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
       let prog = do
             Predicate edge <- typeDef @Edge In
             Predicate reachable <- typeDef @Reachable Out
-            let a = Var "a"
-                b = Var "b"
+            a <- var "a"
+            b <- var "b"
             reachable(a, b) |- edge(a, b)
       prog ==> [text|
         .decl edge(t1: symbol, t2: symbol)
@@ -113,8 +113,8 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
       let prog = do
             Predicate edge <- typeDef @Edge In
             Predicate reachable <- typeDef @Reachable Out
-            let a = Var "a"
-                b = Var "b"
+            a <- var "a"
+            b <- var "b"
             reachable(a, b) |- do
               edge(a, a)
               edge(b, b)
@@ -134,8 +134,8 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
       let prog = do
             Predicate edge <- typeDef @Edge In
             Predicate reachable <- typeDef @Reachable Out
-            let a = Var "a"
-                b = Var "b"
+            a <- var "a"
+            b <- var "b"
             reachable(a, b) |- do
               let rules1 = do
                     edge(a, a)
@@ -160,9 +160,9 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
       let prog = do
             Predicate edge <- typeDef @Edge In
             Predicate reachable <- typeDef @Reachable Out
-            let a = Var "a"
-                b = Var "b"
-                c = Var "c"
+            a <- var "a"
+            b <- var "b"
+            c <- var "c"
             reachable(a, b) |- edge(a, b)
             reachable(a, b) |- do
               edge(a, c)
@@ -183,9 +183,9 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
       let prog = do
             Predicate edge <- typeDef @Edge In
             Predicate reachable <- typeDef @Reachable Out
-            let a = Var "a"
-                b = Var "b"
-                c = Var "c"
+            a <- var "a"
+            b <- var "b"
+            c <- var "c"
             reachable(a, b) |- do
               edge(a, c) <|> edge(a, b)
               reachable(c, b)
@@ -201,6 +201,23 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
         |]
 
     it "can render a logical negation in rule block" pending
+
+    it "generates unique var names to avoid name collisions" $ do
+      let prog = do
+            Predicate edge <- typeDef @Edge In
+            Predicate reachable <- typeDef @Reachable Out
+            a <- var "a"
+            a' <- var "a"
+            reachable(a, a') |- edge(a, a')
+      prog ==> [text|
+        .decl edge(t1: symbol, t2: symbol)
+        .input edge
+        .decl reachable(t1: symbol, t2: symbol)
+        .output reachable
+        reachable(a, a_1) :-
+          edge(a, a_1).
+        |]
+
 
 {- TODO convert to test
    TODO "internal" fact
