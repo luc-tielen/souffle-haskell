@@ -50,13 +50,12 @@ data SimpleAtom
   | I Int32
   | S String
 
--- TODO: remove ctx type var, no longer needed (handled by Atom)
-data DL ctx where
-  Program :: [DL 'Definition'] -> DL 'Program'
-  TypeDef :: VarName -> Direction -> [DLType] -> DL 'Definition'
-  Relation :: Name -> NonEmpty SimpleAtom -> DL 'Relation' -> DL 'Definition'
-  Fact :: Name -> NonEmpty SimpleAtom -> DL ctx
-  And :: DL ctx -> DL ctx -> DL ctx
-  Or :: DL ctx -> DL ctx -> DL ctx
-  Not :: DL ctx -> DL ctx  -- TODO implement
+data DL
+  = Program [DL]
+  | TypeDef VarName Direction [DLType]
+  | Relation Name (NonEmpty SimpleAtom) (DL)
+  | Fact Name (NonEmpty SimpleAtom )
+  | And DL DL
+  | Or DL DL
+  | Not DL    -- TODO implement
 

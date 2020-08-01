@@ -1,5 +1,5 @@
 
-{-# LANGUAGE DeriveGeneric, TypeApplications, QuasiQuotes #-}
+{-# LANGUAGE DeriveGeneric, TypeApplications, QuasiQuotes, TypeOperators, DataKinds, TypeFamilies #-}
 
 module Test.Language.Souffle.ExperimentalSpec
   ( module Test.Language.Souffle.ExperimentalSpec
@@ -14,7 +14,6 @@ import Language.Souffle.Experimental
 import Language.Souffle.Experimental.Render
 import Language.Souffle.Experimental.Types (Atom(Var))
 import NeatInterpolation
-
 
 data IntFact = IntFact Int32
   deriving Generic

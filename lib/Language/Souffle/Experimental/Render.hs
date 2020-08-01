@@ -12,9 +12,8 @@ import qualified Data.Text as T
 
 data RenderMode = Nested | TopLevel
 
-render :: DL ctx -> T.Text
+render :: DL -> T.Text
 render = flip runReader TopLevel . f where
-  f :: DL ctx -> Reader RenderMode T.Text
   f = \case
     Program stmts -> do
       T.unlines <$> traverse f stmts

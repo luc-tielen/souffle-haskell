@@ -1,5 +1,5 @@
 
-{-# LANGUAGE GADTs, RankNTypes, TypeFamilies, DataKinds #-}
+{-# LANGUAGE RankNTypes, TypeFamilies, DataKinds #-}
 {-# LANGUAGE TypeOperators, UndecidableInstances, FlexibleContexts #-}
 {-# LANGUAGE FunctionalDependencies, FlexibleInstances, DerivingVia #-}
 {-# LANGUAGE ScopedTypeVariables, PolyKinds, InstanceSigs #-}
@@ -18,6 +18,7 @@ module Language.Souffle.Experimental
   , Fragment
   , GetDLTypes
   , ToAtoms
+  , Structure
   ) where
 
 import Language.Souffle.Experimental.Internal
@@ -35,22 +36,22 @@ newtype Predicate p
   = Predicate (forall f ctx. Fragment f ctx
               => TupleOf (MapType (Atom ctx) (Structure p)) -> f ctx ())
 
-newtype DSL ctx a = DSL (Writer [DL ctx] a)
-  deriving (Functor, Applicative, Monad, MonadWriter [DL ctx])
-  via (Writer [DL ctx])
+newtype DSL ctx a = DSL (Writer [DL] a)
+  deriving (Functor, Applicative, Monad, MonadWriter [DL])
+  via (Writer [DL])
 
-runDSL :: DSL 'Definition' a -> DL 'Program'
+runDSL :: DSL 'Definition' a -> DL
 runDSL (DSL a) = Program $ execWriter a
 
-addDefinition :: DL 'Definition' -> DSL 'Definition' ()
+addDefinition :: DL -> DSL 'Definition' ()
 addDefinition dl = tell [dl]
 
-data Head ctx unused where
-  Head :: Name -> NonEmpty SimpleAtom -> Head 'Relation' ()
+data Head ctx unused
+  = Head Name (NonEmpty SimpleAtom)
 
-newtype Block ctx a = Block (Writer [DL ctx] a)
-  deriving (Functor, Applicative, Monad, MonadWriter [DL ctx])
-  via (Writer [DL ctx])
+newtype Block ctx a = Block (Writer [DL] a)
+  deriving (Functor, Applicative, Monad, MonadWriter [DL])
+  via (Writer [DL])
 
 instance Alternative (Block ctx) where
   empty = error "'empty' is not implemented for 'Block'"
@@ -60,7 +61,7 @@ instance Alternative (Block ctx) where
     tell [Or rules1 rules2]
     pure undefined
 
-runBlock :: Block ctx a -> [DL ctx]
+runBlock :: Block ctx a -> [DL]
 runBlock (Block m) = execWriter m
 
 typeDef :: forall a ts. ts ~ Structure a
@@ -83,7 +84,7 @@ Head name atoms |- block =
       relation = Relation name atoms (combineRules rules)
   in addDefinition relation
 
-combineRules :: [DL ctx] -> DL ctx
+combineRules :: [DL] -> DL
 combineRules rules =
   if null rules
     then error "A block should consist of atleast 1 predicate."
@@ -99,7 +100,7 @@ instance Fragment Head 'Relation' where
 
 instance Fragment Block ctx where
   toFragment typeInfo name atoms =
-    let atoms' = toAtoms (Proxy :: Proxy ctx) typeInfo atoms -- toAtoms typeInfo (Proxy :: Proxy ctx) atoms
+    let atoms' = toAtoms (Proxy :: Proxy ctx) typeInfo atoms
     in tell [Fact name atoms']
 
 instance Fragment DSL 'Definition' where
