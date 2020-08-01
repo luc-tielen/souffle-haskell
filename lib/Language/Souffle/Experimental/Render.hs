@@ -1,16 +1,21 @@
 {-# LANGUAGE GADTs, DataKinds #-}
 
 module Language.Souffle.Experimental.Render
-  ( render
+  ( renderIO
+  , render
   ) where
 
 import Control.Monad.Reader
 import Language.Souffle.Experimental.Types
 import Data.List.NonEmpty ( toList )
 import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 
 
 data RenderMode = Nested | TopLevel
+
+renderIO :: FilePath -> DL -> IO ()
+renderIO path = TIO.writeFile path . render
 
 render :: DL -> T.Text
 render = flip runReader TopLevel . f where
