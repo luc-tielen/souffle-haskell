@@ -48,7 +48,7 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
     it "can render a program with an input type definition" $ do
       let prog = do
-            Predicate _ <- typeDef @Edge In
+            Predicate _ <- typeDef @Edge Input
             pure ()
       prog ==> [text|
         .decl edge(t1: symbol, t2: symbol)
@@ -57,7 +57,7 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
     it "can render a program with an output type definition" $ do
       let prog = do
-            Predicate _ <- typeDef @Edge Out
+            Predicate _ <- typeDef @Edge Output
             pure ()
       prog ==> [text|
         .decl edge(t1: symbol, t2: symbol)
@@ -66,7 +66,7 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
     it "can render a program with type declared both as in- and output" $ do
       let prog = do
-            Predicate _ <- typeDef @Edge InOut
+            Predicate _ <- typeDef @Edge InputOutput
             pure ()
       prog ==> [text|
         .decl edge(t1: symbol, t2: symbol)
@@ -76,8 +76,8 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
     it "renders type declaration based on type info" $ do
       let prog = do
-            Predicate _ <- typeDef @IntFact In
-            Predicate _ <- typeDef @Triple Out
+            Predicate _ <- typeDef @IntFact Input
+            Predicate _ <- typeDef @Triple Output
             pure ()
       prog ==> [text|
         .decl intfact(t1: number)
@@ -88,7 +88,7 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
     it "uses record accessors as attribute names in type declaration if provided" $ do
       let prog = do
-            Predicate _ <- typeDef @Point In
+            Predicate _ <- typeDef @Point Input
             pure ()
       prog ==> [text|
         .decl point(x: number, y: number)
@@ -97,8 +97,8 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
     it "can render facts" $ do
       let prog = do
-            Predicate edge <- typeDef @Edge In
-            Predicate triple <- typeDef @Triple In
+            Predicate edge <- typeDef @Edge Input
+            Predicate triple <- typeDef @Triple Input
             edge("a", "b")
             triple("cde", 1000, "fgh")
       prog ==> [text|
@@ -112,8 +112,8 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
     it "can render a relation with a single rule" $ do
       let prog = do
-            Predicate edge <- typeDef @Edge In
-            Predicate reachable <- typeDef @Reachable Out
+            Predicate edge <- typeDef @Edge Input
+            Predicate reachable <- typeDef @Reachable Output
             a <- var "a"
             b <- var "b"
             reachable(a, b) |- edge(a, b)
@@ -128,8 +128,8 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
     it "can render a relation with multiple rules" $ do
       let prog = do
-            Predicate edge <- typeDef @Edge In
-            Predicate reachable <- typeDef @Reachable Out
+            Predicate edge <- typeDef @Edge Input
+            Predicate reachable <- typeDef @Reachable Output
             a <- var "a"
             b <- var "b"
             reachable(a, b) |- do
@@ -149,8 +149,8 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
     it "can render a relation with a logical or in the rule block" $ do
       let prog = do
-            Predicate edge <- typeDef @Edge In
-            Predicate reachable <- typeDef @Reachable Out
+            Predicate edge <- typeDef @Edge Input
+            Predicate reachable <- typeDef @Reachable Output
             a <- var "a"
             b <- var "b"
             reachable(a, b) |- do
@@ -175,8 +175,8 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
     it "can render a relation with multiple clauses" $ do
       let prog = do
-            Predicate edge <- typeDef @Edge In
-            Predicate reachable <- typeDef @Reachable Out
+            Predicate edge <- typeDef @Edge Input
+            Predicate reachable <- typeDef @Reachable Output
             a <- var "a"
             b <- var "b"
             c <- var "c"
@@ -198,8 +198,8 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
     it "can render a mix of and- and or- clauses correctly" $ do
       let prog = do
-            Predicate edge <- typeDef @Edge In
-            Predicate reachable <- typeDef @Reachable Out
+            Predicate edge <- typeDef @Edge Input
+            Predicate reachable <- typeDef @Reachable Output
             a <- var "a"
             b <- var "b"
             c <- var "c"
@@ -222,7 +222,7 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
       -- and can serve as documentation.
       let transitive :: forall p1 p2 t. Structure p1 ~ Structure p2
                      => Structure p1 ~ '[t, t]
-                     => Predicate p1 -> Predicate p2 -> DSL 'Definition' ()
+                     => Predicate p1 -> Predicate p2 -> DSL 'Definition ()
           transitive (Predicate p1) (Predicate p2) = do
             a <- var "a"
             b <- var "b"
@@ -232,8 +232,8 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
               p2(a, c)
               p1(c, b)
           prog = do
-            edge <- typeDef @Edge In
-            reachable <- typeDef @Reachable Out
+            edge <- typeDef @Edge Input
+            reachable <- typeDef @Reachable Output
             transitive reachable edge
       prog ==> [text|
         .decl edge(t1: symbol, t2: symbol)
@@ -249,8 +249,8 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
     it "can render logical negation in rule block" $ do
       let prog = do
-            Predicate edge <- typeDef @Edge In
-            Predicate triple <- typeDef @Triple Out
+            Predicate edge <- typeDef @Edge Input
+            Predicate triple <- typeDef @Triple Output
             a <- var "a"
             b <- var "b"
             c <- var "c"
@@ -283,8 +283,8 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
     it "generates unique var names to avoid name collisions" $ do
       let prog = do
-            Predicate edge <- typeDef @Edge In
-            Predicate reachable <- typeDef @Reachable Out
+            Predicate edge <- typeDef @Edge Input
+            Predicate reachable <- typeDef @Reachable Output
             a <- var "a"
             a' <- var "a"
             reachable(a, a') |- edge(a, a')

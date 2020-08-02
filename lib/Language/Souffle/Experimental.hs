@@ -1,8 +1,8 @@
 
-{-# LANGUAGE GADTs, RankNTypes, TypeFamilies, DataKinds, TypeApplications #-}
+{-# LANGUAGE GADTs, RankNTypes, TypeFamilies, DataKinds #-}
 {-# LANGUAGE TypeOperators, UndecidableInstances, FlexibleContexts #-}
-{-# LANGUAGE FunctionalDependencies, FlexibleInstances, DerivingVia #-}
-{-# LANGUAGE ScopedTypeVariables, PolyKinds, InstanceSigs #-}
+{-# LANGUAGE FunctionalDependencies, FlexibleInstances, DerivingVia, ConstraintKinds #-}
+{-# LANGUAGE ScopedTypeVariables, PolyKinds, InstanceSigs, UndecidableSuperClasses #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# OPTIONS_GHC -Wno-missing-methods #-} -- TODO: fix this by implementing arithmetic
 
@@ -18,40 +18,39 @@ module Language.Souffle.Experimental
   , not
   , render
   , renderIO
-  , Context(..)
+  , UsageContext(..)
   , Head
   , Block
-  , Fragment
-  , GetDLTypes
-  , ToTerms
   , Structure
+  , Fragment
+  , CanTypeDef
+  , NoVarsInAtom
   ) where
 
 import Prelude hiding (not)
-import qualified Language.Souffle.Class as S (Fact(..))
-import qualified Language.Souffle.Internal.Constraints as S (SimpleProduct)
-import Control.Monad.Reader
-import Control.Monad.Writer
-import Control.Monad.State
 import Control.Applicative
-import Data.Kind
-import Data.Maybe (fromMaybe)
+import Control.Monad.Reader
+import Control.Monad.State
+import Control.Monad.Writer
 import Data.Int
-import Data.Proxy
+import Data.Kind
 import Data.List.NonEmpty (NonEmpty(..), toList)
+import Data.Map ( Map )
 import qualified Data.Map as Map
+import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
-import Data.Map ( Map )
+import Data.Proxy
+import Data.String
 import GHC.Generics
 import GHC.TypeLits
-import Data.String
+import Language.Souffle.Internal.Constraints (SimpleProduct)
+import Language.Souffle.Class (Fact(..))
 import Type.Errors.Pretty
 
 
 newtype Predicate p
-  = Predicate (forall f ctx. Fragment f ctx
-              => TupleOf (MapType (Term ctx) (Structure p)) -> f ctx ())
+  = Predicate (forall f ctx. Fragment f ctx => Tuple ctx (Structure p) -> f ctx ())
 
 type VarMap = Map VarName Int
 
@@ -59,17 +58,17 @@ newtype DSL ctx a = DSL (StateT VarMap (Writer [DL]) a)
   deriving (Functor, Applicative, Monad, MonadWriter [DL], MonadState VarMap)
   via (StateT VarMap (Writer [DL]))
 
-runDSL :: DSL 'Definition' a -> DL
+runDSL :: DSL 'Definition a -> DL
 runDSL (DSL a) = Program $ execWriter (evalStateT a mempty)
 
-var :: NoVarsInFact ctx => VarName -> DSL ctx' (Term ctx ty)
+var :: NoVarsInAtom ctx => VarName -> DSL ctx' (Term ctx ty)
 var name = do
   count <- fromMaybe 0 <$> gets (Map.lookup name)
   modify $ Map.insert name (count + 1)
   let varName = if count == 0 then name else name <> "_" <> show count
   pure $ Var varName
 
-addDefinition :: DL -> DSL 'Definition' ()
+addDefinition :: DL -> DSL 'Definition ()
 addDefinition dl = tell [dl]
 
 data Head ctx unused
@@ -97,91 +96,215 @@ not block = do
 runBlock :: Block ctx a -> [DL]
 runBlock (Block m) = execWriter m
 
+data TypeInfo (a :: k) (ts :: [Type])
+  = TypeInfo
 
-typeDef :: forall a ts. ts ~ Structure a
-        => GetDLTypes ts
-        => GetNames (AccessorNames a)
-        => ToTerms ts
-        => S.Fact a  -- TODO remove need for qualified import
-        => S.SimpleProduct a (Rep a)  -- TODO remove need for (Rep a)
-        => Direction
-        -> DSL 'Definition' (Predicate a)
+type CanTypeDef a ts =
+  ( Assert (Length ts <=? 10) SmallTupleMessage
+  , ToDLTypes ts
+  , ToTerms ts
+  , KnownSymbols (AccessorNames a)
+  , SimpleProduct a
+  , Fact a
+  )
+
+typeDef :: forall a ts. (ts ~ Structure a, CanTypeDef a ts)
+        => Direction -> DSL 'Definition (Predicate a)
 typeDef d = do
-  let p :: Proxy a
-      p = Proxy
-      name = S.factName p
+  let p = Proxy :: Proxy a
+      typeInfo = TypeInfo :: TypeInfo a ts
+      name = factName p
       genericNames = map (("t" <>) . show) [1..]
       accNames = maybe genericNames id $ accessorNames p
       tys = getTypes (Proxy :: Proxy ts)
       fields = map (uncurry FieldData) $ zip tys accNames
       definition = TypeDef name d fields
-      typeInfo :: TypeInfo a ts
-      typeInfo = TypeInfo
   addDefinition definition
   pure $ Predicate $ toFragment typeInfo name
 
-(|-) :: Head 'Relation' a -> Block 'Relation' () -> DSL 'Definition' ()
+(|-) :: Head 'Relation a -> Block 'Relation () -> DSL 'Definition ()
 Head name terms |- block =
   let rules = runBlock block
-      relation = Relation name terms (combineRules rules)
+      relation = Rule name terms (combineRules rules)
   in addDefinition relation
 
 combineRules :: [DL] -> DL
 combineRules rules =
   if null rules
-    then error "A block should consist of atleast 1 predicate."
+    then error "A block should consist of atleast 1 predicate."  -- TODO: fix this
     else foldl1 And rules
 
 class Fragment f ctx where
   toFragment :: ToTerms ts => TypeInfo a ts -> Name -> Tuple ctx ts -> f ctx ()
 
-instance Fragment Head 'Relation' where
+instance Fragment Head 'Relation where
   toFragment typeInfo name terms =
-    let terms' = toTerms (Proxy :: Proxy 'Relation') typeInfo terms
+    let terms' = toTerms (Proxy :: Proxy 'Relation) typeInfo terms
      in Head name terms'
 
 instance Fragment Block ctx where
   toFragment typeInfo name terms =
     let terms' = toTerms (Proxy :: Proxy ctx) typeInfo terms
-    in tell [Fact name terms']
+    in tell [Atom name terms']
 
-instance Fragment DSL 'Definition' where
+instance Fragment DSL 'Definition where
   toFragment typeInfo name terms =
-    let terms' = toTerms (Proxy :: Proxy 'Definition') typeInfo terms
-     in addDefinition $ Fact name terms'
+    let terms' = toTerms (Proxy :: Proxy 'Definition) typeInfo terms
+     in addDefinition $ Atom name terms'
 
 
-class GetDLTypes (ts :: [Type]) where
+data RenderMode = Nested | TopLevel
+
+renderIO :: FilePath -> DL -> IO ()
+renderIO path = TIO.writeFile path . render
+
+render :: DL -> T.Text
+render = flip runReader TopLevel . f where
+  f = \case
+    Program stmts ->
+      T.unlines <$> traverse f stmts
+    TypeDef name dir fields ->
+      let fieldPairs = map renderField fields
+       in pure $ T.intercalate "\n"
+        [ ".decl " <> T.pack name <> "(" <> T.intercalate ", " fieldPairs <> ")"
+        , renderDir name dir
+        ]
+    Atom name terms -> do
+      let rendered = T.pack name <> "(" <> renderTerms (toList terms) <> ")"
+      end <- maybeDot
+      pure $ rendered <> end
+    Rule name terms body -> do
+      body' <- f body
+      let rendered =
+            T.pack name <> "(" <> renderTerms (toList terms) <> ") :-\n" <>
+            T.intercalate "\n" (map indent $ T.lines body')
+      pure rendered
+    And e1 e2 -> do
+      txt <- nested $ do
+        txt1 <- f e1
+        txt2 <- f e2
+        pure $ txt1 <> ",\n" <> txt2
+      end <- maybeDot
+      pure $ txt <> end
+    Or e1 e2 -> do
+      txt <- nested $ do
+        txt1 <- f e1
+        txt2 <- f e2
+        pure $ txt1 <> ";\n" <> txt2
+      end <- maybeDot
+      case end of
+        "." -> pure $ txt <> end
+        _ -> pure $ "(" <> txt <> ")"
+    Not e -> do
+      let maybeAddParens txt = case e of
+            And _ _ -> "(" <> txt <> ")"
+            _ -> txt
+      txt <- maybeAddParens <$> nested (f e)
+      end <- maybeDot
+      case end of
+        "." -> pure $ "!" <> txt <> end
+        _ -> pure $ "!" <> txt
+  indent = ("  " <>)
+  nested = local (const Nested)
+  maybeDot = ask >>= \case
+    TopLevel -> pure "."
+    Nested -> pure mempty
+
+renderDir :: VarName -> Direction -> T.Text
+renderDir name = \case
+  Input -> ".input " <> T.pack name
+  Output -> ".output " <> T.pack name
+  InputOutput -> T.intercalate "\n" [renderDir name Input, renderDir name Output]
+
+renderField :: FieldData -> T.Text
+renderField (FieldData ty accName) =
+  let txt1 = T.pack accName
+      txt2 = case ty of
+        DLInt -> ": number"
+        DLString -> ": symbol"
+   in txt1 <> txt2
+
+renderTerms :: [SimpleTerm] -> T.Text
+renderTerms = T.intercalate ", " . map renderTerm
+
+renderTerm :: SimpleTerm -> T.Text
+renderTerm = \case
+  I x -> T.pack $ show x
+  S s -> "\"" <> T.pack s <> "\""
+  V v -> T.pack v
+
+
+type Name = String
+type VarName = String
+type AccessorName = String
+
+data DLType
+  = DLInt
+  | DLString
+  -- TODO add other primitive types
+
+data FieldData = FieldData DLType AccessorName
+
+-- TODO: internal
+data Direction = Input | Output | InputOutput
+
+data UsageContext
+  = Definition
+  | Relation
+
+type family NoVarsInAtom (ctx :: UsageContext) :: Constraint where
+  NoVarsInAtom ctx = Assert (ctx == 'Relation) NoVarsInAtomError
+
+type NoVarsInAtomError =
+  ( "You tried to use a variable in a top level fact, which is not supported in Soufflé."
+  % "Possible solutions:"
+  % "  - Move the fact inside a rule block."
+  % "  - Replace the variable in the fact with a string, number, unsigned or float constant."
+  )
+
+-- TODO add other primitive types
+data Term ctx ty where
+  -- NOTE: type family is used here instead of "Atom 'Relation ty";
+  -- this allow giving a better type error in some situations.
+  Var :: NoVarsInAtom ctx => VarName -> Term ctx ty
+  Int :: Int32 -> Term ctx Int32
+  Str :: String -> Term ctx String
+
+instance IsString (Term ctx String) where
+  fromString = Str
+
+instance Num (Term ctx Int32) where
+  fromInteger = Int . fromInteger
+
+data SimpleTerm
+  = V VarName
+  | I Int32
+  | S String
+
+data DL
+  = Program [DL]
+  | TypeDef VarName Direction [FieldData]
+  | Rule Name (NonEmpty SimpleTerm) (DL)
+  | Atom Name (NonEmpty SimpleTerm)
+  | And DL DL
+  | Or DL DL
+  | Not DL
+
+
+class ToDLTypes (ts :: [Type]) where
   getTypes :: Proxy ts -> [DLType]
 
-instance GetDLTypes '[] where
+instance ToDLTypes '[] where
   getTypes _ = []
 
-instance (GetDLType t, GetDLTypes ts) => GetDLTypes (t ': ts) where
+instance (ToDLType t, ToDLTypes ts) => ToDLTypes (t ': ts) where
   getTypes _ = getType (Proxy :: Proxy t) : getTypes (Proxy :: Proxy ts)
 
-class GetDLType t where
+class ToDLType t where
   getType :: Proxy t -> DLType
 
-instance GetDLType Int32 where getType = const DLInt
-instance GetDLType String where getType = const DLString
-
-data TypeInfo (a :: k) (ts :: [Type])
-  = TypeInfo
-
-type family a ++ b = c where
-  '[] ++ b = b
-  a ++ '[] = a
-  (a ': b) ++ c = a ': (b ++ c)
-
-type family Structure a :: [Type] where
-  Structure a = Collect (Rep a)
-
-type family Collect (a :: Type -> Type) where
-  Collect (a :*: b) = Collect a ++ Collect b
-  Collect (M1 _ _ a) = Collect a
-  Collect (K1 _ ty) = '[ty]
-
+instance ToDLType Int32 where getType = const DLInt
+instance ToDLType String where getType = const DLString
 
 type family AccessorNames a :: [Symbol] where
   AccessorNames a = GetAccessorNames (Rep a)
@@ -193,42 +316,24 @@ type family GetAccessorNames (f :: Type -> Type) :: [Symbol] where
   GetAccessorNames (M1 _ _ a) = GetAccessorNames a
   GetAccessorNames (K1 _ _) = '[]
 
--- TODO: think of better name
-class GetNames (symbols :: [Symbol]) where
-  getNames :: Proxy symbols -> [String]
+class KnownSymbols (symbols :: [Symbol]) where
+  toStrings :: Proxy symbols -> [String]
 
-instance GetNames '[] where
-  getNames = const []
+instance KnownSymbols '[] where
+  toStrings = const []
 
-instance (KnownSymbol s, GetNames symbols) => GetNames (s ': symbols) where
-  getNames _ =
+instance (KnownSymbol s, KnownSymbols symbols) => KnownSymbols (s ': symbols) where
+  toStrings _ =
     let sym = symbolVal (Proxy :: Proxy s)
-        symbols =  getNames (Proxy :: Proxy symbols)
+        symbols =  toStrings (Proxy :: Proxy symbols)
      in sym : symbols
 
-accessorNames :: forall a. GetNames (AccessorNames a) => Proxy a -> Maybe [String]
-accessorNames _ = case getNames (Proxy :: Proxy (AccessorNames a)) of
+accessorNames :: forall a. KnownSymbols (AccessorNames a) => Proxy a -> Maybe [String]
+accessorNames _ = case toStrings (Proxy :: Proxy (AccessorNames a)) of
   [] -> Nothing
   names -> Just names
 
-type family MapType (f :: Type -> Type) (ts :: [Type]) :: [Type] where
-  MapType _ '[] = '[]
-  MapType f (t ': ts) = f t ': MapType f ts
-
 type Tuple ctx ts = TupleOf (MapType (Term ctx) ts)
-
-type family TupleOf (ts :: [Type]) = t where
-  TupleOf '[t] = t
-  TupleOf '[t1, t2] = (t1, t2)
-  TupleOf '[t1, t2, t3] = (t1, t2, t3)
-  TupleOf '[t1, t2, t3, t4] = (t1, t2, t3, t4)
-  TupleOf '[t1, t2, t3, t4, t5] = (t1, t2, t3, t4, t5)
-  TupleOf '[t1, t2, t3, t4, t5, t6] = (t1, t2, t3, t4, t5, t6)
-  TupleOf '[t1, t2, t3, t4, t5, t6, t7] = (t1, t2, t3, t4, t5, t6, t7)
-  TupleOf '[t1, t2, t3, t4, t5, t6, t7, t8] = (t1, t2, t3, t4, t5, t6, t7, t8)
-  TupleOf '[t1, t2, t3, t4, t5, t6, t7, t8, t9] = (t1, t2, t3, t4, t5, t6, t7, t8, t9)
-  TupleOf '[t1, t2, t3, t4, t5, t6, t7, t8, t9, t10] = (t1, t2, t3, t4, t5, t6, t7, t8, t9, t10)
-  -- NOTE: Only facts with up to 10 arguments are currently supported.
 
 class ToTerms (ts :: [Type]) where
   toTerms :: Proxy ctx -> TypeInfo a ts -> Tuple ctx ts -> NonEmpty SimpleTerm
@@ -273,7 +378,6 @@ instance ToTerms '[t1, t2, t3, t4, t5, t6, t7, t8, t9, t10] where
   toTerms _ _ (a, b, c, d, e, f, g, h, i, j) =
     toTerm a :| [ toTerm b, toTerm c, toTerm d, toTerm e, toTerm f
                 , toTerm g, toTerm h, toTerm i, toTerm j ]
--- NOTE: Only facts with up to 10 arguments are currently supported.
 
 toTerm :: Term ctx t -> SimpleTerm
 toTerm = \case
@@ -282,142 +386,53 @@ toTerm = \case
   Int x -> I x
 
 
+-- Helper functions / type families / ...
 
-data RenderMode = Nested | TopLevel
+type family MapType (f :: Type -> Type) (ts :: [Type]) :: [Type] where
+  MapType _ '[] = '[]
+  MapType f (t ': ts) = f t ': MapType f ts
 
-renderIO :: FilePath -> DL -> IO ()
-renderIO path = TIO.writeFile path . render
+type family Assert (c :: Bool) (msg :: ErrorMessage) :: Constraint where
+  Assert 'True _ = ()
+  Assert 'False msg = TypeError msg
 
-render :: DL -> T.Text
-render = flip runReader TopLevel . f where
-  f = \case
-    Program stmts -> do
-      T.unlines <$> traverse f stmts
-    TypeDef name dir fields ->
-      let fieldPairs = map renderField fields
-       in pure $ T.intercalate "\n"
-        [ ".decl " <> T.pack name <> "(" <> T.intercalate ", " fieldPairs <> ")"
-        , renderDir name dir
-        ]
-    Fact name terms -> do
-      let rendered = T.pack name <> "(" <> renderTerms (toList terms) <> ")"
-      end <- maybeDot
-      pure $ rendered <> end
-    Relation name terms body -> do
-      body' <- f body
-      let rendered =
-            T.pack name <> "(" <> renderTerms (toList terms) <> ") :-\n" <>
-            T.intercalate "\n" (map indent $ T.lines body')
-      pure rendered
-    And e1 e2 -> do
-      txt <- local (const Nested) $ do
-        txt1 <- f e1
-        txt2 <- f e2
-        pure $ txt1 <> ",\n" <> txt2
-      end <- maybeDot
-      pure $ txt <> end
-    Or e1 e2 -> do
-      txt <- local (const Nested) $ do
-        txt1 <- f e1
-        txt2 <- f e2
-        pure $ txt1 <> ";\n" <> txt2
-      end <- maybeDot
-      case end of
-        "." -> pure $ txt <> end
-        _ -> pure $ "(" <> txt <> ")"
-    Not e -> do
-      -- TODO: refactor, should be handled in and?
-      let maybeAddParens txt = case e of
-            And _ _ -> "(" <> txt <> ")"
-            _ -> txt
-      txt <- maybeAddParens <$> local (const Nested) (f e)
-      end <- maybeDot
-      case end of
-        "." -> pure $ "!" <> txt <> end
-        _ -> pure $ "!" <> txt
+type family (a :: k) == (b :: k) :: Bool where
+  a == a = 'True
+  _ == _ = 'False
 
-  maybeDot = ask >>= \case
-    TopLevel -> pure "."
-    Nested -> pure mempty
+type family Length (xs :: [Type]) :: Nat where
+  Length '[] = 0
+  Length (_ ': xs) = 1 + Length xs
 
-indent :: T.Text -> T.Text
-indent = ("  " <>)
+type family a ++ b = c where
+  '[] ++ b = b
+  a ++ '[] = a
+  (a ': b) ++ c = a ': (b ++ c)
 
-renderDir :: VarName -> Direction -> T.Text
-renderDir name = \case
-  In -> ".input " <> T.pack name
-  Out -> ".output " <> T.pack name
-  InOut -> T.intercalate "\n" [renderDir name In, renderDir name Out]
+type family Structure a :: [Type] where
+  Structure a = Collect (Rep a)
 
-renderField :: FieldData -> T.Text
-renderField (FieldData ty accName) =
-  let txt1 = T.pack accName
-      txt2 = case ty of
-        DLInt -> ": number"
-        DLString -> ": symbol"
-   in txt1 <> txt2
+type family Collect (a :: Type -> Type) where
+  Collect (a :*: b) = Collect a ++ Collect b
+  Collect (M1 _ _ a) = Collect a
+  Collect (K1 _ ty) = '[ty]
 
-renderTerms :: [SimpleTerm] -> T.Text
-renderTerms = T.intercalate ", " . fmap renderTerm
+type family TupleOf (ts :: [Type]) = t where
+  TupleOf '[t] = t
+  TupleOf '[t1, t2] = (t1, t2)
+  TupleOf '[t1, t2, t3] = (t1, t2, t3)
+  TupleOf '[t1, t2, t3, t4] = (t1, t2, t3, t4)
+  TupleOf '[t1, t2, t3, t4, t5] = (t1, t2, t3, t4, t5)
+  TupleOf '[t1, t2, t3, t4, t5, t6] = (t1, t2, t3, t4, t5, t6)
+  TupleOf '[t1, t2, t3, t4, t5, t6, t7] = (t1, t2, t3, t4, t5, t6, t7)
+  TupleOf '[t1, t2, t3, t4, t5, t6, t7, t8] = (t1, t2, t3, t4, t5, t6, t7, t8)
+  TupleOf '[t1, t2, t3, t4, t5, t6, t7, t8, t9] = (t1, t2, t3, t4, t5, t6, t7, t8, t9)
+  TupleOf '[t1, t2, t3, t4, t5, t6, t7, t8, t9, t10] = (t1, t2, t3, t4, t5, t6, t7, t8, t9, t10)
+  TupleOf _ = TypeError SmallTupleMessage
 
-renderTerm :: SimpleTerm -> T.Text
-renderTerm = \case
-  I x -> T.pack $ show x
-  S s -> "\"" <> T.pack s <> "\""
-  V v -> T.pack v
-
-
-type Name = String
-type VarName = String
-type AccessorName = String
-
-data DLType = DLInt | DLString -- TODO add other primitive types
-  deriving Show
-
-data FieldData = FieldData DLType AccessorName
-
-data Direction = In | Out | InOut
-  deriving Show
-
-data Context
-  = Definition'
-  | Relation'
-
-type family NoVarsInFact ctx :: Constraint where
-  NoVarsInFact 'Relation' = ()
-  NoVarsInFact _ = TypeError
-    ( "You tried to use a variable in a top level fact, which is not supported in Soufflé."
-    % "Possible solutions:"
-    % "  - Move the fact inside a rule block."
-    % "  - Replace the variable in the fact with a string, number, unsigned or float constant."
-    )
-
--- TODO add other primitive types
-data Term ctx ty where
-  -- NOTE: type family is used here instead of "Atom 'Relation' ty";
-  -- this allow giving a better type error in some situations.
-  Var :: NoVarsInFact ctx => VarName -> Term ctx ty
-  Int :: Int32 -> Term ctx Int32  -- TODO: DLInt
-  Str :: String -> Term ctx String  -- TODO: DLString
-
-instance IsString (Term ctx String) where
-  fromString = Str
-
-instance Num (Term ctx Int32) where
-  fromInteger = Int . fromInteger
-
--- TODO turn into GADT, pass in type tag to preserve types?
-data SimpleTerm
-  = V VarName
-  | I Int32
-  | S String
-
-data DL
-  = Program [DL]
-  | TypeDef VarName Direction [FieldData]
-  | Relation Name (NonEmpty SimpleTerm) (DL)
-  | Fact Name (NonEmpty SimpleTerm)
-  | And DL DL
-  | Or DL DL
-  | Not DL
+type SmallTupleMessage
+  = ( "The DSL only supports facts/tuples consisting of up to 10 elements."
+  % "If you need more arguments, please submit an issue on Github "
+  <> "(https://github.com/luc-tielen/souffle-haskell/issues)"
+  )
 
