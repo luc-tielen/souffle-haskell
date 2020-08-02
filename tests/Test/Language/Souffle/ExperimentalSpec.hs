@@ -11,6 +11,8 @@ import GHC.Generics
 import Control.Applicative
 import Data.Int
 import Data.Word
+import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
 import Language.Souffle.Experimental
 import Language.Souffle.Class
 import NeatInterpolation
@@ -28,6 +30,9 @@ data UnsignedFact = UnsignedFact Word32
 data FloatFact = FloatFact Float
   deriving (Generic, Marshal)
 
+data TextFact = TextFact T.Text TL.Text
+  deriving (Generic, Marshal)
+
 data Triple = Triple String Int32 String
   deriving (Generic, Marshal)
 
@@ -41,6 +46,7 @@ instance Fact Point where factName = const "point"
 instance Fact IntFact where factName = const "intfact"
 instance Fact FloatFact where factName = const "floatfact"
 instance Fact UnsignedFact where factName = const "unsignedfact"
+instance Fact TextFact where factName = const "textfact"
 instance Fact Triple where factName = const "triple"
 instance Fact Edge where factName = const "edge"
 instance Fact Reachable where factName = const "reachable"
@@ -113,15 +119,20 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
       let prog = do
             Predicate edge <- typeDef @Edge Input
             Predicate triple <- typeDef @Triple Input
+            Predicate txt <- typeDef @TextFact Input
             edge("a", "b")
             triple("cde", 1000, "fgh")
+            txt("ijk", "lmn")
       prog ==> [text|
         .decl edge(t1: symbol, t2: symbol)
         .input edge
         .decl triple(t1: symbol, t2: number, t3: symbol)
         .input triple
+        .decl textfact(t1: symbol, t2: symbol)
+        .input textfact
         edge("a", "b").
         triple("cde", 1000, "fgh").
+        textfact("ijk", "lmn").
         |]
 
     it "can render a relation with a single rule" $ do

@@ -25,6 +25,7 @@ module Language.Souffle.Experimental
   , Fragment
   , CanTypeDef
   , NoVarsInAtom
+  -- TODO: check if export list is complete
   ) where
 
 import Control.Applicative
@@ -40,6 +41,7 @@ import Data.Maybe (fromMaybe)
 import Data.Word
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
+import qualified Data.Text.Lazy as TL
 import Data.Proxy
 import Data.String
 import GHC.Generics
@@ -271,10 +273,23 @@ data Term ctx ty where
   -- this allow giving a better type error in some situations.
   Var :: NoVarsInAtom ctx => VarName -> Term ctx ty
   Number :: Int32 -> Term ctx Int32
-  Str :: String -> Term ctx String
+  Str :: ToString ty => ty -> Term ctx ty
+
+class ToString a where
+  toString :: a -> String
+
+instance ToString String where toString = id
+instance ToString T.Text where toString = T.unpack
+instance ToString TL.Text where toString = TL.unpack
 
 instance IsString (Term ctx String) where
   fromString = Str
+
+instance IsString (Term ctx T.Text) where
+  fromString = Str . T.pack
+
+instance IsString (Term ctx TL.Text) where
+  fromString = Str . TL.pack
 
 instance Num (Term ctx Int32) where
   fromInteger = Number . fromInteger
@@ -310,6 +325,8 @@ instance ToDLType Int32 where getType = const DLNumber
 instance ToDLType Word32 where getType = const DLUnsigned
 instance ToDLType Float where getType = const DLFloat
 instance ToDLType String where getType = const DLString
+instance ToDLType T.Text where getType = const DLString
+instance ToDLType TL.Text where getType = const DLString
 
 type family AccessorNames a :: [Symbol] where
   AccessorNames a = GetAccessorNames (Rep a)
@@ -387,7 +404,7 @@ instance ToTerms '[t1, t2, t3, t4, t5, t6, t7, t8, t9, t10] where
 toTerm :: Term ctx t -> SimpleTerm
 toTerm = \case
   Var v -> V v
-  Str s -> S s
+  Str s -> S $ toString s
   Number x -> I x
 
 
