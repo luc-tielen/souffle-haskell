@@ -3,7 +3,6 @@
 {-# LANGUAGE TypeOperators, UndecidableInstances, FlexibleContexts #-}
 {-# LANGUAGE FunctionalDependencies, FlexibleInstances, DerivingVia #-}
 {-# LANGUAGE ScopedTypeVariables, PolyKinds, InstanceSigs #-}
-{-# OPTIONS_GHC -Wno-missing-methods #-}  -- TODO: fix this
 
 module Language.Souffle.Experimental
   ( Predicate(..)
@@ -14,6 +13,7 @@ module Language.Souffle.Experimental
   , var
   , typeDef
   , (|-)
+  , not
   , Head
   , Block
   , Fragment
@@ -22,6 +22,7 @@ module Language.Souffle.Experimental
   , Structure
   ) where
 
+import Prelude hiding ( not )
 import Language.Souffle.Experimental.Internal
 import Language.Souffle.Experimental.Types
 import Control.Monad.Writer
@@ -75,11 +76,11 @@ instance Alternative (Block ctx) where
     tell [Or rules1 rules2]
     pure undefined
 
-instance Num (Block ctx a) where
-  negate block = do
-    let rules = combineRules $ runBlock block
-    tell [Not rules]
-    pure undefined
+not :: Block ctx a -> Block ctx b
+not block = do
+  let rules = combineRules $ runBlock block
+  tell [Not rules]
+  pure undefined
 
 runBlock :: Block ctx a -> [DL]
 runBlock (Block m) = execWriter m

@@ -6,6 +6,7 @@ module Test.Language.Souffle.ExperimentalSpec
   ) where
 
 
+import Prelude hiding ( not )
 import Test.Hspec
 import GHC.Generics
 import Control.Applicative
@@ -77,7 +78,7 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
         .output triple
         |]
 
-    -- TODO: it "uses record accessors as attribute names in type declaration if provided" pending
+    it "uses record accessors as attribute names in type declaration if provided" pending
 
     it "can render facts" $ do
       let prog = do
@@ -239,15 +240,15 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
             b <- var "b"
             c <- var "c"
             triple(a, b, c) |- do
-              negate $ edge(a,c)
+              not $ edge(a,c)
             triple(a, b, c) |- do
-              negate $ do
+              not $ do
                 edge(a,a)
                 edge(c,c)
             triple(a, b, c) |- do
-              negate $ edge(a,a) <|> edge(c,c)
+              not $ edge(a,a) <|> edge(c,c)
             triple(a, b, c) |- do
-              negate $ negate $ edge(a,a)
+              not $ not $ edge(a,a)
       prog ==> [text|
         .decl edge(t1: symbol, t2: symbol)
         .input edge
