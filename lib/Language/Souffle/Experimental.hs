@@ -18,11 +18,11 @@ module Language.Souffle.Experimental
   , Block
   , Fragment
   , GetDLTypes
-  , ToAtoms
+  , ToTerms
   , Structure
   ) where
 
-import Prelude hiding ( not )
+import Prelude hiding (not)
 import Language.Souffle.Experimental.Internal
 import Language.Souffle.Experimental.Types
 import Control.Monad.Writer
@@ -40,7 +40,7 @@ import Data.Map ( Map )
 
 newtype Predicate p
   = Predicate (forall f ctx. Fragment f ctx
-              => TupleOf (MapType (Atom ctx) (Structure p)) -> f ctx ())
+              => TupleOf (MapType (Term ctx) (Structure p)) -> f ctx ())
 
 type VarMap = Map VarName Int
 
@@ -51,7 +51,7 @@ newtype DSL ctx a = DSL (StateT VarMap (Writer [DL]) a)
 runDSL :: DSL 'Definition' a -> DL
 runDSL (DSL a) = Program $ execWriter (evalStateT a mempty)
 
-var :: VarName -> DSL ctx (Atom 'Relation' ty)
+var :: VarName -> DSL ctx (Term 'Relation' ty)
 var name = do
   count <- fromMaybe 0 <$> gets (Map.lookup name)
   modify $ Map.insert name (count + 1)
@@ -62,7 +62,7 @@ addDefinition :: DL -> DSL 'Definition' ()
 addDefinition dl = tell [dl]
 
 data Head ctx unused
-  = Head Name (NonEmpty SimpleAtom)
+  = Head Name (NonEmpty SimpleTerm)
 
 newtype Block ctx a = Block (Writer [DL] a)
   deriving (Functor, Applicative, Monad, MonadWriter [DL])
@@ -87,7 +87,7 @@ runBlock (Block m) = execWriter m
 
 typeDef :: forall a ts. ts ~ Structure a
         => GetDLTypes ts
-        => ToAtoms ts
+        => ToTerms ts
         => KnownSymbol (NameFor a)
         => Direction
         -> DSL 'Definition' (Predicate a)
@@ -100,9 +100,9 @@ typeDef d = do
   pure $ Predicate $ toFragment typeInfo name
 
 (|-) :: Head 'Relation' a -> Block 'Relation' () -> DSL 'Definition' ()
-Head name atoms |- block =
+Head name terms |- block =
   let rules = runBlock block
-      relation = Relation name atoms (combineRules rules)
+      relation = Relation name terms (combineRules rules)
   in addDefinition relation
 
 combineRules :: [DL] -> DL
@@ -112,22 +112,22 @@ combineRules rules =
     else foldl1 And rules
 
 class Fragment f ctx where
-  toFragment :: ToAtoms ts => TypeInfo a ts -> Name -> Tuple ctx ts -> f ctx ()
+  toFragment :: ToTerms ts => TypeInfo a ts -> Name -> Tuple ctx ts -> f ctx ()
 
 instance Fragment Head 'Relation' where
-  toFragment typeInfo name atoms =
-    let atoms' = toAtoms (Proxy :: Proxy 'Relation') typeInfo atoms
-     in Head name atoms'
+  toFragment typeInfo name terms =
+    let terms' = toTerms (Proxy :: Proxy 'Relation') typeInfo terms
+     in Head name terms'
 
 instance Fragment Block ctx where
-  toFragment typeInfo name atoms =
-    let atoms' = toAtoms (Proxy :: Proxy ctx) typeInfo atoms
-    in tell [Fact name atoms']
+  toFragment typeInfo name terms =
+    let terms' = toTerms (Proxy :: Proxy ctx) typeInfo terms
+    in tell [Fact name terms']
 
 instance Fragment DSL 'Definition' where
-  toFragment typeInfo name atoms =
-    let atoms' = toAtoms (Proxy :: Proxy 'Definition') typeInfo atoms
-     in addDefinition $ Fact name atoms'
+  toFragment typeInfo name terms =
+    let terms' = toTerms (Proxy :: Proxy 'Definition') typeInfo terms
+     in addDefinition $ Fact name terms'
 
 
 class GetDLTypes (ts :: [Type]) where

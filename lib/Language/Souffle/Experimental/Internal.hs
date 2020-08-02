@@ -11,7 +11,7 @@ module Language.Souffle.Experimental.Internal
   , MapType
   , TupleOf
   , Tuple
-  , ToAtoms(..)
+  , ToTerms(..)
   ) where
 
 import Language.Souffle.Experimental.Types
@@ -55,7 +55,7 @@ type family MapType (f :: Type -> Type) (ts :: [Type]) :: [Type] where
   MapType _ '[] = '[]
   MapType f (t ': ts) = f t ': MapType f ts
 
-type Tuple ctx ts = TupleOf (MapType (Atom ctx) ts)
+type Tuple ctx ts = TupleOf (MapType (Term ctx) ts)
 
 type family TupleOf (ts :: [Type]) = t where
   TupleOf '[t] = t
@@ -70,53 +70,53 @@ type family TupleOf (ts :: [Type]) = t where
   TupleOf '[t1, t2, t3, t4, t5, t6, t7, t8, t9, t10] = (t1, t2, t3, t4, t5, t6, t7, t8, t9, t10)
   -- NOTE: Only facts with up to 10 arguments are currently supported.
 
-class ToAtoms (ts :: [Type]) where
-  toAtoms :: Proxy ctx -> TypeInfo a ts -> Tuple ctx ts -> NonEmpty SimpleAtom
+class ToTerms (ts :: [Type]) where
+  toTerms :: Proxy ctx -> TypeInfo a ts -> Tuple ctx ts -> NonEmpty SimpleTerm
 
-instance ToAtoms '[t] where
-  toAtoms _ _ a =
-    toAtom a :| []
+instance ToTerms '[t] where
+  toTerms _ _ a =
+    toTerm a :| []
 
-instance ToAtoms '[t1, t2] where
-  toAtoms _ _ (a, b) =
-    toAtom a :| [toAtom b]
+instance ToTerms '[t1, t2] where
+  toTerms _ _ (a, b) =
+    toTerm a :| [toTerm b]
 
-instance ToAtoms '[t1, t2, t3] where
-  toAtoms _ _ (a, b, c) =
-    toAtom a :| [toAtom b, toAtom c]
+instance ToTerms '[t1, t2, t3] where
+  toTerms _ _ (a, b, c) =
+    toTerm a :| [toTerm b, toTerm c]
 
-instance ToAtoms '[t1, t2, t3, t4] where
-  toAtoms _ _ (a, b, c, d) =
-    toAtom a :| [toAtom b, toAtom c, toAtom d]
+instance ToTerms '[t1, t2, t3, t4] where
+  toTerms _ _ (a, b, c, d) =
+    toTerm a :| [toTerm b, toTerm c, toTerm d]
 
-instance ToAtoms '[t1, t2, t3, t4, t5] where
-  toAtoms _ _ (a, b, c, d, e) =
-    toAtom a :| [toAtom b, toAtom c, toAtom d, toAtom e]
+instance ToTerms '[t1, t2, t3, t4, t5] where
+  toTerms _ _ (a, b, c, d, e) =
+    toTerm a :| [toTerm b, toTerm c, toTerm d, toTerm e]
 
-instance ToAtoms '[t1, t2, t3, t4, t5, t6] where
-  toAtoms _ _ (a, b, c, d, e, f) =
-    toAtom a :| [toAtom b, toAtom c, toAtom d, toAtom e, toAtom f]
+instance ToTerms '[t1, t2, t3, t4, t5, t6] where
+  toTerms _ _ (a, b, c, d, e, f) =
+    toTerm a :| [toTerm b, toTerm c, toTerm d, toTerm e, toTerm f]
 
-instance ToAtoms '[t1, t2, t3, t4, t5, t6, t7] where
-  toAtoms _ _ (a, b, c, d, e, f, g) =
-    toAtom a :| [toAtom b, toAtom c, toAtom d, toAtom e, toAtom f, toAtom g]
+instance ToTerms '[t1, t2, t3, t4, t5, t6, t7] where
+  toTerms _ _ (a, b, c, d, e, f, g) =
+    toTerm a :| [toTerm b, toTerm c, toTerm d, toTerm e, toTerm f, toTerm g]
 
-instance ToAtoms '[t1, t2, t3, t4, t5, t6, t7, t8] where
-  toAtoms _ _ (a, b, c, d, e, f, g, h) =
-    toAtom a :| [toAtom b, toAtom c, toAtom d, toAtom e, toAtom f, toAtom g, toAtom h]
+instance ToTerms '[t1, t2, t3, t4, t5, t6, t7, t8] where
+  toTerms _ _ (a, b, c, d, e, f, g, h) =
+    toTerm a :| [toTerm b, toTerm c, toTerm d, toTerm e, toTerm f, toTerm g, toTerm h]
 
-instance ToAtoms '[t1, t2, t3, t4, t5, t6, t7, t8, t9] where
-  toAtoms _ _ (a, b, c, d, e, f, g, h, i) =
-    toAtom a :| [toAtom b, toAtom c, toAtom d, toAtom e, toAtom f, toAtom g, toAtom h, toAtom i]
+instance ToTerms '[t1, t2, t3, t4, t5, t6, t7, t8, t9] where
+  toTerms _ _ (a, b, c, d, e, f, g, h, i) =
+    toTerm a :| [toTerm b, toTerm c, toTerm d, toTerm e, toTerm f, toTerm g, toTerm h, toTerm i]
 
-instance ToAtoms '[t1, t2, t3, t4, t5, t6, t7, t8, t9, t10] where
-  toAtoms _ _ (a, b, c, d, e, f, g, h, i, j) =
-    toAtom a :| [ toAtom b, toAtom c, toAtom d, toAtom e, toAtom f
-                , toAtom g, toAtom h, toAtom i, toAtom j ]
+instance ToTerms '[t1, t2, t3, t4, t5, t6, t7, t8, t9, t10] where
+  toTerms _ _ (a, b, c, d, e, f, g, h, i, j) =
+    toTerm a :| [ toTerm b, toTerm c, toTerm d, toTerm e, toTerm f
+                , toTerm g, toTerm h, toTerm i, toTerm j ]
 -- NOTE: Only facts with up to 10 arguments are currently supported.
 
-toAtom :: Atom ctx t -> SimpleAtom
-toAtom = \case
+toTerm :: Term ctx t -> SimpleTerm
+toTerm = \case
   Var v -> V v
   Str s -> S s
   Int x -> I x

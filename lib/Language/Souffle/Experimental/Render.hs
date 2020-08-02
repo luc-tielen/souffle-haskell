@@ -29,14 +29,14 @@ render = flip runReader TopLevel . f where
         [ ".decl " <> T.pack name <> "(" <> T.intercalate ", " nameTypePairs <> ")"
         , renderDir name dir
         ]
-    Fact name atoms -> do
-      let rendered = T.pack name <> "(" <> renderAtoms (toList atoms) <> ")"
+    Fact name terms -> do
+      let rendered = T.pack name <> "(" <> renderTerms (toList terms) <> ")"
       end <- maybeDot
       pure $ rendered <> end
-    Relation name atoms body -> do
+    Relation name terms body -> do
       body' <- f body
       let rendered =
-            T.pack name <> "(" <> renderAtoms (toList atoms) <> ") :-\n" <>
+            T.pack name <> "(" <> renderTerms (toList terms) <> ") :-\n" <>
             T.intercalate "\n" (map indent $ T.lines body')
       pure rendered
     And e1 e2 -> do
@@ -85,11 +85,11 @@ renderType x = \case
   DLString -> x' <> ": symbol"
   where x' = "t" <> T.pack (show x)
 
-renderAtoms :: [SimpleAtom] -> T.Text
-renderAtoms = T.intercalate ", " . fmap renderAtom
+renderTerms :: [SimpleTerm] -> T.Text
+renderTerms = T.intercalate ", " . fmap renderTerm
 
-renderAtom :: SimpleAtom -> T.Text
-renderAtom = \case
+renderTerm :: SimpleTerm -> T.Text
+renderTerm = \case
   I x -> T.pack $ show x
   S s -> "\"" <> T.pack s <> "\""
   V v -> T.pack v

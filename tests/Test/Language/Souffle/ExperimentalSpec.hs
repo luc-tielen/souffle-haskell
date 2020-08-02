@@ -5,8 +5,7 @@ module Test.Language.Souffle.ExperimentalSpec
   ( module Test.Language.Souffle.ExperimentalSpec
   ) where
 
-
-import Prelude hiding ( not )
+import Prelude hiding (not)
 import Test.Hspec
 import GHC.Generics
 import Control.Applicative
