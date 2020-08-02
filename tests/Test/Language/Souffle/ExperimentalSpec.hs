@@ -12,8 +12,6 @@ import GHC.Generics
 import Control.Applicative
 import Data.Int
 import Language.Souffle.Experimental
-import Language.Souffle.Experimental.Render
-import Language.Souffle.Experimental.Types (Context(Definition'))
 import Language.Souffle.Class
 import NeatInterpolation
 
