@@ -3,7 +3,7 @@
 {-# LANGUAGE TypeOperators, UndecidableInstances, FlexibleContexts #-}
 {-# LANGUAGE FunctionalDependencies, FlexibleInstances, DerivingVia #-}
 {-# LANGUAGE ScopedTypeVariables, PolyKinds, InstanceSigs #-}
-{-# OPTIONS_GHC -Wno-redundant-constraints #-}
+{-# OPTIONS_GHC -Wno-missing-methods #-}  -- TODO: fix this
 
 module Language.Souffle.Experimental
   ( Predicate(..)
@@ -73,6 +73,12 @@ instance Alternative (Block ctx) where
     let rules1 = combineRules $ runBlock block1
         rules2 = combineRules $ runBlock block2
     tell [Or rules1 rules2]
+    pure undefined
+
+instance Num (Block ctx a) where
+  negate block = do
+    let rules = combineRules $ runBlock block
+    tell [Not rules]
     pure undefined
 
 runBlock :: Block ctx a -> [DL]

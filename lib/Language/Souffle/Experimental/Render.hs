@@ -55,7 +55,17 @@ render = flip runReader TopLevel . f where
       case end of
         "." -> pure $ txt <> end
         _ -> pure $ "(" <> txt <> ")"
-    Not _ -> pure ""  -- TODO
+    Not e -> do
+      -- TODO: refactor, should be handled in and?
+      let maybeAddParens txt = case e of
+            And _ _ -> "(" <> txt <> ")"
+            _ -> txt
+      txt <- maybeAddParens <$> local (const Nested) (f e)
+      end <- maybeDot
+      case end of
+        "." -> pure $ "!" <> txt <> end
+        _ -> pure $ "!" <> txt
+
   maybeDot = ask >>= \case
     TopLevel -> pure "."
     Nested -> pure mempty

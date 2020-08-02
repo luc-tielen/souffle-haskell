@@ -12,6 +12,7 @@ import Control.Applicative
 import Data.Int
 import Language.Souffle.Experimental
 import Language.Souffle.Experimental.Render
+import Language.Souffle.Experimental.Types (Context(Definition'))
 import NeatInterpolation
 
 
@@ -200,7 +201,69 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
           reachable(c, b).
         |]
 
-    it "can render a logical negation in rule block" pending
+    it "allows generically describing predicate relations" $ do
+      -- NOTE: type signature not required, but it results in more clear type errors
+      -- and can serve as documentation.
+      let transitive :: forall p1 p2 t. Structure p1 ~ Structure p2
+                     => Structure p1 ~ '[t, t]
+                     => Predicate p1 -> Predicate p2 -> DSL 'Definition' ()
+          transitive (Predicate p1) (Predicate p2) = do
+            a <- var "a"
+            b <- var "b"
+            c <- var "c"
+            p1(a, b) |- p2(a, b)
+            p1(a, b) |- do
+              p2(a, c)
+              p1(c, b)
+          prog = do
+            edge <- typeDef @Edge In
+            reachable <- typeDef @Reachable Out
+            transitive reachable edge
+      prog ==> [text|
+        .decl edge(t1: symbol, t2: symbol)
+        .input edge
+        .decl reachable(t1: symbol, t2: symbol)
+        .output reachable
+        reachable(a, b) :-
+          edge(a, b).
+        reachable(a, b) :-
+          edge(a, c),
+          reachable(c, b).
+        |]
+
+    it "can render logical negation in rule block" $ do
+      let prog = do
+            Predicate edge <- typeDef @Edge In
+            Predicate triple <- typeDef @Triple Out
+            a <- var "a"
+            b <- var "b"
+            c <- var "c"
+            triple(a, b, c) |- do
+              negate $ edge(a,c)
+            triple(a, b, c) |- do
+              negate $ do
+                edge(a,a)
+                edge(c,c)
+            triple(a, b, c) |- do
+              negate $ edge(a,a) <|> edge(c,c)
+            triple(a, b, c) |- do
+              negate $ negate $ edge(a,a)
+      prog ==> [text|
+        .decl edge(t1: symbol, t2: symbol)
+        .input edge
+        .decl triple(t1: symbol, t2: number, t3: symbol)
+        .output triple
+        triple(a, b, c) :-
+          !edge(a, c).
+        triple(a, b, c) :-
+          !(edge(a, a),
+          edge(c, c)).
+        triple(a, b, c) :-
+          !(edge(a, a);
+          edge(c, c)).
+        triple(a, b, c) :-
+          !!edge(a, a).
+        |]
 
     it "generates unique var names to avoid name collisions" $ do
       let prog = do
@@ -218,15 +281,3 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
           edge(a, a_1).
         |]
 
-
-{- TODO convert to test
-   TODO "internal" fact
-  Predicate edge <- typeDef @Edge In
-  Predicate reachable <- typeDef @Reachable Out
-
-  reachable("a", "b") |- do
-    edge("a", "b")
-  reachable ("a", "b") |- do
-    edge("a", "c")
-    reachable("c", "b")
--}
