@@ -8,6 +8,7 @@ module Language.Souffle.Experimental.Types
   , Term(..)        -- TODO only export type
   , SimpleTerm(..)  -- TODO only export type
   , DLType(..)
+  , FieldData(..)
   , Direction(..)
   , Context(..)
   , Name
@@ -24,9 +25,12 @@ import Type.Errors.Pretty
 
 type Name = String
 type VarName = String
+type AccessorName = String
 
 data DLType = DLInt | DLString -- TODO add other primitive types
   deriving Show
+
+data FieldData = FieldData DLType AccessorName
 
 data Direction = In | Out | InOut
   deriving Show
@@ -66,7 +70,7 @@ data SimpleTerm
 
 data DL
   = Program [DL]
-  | TypeDef VarName Direction [DLType]
+  | TypeDef VarName Direction [FieldData]
   | Relation Name (NonEmpty SimpleTerm) (DL)
   | Fact Name (NonEmpty SimpleTerm)
   | And DL DL

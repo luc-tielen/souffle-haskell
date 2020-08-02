@@ -22,11 +22,10 @@ render = flip runReader TopLevel . f where
   f = \case
     Program stmts -> do
       T.unlines <$> traverse f stmts
-    TypeDef name dir ts ->
-      let pairs = zip [1..] ts
-          nameTypePairs = map (uncurry renderType) pairs
+    TypeDef name dir fields ->
+      let fieldPairs = map renderField fields
        in pure $ T.intercalate "\n"
-        [ ".decl " <> T.pack name <> "(" <> T.intercalate ", " nameTypePairs <> ")"
+        [ ".decl " <> T.pack name <> "(" <> T.intercalate ", " fieldPairs <> ")"
         , renderDir name dir
         ]
     Fact name terms -> do
@@ -79,11 +78,13 @@ renderDir name = \case
   Out -> ".output " <> T.pack name
   InOut -> T.intercalate "\n" [renderDir name In, renderDir name Out]
 
-renderType :: Int -> DLType -> T.Text
-renderType x = \case
-  DLInt -> x' <> ": number"
-  DLString -> x' <> ": symbol"
-  where x' = "t" <> T.pack (show x)
+renderField :: FieldData -> T.Text
+renderField (FieldData ty accName) =
+  let txt1 = T.pack accName
+      txt2 = case ty of
+        DLInt -> ": number"
+        DLString -> ": symbol"
+   in txt1 <> txt2
 
 renderTerms :: [SimpleTerm] -> T.Text
 renderTerms = T.intercalate ", " . fmap renderTerm

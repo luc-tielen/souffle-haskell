@@ -18,6 +18,9 @@ import Language.Souffle.Class
 import NeatInterpolation
 
 
+data Point = Point { x :: Int32, y :: Int32 }
+  deriving (Generic, Marshal)
+
 data IntFact = IntFact Int32
   deriving (Generic, Marshal)
 
@@ -30,10 +33,12 @@ data Edge = Edge String String
 data Reachable = Reachable String String
   deriving (Generic, Marshal)
 
+instance Fact Point where factName = const "point"
 instance Fact IntFact where factName = const "intfact"
 instance Fact Triple where factName = const "triple"
 instance Fact Edge where factName = const "edge"
 instance Fact Reachable where factName = const "reachable"
+
 
 spec :: Spec
 spec = fdescribe "Souffle DSL" $ parallel $ do
@@ -83,7 +88,14 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
         .output triple
         |]
 
-    it "uses record accessors as attribute names in type declaration if provided" pending
+    it "uses record accessors as attribute names in type declaration if provided" $ do
+      let prog = do
+            Predicate _ <- typeDef @Point In
+            pure ()
+      prog ==> [text|
+        .decl point(x: number, y: number)
+        .input point
+        |]
 
     it "can render facts" $ do
       let prog = do

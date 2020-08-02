@@ -88,16 +88,24 @@ not block = do
 runBlock :: Block ctx a -> [DL]
 runBlock (Block m) = execWriter m
 
+
 typeDef :: forall a ts. ts ~ Structure a
         => GetDLTypes ts
+        => GetNames (AccessorNames a)
         => ToTerms ts
         => S.Fact a  -- TODO remove need for qualified import
         => S.SimpleProduct a (Rep a)  -- TODO remove need for (Rep a)
         => Direction
         -> DSL 'Definition' (Predicate a)
 typeDef d = do
-  let name = S.factName (Proxy :: Proxy a)
-      definition = TypeDef name d (getTypes (Proxy :: Proxy ts))
+  let p :: Proxy a
+      p = Proxy
+      name = S.factName p
+      genericNames = map (("t" <>) . show) [1..]
+      accNames = maybe genericNames id $ accessorNames p
+      tys = getTypes (Proxy :: Proxy ts)
+      fields = map (uncurry FieldData) $ zip tys accNames
+      definition = TypeDef name d fields
       typeInfo :: TypeInfo a ts
       typeInfo = TypeInfo
   addDefinition definition

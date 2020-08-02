@@ -1,13 +1,16 @@
 
 {-# LANGUAGE TypeFamilies, TypeOperators, DataKinds, UndecidableInstances #-}
 {-# LANGUAGE FlexibleContexts, FlexibleInstances, TypeApplications, PolyKinds #-}
-{-# LANGUAGE MultiParamTypeClasses, GADTs #-}
+{-# LANGUAGE MultiParamTypeClasses, GADTs, ScopedTypeVariables #-}
 
 module Language.Souffle.Experimental.Internal
   ( TypeInfo(..)
   , Structure
   , NameFor
   , nameFor
+  , GetNames
+  , AccessorNames
+  , accessorNames
   , MapType
   , TupleOf
   , Tuple
@@ -50,6 +53,33 @@ type family NameFor a where
 type family GetName (repr :: Type -> Type) :: Symbol where
   GetName (D1 ('MetaData name _ _ _) _) = name
 
+type family AccessorNames a :: [Symbol] where
+  AccessorNames a = GetAccessorNames (Rep a)
+
+type family GetAccessorNames (f :: Type -> Type) :: [Symbol] where
+  GetAccessorNames (a :*: b) = GetAccessorNames a ++ GetAccessorNames b
+  GetAccessorNames (C1 ('MetaCons _ _ 'False) _) = '[]
+  GetAccessorNames (S1 ('MetaSel ('Just name) _ _ _) a) = '[name] ++ GetAccessorNames a
+  GetAccessorNames (M1 _ _ a) = GetAccessorNames a
+  GetAccessorNames (K1 _ _) = '[]
+
+-- TODO: think of better name
+class GetNames (symbols :: [Symbol]) where
+  getNames :: Proxy symbols -> [String]
+
+instance GetNames '[] where
+  getNames = const []
+
+instance (KnownSymbol s, GetNames symbols) => GetNames (s ': symbols) where
+  getNames _ =
+    let sym = symbolVal (Proxy :: Proxy s)
+        symbols =  getNames (Proxy :: Proxy symbols)
+     in sym : symbols
+
+accessorNames :: forall a. GetNames (AccessorNames a) => Proxy a -> Maybe [String]
+accessorNames _ = case getNames (Proxy :: Proxy (AccessorNames a)) of
+  [] -> Nothing
+  names -> Just names
 
 type family MapType (f :: Type -> Type) (ts :: [Type]) :: [Type] where
   MapType _ '[] = '[]
