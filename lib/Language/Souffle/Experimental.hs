@@ -3,6 +3,7 @@
 {-# LANGUAGE TypeOperators, UndecidableInstances, FlexibleContexts #-}
 {-# LANGUAGE FunctionalDependencies, FlexibleInstances, DerivingVia #-}
 {-# LANGUAGE ScopedTypeVariables, PolyKinds, InstanceSigs #-}
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 module Language.Souffle.Experimental
   ( Predicate(..)
@@ -24,6 +25,7 @@ module Language.Souffle.Experimental
 
 import Prelude hiding (not)
 import qualified Language.Souffle.Class as S (Fact(..))
+import qualified Language.Souffle.Internal.Constraints as S (SimpleProduct)
 import Language.Souffle.Experimental.Internal
 import Language.Souffle.Experimental.Types
 import Control.Monad.Writer
@@ -36,6 +38,7 @@ import Data.Proxy
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Map as Map
 import Data.Map ( Map )
+import GHC.Generics
 
 
 newtype Predicate p
@@ -89,6 +92,7 @@ typeDef :: forall a ts. ts ~ Structure a
         => GetDLTypes ts
         => ToTerms ts
         => S.Fact a  -- TODO remove need for qualified import
+        => S.SimpleProduct a (Rep a)  -- TODO remove need for (Rep a)
         => Direction
         -> DSL 'Definition' (Predicate a)
 typeDef d = do
