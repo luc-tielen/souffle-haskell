@@ -120,9 +120,13 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
             Predicate edge <- typeDef @Edge Input
             Predicate triple <- typeDef @Triple Input
             Predicate txt <- typeDef @TextFact Input
+            Predicate unsigned <- typeDef @UnsignedFact Input
+            Predicate float <- typeDef @FloatFact Input
             edge("a", "b")
             triple("cde", 1000, "fgh")
             txt("ijk", "lmn")
+            unsigned(42)
+            float(42.42)
       prog ==> [text|
         .decl edge(t1: symbol, t2: symbol)
         .input edge
@@ -130,9 +134,15 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
         .input triple
         .decl textfact(t1: symbol, t2: symbol)
         .input textfact
+        .decl unsignedfact(t1: unsigned)
+        .input unsignedfact
+        .decl floatfact(t1: float)
+        .input floatfact
         edge("a", "b").
         triple("cde", 1000, "fgh").
         textfact("ijk", "lmn").
+        unsignedfact(42).
+        floatfact(42.42).
         |]
 
     it "can render a relation with a single rule" $ do

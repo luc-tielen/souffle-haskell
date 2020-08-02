@@ -67,8 +67,8 @@ var :: NoVarsInAtom ctx => VarName -> DSL ctx' (Term ctx ty)
 var name = do
   count <- fromMaybe 0 <$> gets (Map.lookup name)
   modify $ Map.insert name (count + 1)
-  let varName = if count == 0 then name else name <> "_" <> show count
-  pure $ Var varName
+  let varName = if count == 0 then name else name <> "_" <> T.pack (show count)
+  pure $ VarTerm varName
 
 addDefinition :: DL -> DSL 'Definition ()
 addDefinition dl = tell [dl]
@@ -115,8 +115,8 @@ typeDef :: forall a ts. (ts ~ Structure a, CanTypeDef a ts)
 typeDef d = do
   let p = Proxy :: Proxy a
       typeInfo = TypeInfo :: TypeInfo a ts
-      name = factName p
-      genericNames = map (("t" <>) . show) [1..]
+      name = T.pack $ factName p
+      genericNames = map (("t" <>) . T.pack . show) [1..]
       accNames = maybe genericNames id $ accessorNames p
       tys = getTypes (Proxy :: Proxy ts)
       fields = map (uncurry FieldData) $ zip tys accNames
@@ -168,17 +168,17 @@ render = flip runReader TopLevel . f where
     TypeDef name dir fields ->
       let fieldPairs = map renderField fields
        in pure $ T.intercalate "\n"
-        [ ".decl " <> T.pack name <> "(" <> T.intercalate ", " fieldPairs <> ")"
+        [ ".decl " <> name <> "(" <> T.intercalate ", " fieldPairs <> ")"
         , renderDir name dir
         ]
     Atom name terms -> do
-      let rendered = T.pack name <> "(" <> renderTerms (toList terms) <> ")"
+      let rendered = name <> "(" <> renderTerms (toList terms) <> ")"
       end <- maybeDot
       pure $ rendered <> end
     Rule name terms body -> do
       body' <- f body
       let rendered =
-            T.pack name <> "(" <> renderTerms (toList terms) <> ") :-\n" <>
+            name <> "(" <> renderTerms (toList terms) <> ") :-\n" <>
             T.intercalate "\n" (map indent $ T.lines body')
       pure rendered
     And e1 e2 -> do
@@ -214,19 +214,18 @@ render = flip runReader TopLevel . f where
 
 renderDir :: VarName -> Direction -> T.Text
 renderDir name = \case
-  Input -> ".input " <> T.pack name
-  Output -> ".output " <> T.pack name
+  Input -> ".input " <> name
+  Output -> ".output " <> name
   InputOutput -> T.intercalate "\n" [renderDir name Input, renderDir name Output]
 
 renderField :: FieldData -> T.Text
 renderField (FieldData ty accName) =
-  let txt1 = T.pack accName
-      txt2 = case ty of
+  let txt = case ty of
         DLNumber -> ": number"
         DLUnsigned -> ": unsigned"
         DLFloat -> ": float"
         DLString -> ": symbol"
-   in txt1 <> txt2
+   in accName <> txt
 
 renderTerms :: [SimpleTerm] -> T.Text
 renderTerms = T.intercalate ", " . map renderTerm
@@ -234,13 +233,15 @@ renderTerms = T.intercalate ", " . map renderTerm
 renderTerm :: SimpleTerm -> T.Text
 renderTerm = \case
   I x -> T.pack $ show x
+  U x -> T.pack $ show x
+  F x -> T.pack $ show x
   S s -> "\"" <> T.pack s <> "\""
-  V v -> T.pack v
+  V v -> v
 
 
-type Name = String
-type VarName = String
-type AccessorName = String
+type Name = T.Text
+type VarName = T.Text
+type AccessorName = T.Text
 
 data DLType
   = DLNumber
@@ -271,9 +272,11 @@ type NoVarsInAtomError =
 data Term ctx ty where
   -- NOTE: type family is used here instead of "Atom 'Relation ty";
   -- this allow giving a better type error in some situations.
-  Var :: NoVarsInAtom ctx => VarName -> Term ctx ty
-  Number :: Int32 -> Term ctx Int32
-  Str :: ToString ty => ty -> Term ctx ty
+  VarTerm :: NoVarsInAtom ctx => VarName -> Term ctx ty
+  NumberTerm :: Int32 -> Term ctx Int32
+  UnsignedTerm :: Word32 -> Term ctx Word32
+  FloatTerm :: Float -> Term ctx Float
+  StringTerm :: ToString ty => ty -> Term ctx ty
 
 class ToString a where
   toString :: a -> String
@@ -282,21 +285,27 @@ instance ToString String where toString = id
 instance ToString T.Text where toString = T.unpack
 instance ToString TL.Text where toString = TL.unpack
 
-instance IsString (Term ctx String) where
-  fromString = Str
-
-instance IsString (Term ctx T.Text) where
-  fromString = Str . T.pack
-
-instance IsString (Term ctx TL.Text) where
-  fromString = Str . TL.pack
+instance IsString (Term ctx String) where fromString = StringTerm
+instance IsString (Term ctx T.Text) where fromString = StringTerm . T.pack
+instance IsString (Term ctx TL.Text) where fromString = StringTerm . TL.pack
 
 instance Num (Term ctx Int32) where
-  fromInteger = Number . fromInteger
+  fromInteger = NumberTerm . fromInteger
+
+instance Num (Term ctx Word32) where
+  fromInteger = UnsignedTerm . fromInteger
+
+instance Num (Term ctx Float) where
+  fromInteger = FloatTerm . fromInteger
+
+instance Fractional (Term ctx Float) where
+  fromRational = FloatTerm . fromRational
 
 data SimpleTerm
   = V VarName
   | I Int32
+  | U Word32
+  | F Float
   | S String
 
 data DL
@@ -350,10 +359,10 @@ instance (KnownSymbol s, KnownSymbols symbols) => KnownSymbols (s ': symbols) wh
         symbols =  toStrings (Proxy :: Proxy symbols)
      in sym : symbols
 
-accessorNames :: forall a. KnownSymbols (AccessorNames a) => Proxy a -> Maybe [String]
+accessorNames :: forall a. KnownSymbols (AccessorNames a) => Proxy a -> Maybe [T.Text]
 accessorNames _ = case toStrings (Proxy :: Proxy (AccessorNames a)) of
   [] -> Nothing
-  names -> Just names
+  names -> Just $ T.pack <$> names
 
 type Tuple ctx ts = TupleOf (MapType (Term ctx) ts)
 
@@ -403,9 +412,11 @@ instance ToTerms '[t1, t2, t3, t4, t5, t6, t7, t8, t9, t10] where
 
 toTerm :: Term ctx t -> SimpleTerm
 toTerm = \case
-  Var v -> V v
-  Str s -> S $ toString s
-  Number x -> I x
+  VarTerm v -> V v
+  StringTerm s -> S $ toString s
+  NumberTerm x -> I x
+  UnsignedTerm x -> U x
+  FloatTerm x -> F x
 
 
 -- Helper functions / type families / ...
