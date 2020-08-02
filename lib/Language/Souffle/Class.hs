@@ -17,6 +17,7 @@ module Language.Souffle.Class
   ( ContainsFact
   , Program(..)
   , Fact(..)
+  , Marshal.Marshal(..)
   , MonadSouffle(..)
   , MonadSouffleFileIO(..)
   ) where

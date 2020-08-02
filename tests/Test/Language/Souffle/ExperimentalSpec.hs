@@ -1,5 +1,6 @@
 
-{-# LANGUAGE DeriveGeneric, TypeApplications, QuasiQuotes, TypeOperators, DataKinds, TypeFamilies #-}
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass, TypeApplications, QuasiQuotes, TypeOperators #-}
+{-# LANGUAGE DataKinds, TypeFamilies #-}
 
 module Test.Language.Souffle.ExperimentalSpec
   ( module Test.Language.Souffle.ExperimentalSpec
@@ -13,21 +14,26 @@ import Data.Int
 import Language.Souffle.Experimental
 import Language.Souffle.Experimental.Render
 import Language.Souffle.Experimental.Types (Context(Definition'))
+import Language.Souffle.Class
 import NeatInterpolation
 
 
 data IntFact = IntFact Int32
-  deriving Generic
+  deriving (Generic, Marshal)
 
 data Triple = Triple String Int32 String
-  deriving Generic
+  deriving (Generic, Marshal)
 
 data Edge = Edge String String
-  deriving Generic
+  deriving (Generic, Marshal)
 
 data Reachable = Reachable String String
-  deriving Generic
+  deriving (Generic, Marshal)
 
+instance Fact IntFact where factName = const "intfact"
+instance Fact Triple where factName = const "triple"
+instance Fact Edge where factName = const "edge"
+instance Fact Reachable where factName = const "reachable"
 
 spec :: Spec
 spec = fdescribe "Souffle DSL" $ parallel $ do

@@ -23,12 +23,12 @@ module Language.Souffle.Experimental
   ) where
 
 import Prelude hiding (not)
+import qualified Language.Souffle.Class as S (Fact(..))
 import Language.Souffle.Experimental.Internal
 import Language.Souffle.Experimental.Types
 import Control.Monad.Writer
 import Control.Monad.State
 import Control.Applicative
-import GHC.TypeLits
 import Data.Kind
 import Data.Maybe (fromMaybe)
 import Data.Int
@@ -88,11 +88,11 @@ runBlock (Block m) = execWriter m
 typeDef :: forall a ts. ts ~ Structure a
         => GetDLTypes ts
         => ToTerms ts
-        => KnownSymbol (NameFor a)
+        => S.Fact a  -- TODO remove need for qualified import
         => Direction
         -> DSL 'Definition' (Predicate a)
 typeDef d = do
-  let name = nameFor (Proxy :: Proxy a)
+  let name = S.factName (Proxy :: Proxy a)
       definition = TypeDef name d (getTypes (Proxy :: Proxy ts))
       typeInfo :: TypeInfo a ts
       typeInfo = TypeInfo
