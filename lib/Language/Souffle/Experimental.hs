@@ -1,8 +1,8 @@
 
 {-# LANGUAGE GADTs, RankNTypes, TypeFamilies, DataKinds #-}
 {-# LANGUAGE TypeOperators, UndecidableInstances, FlexibleContexts #-}
-{-# LANGUAGE FunctionalDependencies, FlexibleInstances, DerivingVia, ConstraintKinds #-}
-{-# LANGUAGE ScopedTypeVariables, PolyKinds, InstanceSigs, UndecidableSuperClasses #-}
+{-# LANGUAGE FunctionalDependencies, FlexibleInstances, DerivingVia #-}
+{-# LANGUAGE ScopedTypeVariables, PolyKinds, ConstraintKinds #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# OPTIONS_GHC -Wno-missing-methods #-} -- TODO: fix this by implementing arithmetic
 
@@ -15,7 +15,7 @@ module Language.Souffle.Experimental
   , var
   , typeDef
   , (|-)
-  , not
+  , not'
   , render
   , renderIO
   , UsageContext(..)
@@ -27,7 +27,6 @@ module Language.Souffle.Experimental
   , NoVarsInAtom
   ) where
 
-import Prelude hiding (not)
 import Control.Applicative
 import Control.Monad.Reader
 import Control.Monad.State
@@ -38,6 +37,7 @@ import Data.List.NonEmpty (NonEmpty(..), toList)
 import Data.Map ( Map )
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
+import Data.Word
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import Data.Proxy
@@ -87,8 +87,8 @@ instance Alternative (Block ctx) where
     tell [Or rules1 rules2]
     pure undefined
 
-not :: Block ctx a -> Block ctx b
-not block = do
+not' :: Block ctx a -> Block ctx b
+not' block = do
   let rules = combineRules $ runBlock block
   tell [Not rules]
   pure undefined
@@ -100,7 +100,7 @@ data TypeInfo (a :: k) (ts :: [Type])
   = TypeInfo
 
 type CanTypeDef a ts =
-  ( Assert (Length ts <=? 10) SmallTupleMessage
+  ( Assert (Length ts <=? 10) BigTupleError
   , ToDLTypes ts
   , ToTerms ts
   , KnownSymbols (AccessorNames a)
@@ -220,7 +220,9 @@ renderField :: FieldData -> T.Text
 renderField (FieldData ty accName) =
   let txt1 = T.pack accName
       txt2 = case ty of
-        DLInt -> ": number"
+        DLNumber -> ": number"
+        DLUnsigned -> ": unsigned"
+        DLFloat -> ": float"
         DLString -> ": symbol"
    in txt1 <> txt2
 
@@ -239,9 +241,10 @@ type VarName = String
 type AccessorName = String
 
 data DLType
-  = DLInt
+  = DLNumber
+  | DLUnsigned
+  | DLFloat
   | DLString
-  -- TODO add other primitive types
 
 data FieldData = FieldData DLType AccessorName
 
@@ -267,14 +270,14 @@ data Term ctx ty where
   -- NOTE: type family is used here instead of "Atom 'Relation ty";
   -- this allow giving a better type error in some situations.
   Var :: NoVarsInAtom ctx => VarName -> Term ctx ty
-  Int :: Int32 -> Term ctx Int32
+  Number :: Int32 -> Term ctx Int32
   Str :: String -> Term ctx String
 
 instance IsString (Term ctx String) where
   fromString = Str
 
 instance Num (Term ctx Int32) where
-  fromInteger = Int . fromInteger
+  fromInteger = Number . fromInteger
 
 data SimpleTerm
   = V VarName
@@ -303,7 +306,9 @@ instance (ToDLType t, ToDLTypes ts) => ToDLTypes (t ': ts) where
 class ToDLType t where
   getType :: Proxy t -> DLType
 
-instance ToDLType Int32 where getType = const DLInt
+instance ToDLType Int32 where getType = const DLNumber
+instance ToDLType Word32 where getType = const DLUnsigned
+instance ToDLType Float where getType = const DLFloat
 instance ToDLType String where getType = const DLString
 
 type family AccessorNames a :: [Symbol] where
@@ -383,7 +388,7 @@ toTerm :: Term ctx t -> SimpleTerm
 toTerm = \case
   Var v -> V v
   Str s -> S s
-  Int x -> I x
+  Number x -> I x
 
 
 -- Helper functions / type families / ...
@@ -428,10 +433,10 @@ type family TupleOf (ts :: [Type]) = t where
   TupleOf '[t1, t2, t3, t4, t5, t6, t7, t8] = (t1, t2, t3, t4, t5, t6, t7, t8)
   TupleOf '[t1, t2, t3, t4, t5, t6, t7, t8, t9] = (t1, t2, t3, t4, t5, t6, t7, t8, t9)
   TupleOf '[t1, t2, t3, t4, t5, t6, t7, t8, t9, t10] = (t1, t2, t3, t4, t5, t6, t7, t8, t9, t10)
-  TupleOf _ = TypeError SmallTupleMessage
+  TupleOf _ = TypeError BigTupleError
 
-type SmallTupleMessage
-  = ( "The DSL only supports facts/tuples consisting of up to 10 elements."
+type BigTupleError =
+  ( "The DSL only supports facts/tuples consisting of up to 10 elements."
   % "If you need more arguments, please submit an issue on Github "
   <> "(https://github.com/luc-tielen/souffle-haskell/issues)"
   )

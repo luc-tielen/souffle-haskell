@@ -6,11 +6,11 @@ module Test.Language.Souffle.ExperimentalSpec
   ( module Test.Language.Souffle.ExperimentalSpec
   ) where
 
-import Prelude hiding (not)
 import Test.Hspec
 import GHC.Generics
 import Control.Applicative
 import Data.Int
+import Data.Word
 import Language.Souffle.Experimental
 import Language.Souffle.Class
 import NeatInterpolation
@@ -20,6 +20,12 @@ data Point = Point { x :: Int32, y :: Int32 }
   deriving (Generic, Marshal)
 
 data IntFact = IntFact Int32
+  deriving (Generic, Marshal)
+
+data UnsignedFact = UnsignedFact Word32
+  deriving (Generic, Marshal)
+
+data FloatFact = FloatFact Float
   deriving (Generic, Marshal)
 
 data Triple = Triple String Int32 String
@@ -33,6 +39,8 @@ data Reachable = Reachable String String
 
 instance Fact Point where factName = const "point"
 instance Fact IntFact where factName = const "intfact"
+instance Fact FloatFact where factName = const "floatfact"
+instance Fact UnsignedFact where factName = const "unsignedfact"
 instance Fact Triple where factName = const "triple"
 instance Fact Edge where factName = const "edge"
 instance Fact Reachable where factName = const "reachable"
@@ -77,11 +85,17 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
     it "renders type declaration based on type info" $ do
       let prog = do
             Predicate _ <- typeDef @IntFact Input
+            Predicate _ <- typeDef @UnsignedFact Input
+            Predicate _ <- typeDef @FloatFact Input
             Predicate _ <- typeDef @Triple Output
             pure ()
       prog ==> [text|
         .decl intfact(t1: number)
         .input intfact
+        .decl unsignedfact(t1: unsigned)
+        .input unsignedfact
+        .decl floatfact(t1: float)
+        .input floatfact
         .decl triple(t1: symbol, t2: number, t3: symbol)
         .output triple
         |]
@@ -218,7 +232,7 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
         |]
 
     it "allows generically describing predicate relations" $ do
-      -- NOTE: type signature not required, but it results in more clear type errors
+      -- not'E: type signature not' required, but it results in more clear type errors
       -- and can serve as documentation.
       let transitive :: forall p1 p2 t. Structure p1 ~ Structure p2
                      => Structure p1 ~ '[t, t]
@@ -255,15 +269,15 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
             b <- var "b"
             c <- var "c"
             triple(a, b, c) |- do
-              not $ edge(a,c)
+              not' $ edge(a,c)
             triple(a, b, c) |- do
-              not $ do
+              not' $ do
                 edge(a,a)
                 edge(c,c)
             triple(a, b, c) |- do
-              not $ edge(a,a) <|> edge(c,c)
+              not' $ edge(a,a) <|> edge(c,c)
             triple(a, b, c) |- do
-              not $ not $ edge(a,a)
+              not' $ not' $ edge(a,a)
       prog ==> [text|
         .decl edge(t1: symbol, t2: symbol)
         .input edge
