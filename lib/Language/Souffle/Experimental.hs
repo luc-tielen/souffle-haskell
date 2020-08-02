@@ -54,7 +54,7 @@ newtype DSL ctx a = DSL (StateT VarMap (Writer [DL]) a)
 runDSL :: DSL 'Definition' a -> DL
 runDSL (DSL a) = Program $ execWriter (evalStateT a mempty)
 
-var :: VarName -> DSL ctx (Term 'Relation' ty)
+var :: NoVarsInFact ctx => VarName -> DSL ctx' (Term ctx ty)
 var name = do
   count <- fromMaybe 0 <$> gets (Map.lookup name)
   modify $ Map.insert name (count + 1)
