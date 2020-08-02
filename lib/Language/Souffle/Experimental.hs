@@ -37,7 +37,7 @@ import Data.Kind
 import Data.List.NonEmpty (NonEmpty(..), toList)
 import Data.Map ( Map )
 import qualified Data.Map as Map
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, catMaybes)
 import Data.Word
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
@@ -167,8 +167,8 @@ render = flip runReader TopLevel . f where
       T.unlines <$> traverse f stmts
     TypeDef name dir fields ->
       let fieldPairs = map renderField fields
-       in pure $ T.intercalate "\n"
-        [ ".decl " <> name <> "(" <> T.intercalate ", " fieldPairs <> ")"
+       in pure $ T.intercalate "\n" $ catMaybes
+        [ Just $ ".decl " <> name <> "(" <> T.intercalate ", " fieldPairs <> ")"
         , renderDir name dir
         ]
     Atom name terms -> do
@@ -212,11 +212,13 @@ render = flip runReader TopLevel . f where
     TopLevel -> pure "."
     Nested -> pure mempty
 
-renderDir :: VarName -> Direction -> T.Text
+renderDir :: VarName -> Direction -> Maybe T.Text
 renderDir name = \case
-  Input -> ".input " <> name
-  Output -> ".output " <> name
-  InputOutput -> T.intercalate "\n" [renderDir name Input, renderDir name Output]
+  Input -> Just $ ".input " <> name
+  Output -> Just $ ".output " <> name
+  InputOutput -> Just $ T.intercalate "\n"
+                      $ catMaybes [renderDir name Input, renderDir name Output]
+  Internal -> Nothing
 
 renderField :: FieldData -> T.Text
 renderField (FieldData ty accName) =
@@ -251,8 +253,11 @@ data DLType
 
 data FieldData = FieldData DLType AccessorName
 
--- TODO: internal
-data Direction = Input | Output | InputOutput
+data Direction
+  = Input
+  | Output
+  | InputOutput
+  | Internal
 
 data UsageContext
   = Definition
@@ -268,10 +273,9 @@ type NoVarsInAtomError =
   % "  - Replace the variable in the fact with a string, number, unsigned or float constant."
   )
 
--- TODO add other primitive types
 data Term ctx ty where
   -- NOTE: type family is used here instead of "Atom 'Relation ty";
-  -- this allow giving a better type error in some situations.
+  -- this allows giving a better type error in some situations.
   VarTerm :: NoVarsInAtom ctx => VarName -> Term ctx ty
   NumberTerm :: Int32 -> Term ctx Int32
   UnsignedTerm :: Word32 -> Term ctx Word32

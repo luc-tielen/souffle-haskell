@@ -88,6 +88,14 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
         .output edge
         |]
 
+    it "can render a program with type declared and only used internally" $ do
+      let prog = do
+            Predicate _ <- typeDef @Edge Internal
+            pure ()
+      prog ==> [text|
+        .decl edge(t1: symbol, t2: symbol)
+        |]
+
     it "renders type declaration based on type info" $ do
       let prog = do
             Predicate _ <- typeDef @IntFact Input
@@ -253,7 +261,7 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
         |]
 
     it "allows generically describing predicate relations" $ do
-      -- not'E: type signature not' required, but it results in more clear type errors
+      -- NOTE: type signature not required, but it results in more clear type errors
       -- and can serve as documentation.
       let transitive :: forall p1 p2 t. Structure p1 ~ Structure p2
                      => Structure p1 ~ '[t, t]
