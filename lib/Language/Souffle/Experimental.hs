@@ -20,7 +20,7 @@ module Language.Souffle.Experimental
   , renderIO
   , UsageContext(..)
   , Head
-  , Block
+  , Body
   , Structure
   , Fragment
   , CanTypeDef
@@ -76,27 +76,27 @@ addDefinition dl = tell [dl]
 data Head ctx unused
   = Head Name (NonEmpty SimpleTerm)
 
-newtype Block ctx a = Block (Writer [DL] a)
+newtype Body ctx a = Body (Writer [DL] a)
   deriving (Functor, Applicative, Monad, MonadWriter [DL])
   via (Writer [DL])
 
-instance Alternative (Block ctx) where
+instance Alternative (Body ctx) where
   -- TODO: consider using other operator to avoid bad implementation of empty
-  empty = error "'empty' is not implemented for 'Block'"
-  block1 <|> block2 = do
-    let rules1 = combineRules $ runBlock block1
-        rules2 = combineRules $ runBlock block2
+  empty = error "'empty' is not implemented for 'Body'"
+  body1 <|> body2 = do
+    let rules1 = combineRules $ runBody body1
+        rules2 = combineRules $ runBody body2
     tell [Or rules1 rules2]
     pure undefined
 
-not' :: Block ctx a -> Block ctx b
-not' block = do
-  let rules = combineRules $ runBlock block
+not' :: Body ctx a -> Body ctx b
+not' body = do
+  let rules = combineRules $ runBody body
   tell [Not rules]
   pure undefined
 
-runBlock :: Block ctx a -> [DL]
-runBlock (Block m) = execWriter m
+runBody :: Body ctx a -> [DL]
+runBody (Body m) = execWriter m
 
 data TypeInfo (a :: k) (ts :: [Type])
   = TypeInfo
@@ -124,16 +124,16 @@ typeDef d = do
   addDefinition definition
   pure $ Predicate $ toFragment typeInfo name
 
-(|-) :: Head 'Relation a -> Block 'Relation () -> DSL 'Definition ()
-Head name terms |- block =
-  let rules = runBlock block
+(|-) :: Head 'Relation a -> Body 'Relation () -> DSL 'Definition ()
+Head name terms |- body =
+  let rules = runBody body
       relation = Rule name terms (combineRules rules)
   in addDefinition relation
 
 combineRules :: [DL] -> DL
 combineRules rules =
   if null rules
-    then error "A block should consist of atleast 1 predicate."  -- TODO: fix this
+    then error "A body should consist of atleast 1 predicate."  -- TODO: fix this
     else foldl1 And rules
 
 class Fragment f ctx where
@@ -144,7 +144,7 @@ instance Fragment Head 'Relation where
     let terms' = toTerms (Proxy :: Proxy 'Relation) typeInfo terms
      in Head name terms'
 
-instance Fragment Block ctx where
+instance Fragment Body ctx where
   toFragment typeInfo name terms =
     let terms' = toTerms (Proxy :: Proxy ctx) typeInfo terms
     in tell [Atom name terms']
@@ -269,7 +269,7 @@ type family NoVarsInAtom (ctx :: UsageContext) :: Constraint where
 type NoVarsInAtomError =
   ( "You tried to use a variable in a top level fact, which is not supported in Soufflé."
   % "Possible solutions:"
-  % "  - Move the fact inside a rule block."
+  % "  - Move the fact inside a rule body."
   % "  - Replace the variable in the fact with a string, number, unsigned or float constant."
   )
 
