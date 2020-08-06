@@ -36,6 +36,9 @@ data TextFact = TextFact T.Text TL.Text
 data Triple = Triple String Int32 String
   deriving (Generic, Marshal)
 
+data Vertex = Vertex String
+  deriving (Generic, Marshal)
+
 data Edge = Edge String String
   deriving (Generic, Marshal)
 
@@ -48,6 +51,7 @@ instance Fact FloatFact where factName = const "floatfact"
 instance Fact UnsignedFact where factName = const "unsignedfact"
 instance Fact TextFact where factName = const "textfact"
 instance Fact Triple where factName = const "triple"
+instance Fact Vertex where factName = const "vertex"
 instance Fact Edge where factName = const "edge"
 instance Fact Reachable where factName = const "reachable"
 
@@ -188,6 +192,24 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
           edge(a, a),
           edge(b, b),
           edge(a, b).
+        |]
+
+    it "can render a relation containing a wildcard" $ do
+      let prog = do
+            Predicate edge <- typeDef @Edge Input
+            Predicate vertex <- typeDef @Vertex Output
+            a <- var "a"
+            vertex(a) |- do
+              edge(a, __)
+              edge(__, a)
+      prog ==> [text|
+        .decl edge(t1: symbol, t2: symbol)
+        .input edge
+        .decl vertex(t1: symbol)
+        .output vertex
+        vertex(a) :-
+          edge(a, _),
+          edge(_, a).
         |]
 
     it "can render a relation with a logical or in the rule block" $ do

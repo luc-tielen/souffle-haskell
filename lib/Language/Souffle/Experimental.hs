@@ -15,6 +15,8 @@ module Language.Souffle.Experimental
   , var
   , typeDef
   , (|-)
+  , underscore
+  , __
   , not'
   , render
   , renderIO
@@ -239,6 +241,7 @@ renderTerm = \case
   F x -> T.pack $ show x
   S s -> "\"" <> T.pack s <> "\""
   V v -> v
+  Underscore -> "_"
 
 
 type Name = T.Text
@@ -277,10 +280,16 @@ data Term ctx ty where
   -- NOTE: type family is used here instead of "Atom 'Relation ty";
   -- this allows giving a better type error in some situations.
   VarTerm :: NoVarsInAtom ctx => VarName -> Term ctx ty
+  UnderscoreTerm :: Term ctx ty
   NumberTerm :: Int32 -> Term ctx Int32
   UnsignedTerm :: Word32 -> Term ctx Word32
   FloatTerm :: Float -> Term ctx Float
   StringTerm :: ToString ty => ty -> Term ctx ty
+
+underscore, __ :: Term ctx ty
+underscore = UnderscoreTerm
+
+__ = underscore
 
 class ToString a where
   toString :: a -> String
@@ -311,6 +320,7 @@ data SimpleTerm
   | U Word32
   | F Float
   | S String
+  | Underscore
 
 data DL
   = Program [DL]
@@ -412,7 +422,8 @@ instance ToTerms '[t1, t2, t3, t4, t5, t6, t7, t8, t9] where
 instance ToTerms '[t1, t2, t3, t4, t5, t6, t7, t8, t9, t10] where
   toTerms _ _ (a, b, c, d, e, f, g, h, i, j) =
     toTerm a :| [ toTerm b, toTerm c, toTerm d, toTerm e, toTerm f
-                , toTerm g, toTerm h, toTerm i, toTerm j ]
+                , toTerm g, toTerm h, toTerm i, toTerm j
+                ]
 
 toTerm :: Term ctx t -> SimpleTerm
 toTerm = \case
@@ -421,6 +432,7 @@ toTerm = \case
   NumberTerm x -> I x
   UnsignedTerm x -> U x
   FloatTerm x -> F x
+  UnderscoreTerm -> Underscore
 
 
 -- Helper functions / type families / ...
