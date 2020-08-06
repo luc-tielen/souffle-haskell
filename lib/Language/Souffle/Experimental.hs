@@ -15,6 +15,7 @@ module Language.Souffle.Experimental
   , var
   , typeDef
   , (|-)
+  , (\/)
   , underscore
   , __
   , not'
@@ -30,7 +31,6 @@ module Language.Souffle.Experimental
   -- TODO: check if export list is complete
   ) where
 
-import Control.Applicative
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Writer
@@ -39,7 +39,7 @@ import Data.Kind
 import Data.List.NonEmpty (NonEmpty(..), toList)
 import Data.Map ( Map )
 import qualified Data.Map as Map
-import Data.Maybe (fromMaybe, catMaybes)
+import Data.Maybe (fromMaybe, catMaybes, mapMaybe)
 import Data.Word
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
@@ -58,12 +58,26 @@ newtype Predicate p
 
 type VarMap = Map VarName Int
 
-newtype DSL ctx a = DSL (StateT VarMap (Writer [DL]) a)
-  deriving (Functor, Applicative, Monad, MonadWriter [DL], MonadState VarMap)
-  via (StateT VarMap (Writer [DL]))
+newtype DSL ctx a = DSL (StateT VarMap (Writer [DL 'Original]) a)
+  deriving (Functor, Applicative, Monad, MonadWriter [DL 'Original], MonadState VarMap)
+  via (StateT VarMap (Writer [DL 'Original]))
 
-runDSL :: DSL 'Definition a -> DL
-runDSL (DSL a) = Program $ execWriter (evalStateT a mempty)
+
+
+runDSL :: DSL 'Definition a -> DL 'Simplified
+runDSL (DSL a) = Program $ mapMaybe simplify $ execWriter (evalStateT a mempty) where
+  simplify = \case
+    Program stmts -> pure $ Program $ mapMaybe simplify stmts
+    TypeDef name dir fields -> pure $ TypeDef name dir fields
+    Rule name terms body -> Rule name terms <$> simplify body
+    Atom name terms -> pure $ Atom name terms
+    And exprs -> case mapMaybe simplify exprs of
+      [] -> Nothing
+      exprs' -> pure $ foldl1 (curry And) exprs'
+    Or exprs -> case mapMaybe simplify exprs of
+      [] -> Nothing
+      exprs' -> pure $ foldl1 (curry Or) exprs'
+    Not expr -> Not <$> simplify expr
 
 var :: NoVarsInAtom ctx => VarName -> DSL ctx' (Term ctx ty)
 var name = do
@@ -72,24 +86,21 @@ var name = do
   let varName = if count == 0 then name else name <> "_" <> T.pack (show count)
   pure $ VarTerm varName
 
-addDefinition :: DL -> DSL 'Definition ()
+addDefinition :: DL 'Original -> DSL 'Definition ()
 addDefinition dl = tell [dl]
 
 data Head ctx unused
   = Head Name (NonEmpty SimpleTerm)
 
-newtype Body ctx a = Body (Writer [DL] a)
-  deriving (Functor, Applicative, Monad, MonadWriter [DL])
-  via (Writer [DL])
+newtype Body ctx a = Body (Writer [DL 'Original] a)
+  deriving (Functor, Applicative, Monad, MonadWriter [DL 'Original])
+  via (Writer [DL 'Original])
 
-instance Alternative (Body ctx) where
-  -- TODO: consider using other operator to avoid bad implementation of empty
-  empty = error "'empty' is not implemented for 'Body'"
-  body1 <|> body2 = do
-    let rules1 = combineRules $ runBody body1
-        rules2 = combineRules $ runBody body2
-    tell [Or rules1 rules2]
-    pure undefined
+(\/) :: Body ctx () -> Body ctx () -> Body ctx ()
+body1 \/ body2 = do
+  let rules1 = combineRules $ runBody body1
+      rules2 = combineRules $ runBody body2
+  tell [Or [rules1, rules2]]
 
 not' :: Body ctx a -> Body ctx b
 not' body = do
@@ -97,7 +108,7 @@ not' body = do
   tell [Not rules]
   pure undefined
 
-runBody :: Body ctx a -> [DL]
+runBody :: Body ctx a -> [DL 'Original]
 runBody (Body m) = execWriter m
 
 data TypeInfo (a :: k) (ts :: [Type])
@@ -132,11 +143,8 @@ Head name terms |- body =
       relation = Rule name terms (combineRules rules)
   in addDefinition relation
 
-combineRules :: [DL] -> DL
-combineRules rules =
-  if null rules
-    then error "A body should consist of atleast 1 predicate."  -- TODO: fix this
-    else foldl1 And rules
+combineRules :: [DL 'Original] -> DL 'Original
+combineRules = And
 
 class Fragment f ctx where
   toFragment :: ToTerms ts => TypeInfo a ts -> Name -> Tuple ctx ts -> f ctx ()
@@ -159,10 +167,10 @@ instance Fragment DSL 'Definition where
 
 data RenderMode = Nested | TopLevel
 
-renderIO :: FilePath -> DL -> IO ()
+renderIO :: FilePath -> DL 'Simplified -> IO ()
 renderIO path = TIO.writeFile path . render
 
-render :: DL -> T.Text
+render :: DL 'Simplified -> T.Text
 render = flip runReader TopLevel . f where
   f = \case
     Program stmts ->
@@ -183,14 +191,14 @@ render = flip runReader TopLevel . f where
             name <> "(" <> renderTerms (toList terms) <> ") :-\n" <>
             T.intercalate "\n" (map indent $ T.lines body')
       pure rendered
-    And e1 e2 -> do
+    And (e1, e2) -> do
       txt <- nested $ do
         txt1 <- f e1
         txt2 <- f e2
         pure $ txt1 <> ",\n" <> txt2
       end <- maybeDot
       pure $ txt <> end
-    Or e1 e2 -> do
+    Or (e1, e2) -> do
       txt <- nested $ do
         txt1 <- f e1
         txt2 <- f e2
@@ -201,7 +209,7 @@ render = flip runReader TopLevel . f where
         _ -> pure $ "(" <> txt <> ")"
     Not e -> do
       let maybeAddParens txt = case e of
-            And _ _ -> "(" <> txt <> ")"
+            And _ -> "(" <> txt <> ")"
             _ -> txt
       txt <- maybeAddParens <$> nested (f e)
       end <- maybeDot
@@ -270,7 +278,7 @@ type family NoVarsInAtom (ctx :: UsageContext) :: Constraint where
   NoVarsInAtom ctx = Assert (ctx == 'Relation) NoVarsInAtomError
 
 type NoVarsInAtomError =
-  ( "You tried to use a variable in a top level fact, which is not supported in Soufflé."
+  ( "You tried to use a variable in a top level fact, which is not supported in Souffle."
   % "Possible solutions:"
   % "  - Move the fact inside a rule body."
   % "  - Replace the variable in the fact with a string, number, unsigned or float constant."
@@ -322,14 +330,23 @@ data SimpleTerm
   | S String
   | Underscore
 
-data DL
-  = Program [DL]
-  | TypeDef VarName Direction [FieldData]
-  | Rule Name (NonEmpty SimpleTerm) (DL)
-  | Atom Name (NonEmpty SimpleTerm)
-  | And DL DL
-  | Or DL DL
-  | Not DL
+data Phase
+  = Original
+  | Simplified
+
+type family Rules (ph :: Phase) :: Type where
+  Rules 'Original = [DL 'Original]
+  Rules 'Simplified = (DL 'Simplified, DL 'Simplified)
+
+-- TODO split into separate type?
+data DL (ph :: Phase) where
+  Program :: [DL ph] -> DL ph
+  TypeDef :: VarName -> Direction -> [FieldData] -> DL ph
+  Rule :: Name -> NonEmpty SimpleTerm -> DL ph -> DL ph
+  Atom :: Name -> NonEmpty SimpleTerm -> DL ph
+  And :: Rules ph -> DL ph
+  Or :: Rules ph -> DL ph
+  Not :: DL ph -> DL ph
 
 
 class ToDLTypes (ts :: [Type]) where

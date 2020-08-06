@@ -8,7 +8,6 @@ module Test.Language.Souffle.ExperimentalSpec
 
 import Test.Hspec
 import GHC.Generics
-import Control.Applicative
 import Data.Int
 import Data.Word
 import qualified Data.Text as T
@@ -225,7 +224,7 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
                   rules2 = do
                     edge(a, b)
                     edge(b, a)
-              rules1 <|> rules2
+              rules1 \/ rules2
       prog ==> [text|
         .decl edge(t1: symbol, t2: symbol)
         .input edge
@@ -269,7 +268,7 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
             b <- var "b"
             c <- var "c"
             reachable(a, b) |- do
-              edge(a, c) <|> edge(a, b)
+              edge(a, c) \/ edge(a, b)
               reachable(c, b)
       prog ==> [text|
         .decl edge(t1: symbol, t2: symbol)
@@ -280,6 +279,66 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
           (edge(a, c);
           edge(a, b)),
           reachable(c, b).
+        |]
+
+    it "discards empty alternative blocks" $ do
+      let prog = do
+            Predicate edge <- typeDef @Edge Input
+            Predicate reachable <- typeDef @Reachable Output
+            a <- var "a"
+            b <- var "b"
+            c <- var "c"
+            reachable(a, b) |- do
+              pure () \/ edge(a, c)
+              reachable(c, b)
+            reachable(a, b) |- do
+              edge(a,c) \/ pure ()
+              reachable(c, b)
+            reachable(a, b) |- do
+              pure () \/ do
+                edge(a, c)
+                reachable(c, b)
+      prog ==> [text|
+        .decl edge(t1: symbol, t2: symbol)
+        .input edge
+        .decl reachable(t1: symbol, t2: symbol)
+        .output reachable
+        reachable(a, b) :-
+          edge(a, c),
+          reachable(c, b).
+        reachable(a, b) :-
+          edge(a, c),
+          reachable(c, b).
+        reachable(a, b) :-
+          edge(a, c),
+          reachable(c, b).
+        |]
+
+    it "discards rules with empty rule blocks completely" $ do
+      let prog = do
+            Predicate reachable <- typeDef @Reachable Output
+            a <- var "a"
+            b <- var "b"
+            reachable(a, b) |- do
+              pure ()
+            reachable(a, b) |- do
+              pure () \/ pure ()
+              pure ()
+      prog ==> [text|
+        .decl reachable(t1: symbol, t2: symbol)
+        .output reachable
+        |]
+
+    it "discards empty negations" $ do
+      let prog = do
+            Predicate reachable <- typeDef @Reachable Output
+            a <- var "a"
+            b <- var "b"
+            reachable(a, b) |- do
+              not' $ pure ()
+      prog ==> [text|
+        .decl reachable(t1: symbol, t2: symbol)
+        .output reachable
         |]
 
     it "allows generically describing predicate relations" $ do
@@ -326,7 +385,7 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
                 edge(a,a)
                 edge(c,c)
             triple(a, b, c) |- do
-              not' $ edge(a,a) <|> edge(c,c)
+              not' $ edge(a,a) \/ edge(c,c)
             triple(a, b, c) |- do
               not' $ not' $ edge(a,a)
       prog ==> [text|
