@@ -58,26 +58,25 @@ newtype Predicate p
 
 type VarMap = Map VarName Int
 
-newtype DSL ctx a = DSL (StateT VarMap (Writer [DL 'Original]) a)
-  deriving (Functor, Applicative, Monad, MonadWriter [DL 'Original], MonadState VarMap)
-  via (StateT VarMap (Writer [DL 'Original]))
+newtype DSL ctx a = DSL (StateT VarMap (Writer [AST]) a)
+  deriving (Functor, Applicative, Monad, MonadWriter [AST], MonadState VarMap)
+  via (StateT VarMap (Writer [AST]))
 
 
 
-runDSL :: DSL 'Definition a -> DL 'Simplified
+runDSL :: DSL 'Definition a -> DL
 runDSL (DSL a) = Program $ mapMaybe simplify $ execWriter (evalStateT a mempty) where
   simplify = \case
-    Program stmts -> pure $ Program $ mapMaybe simplify stmts
-    TypeDef name dir fields -> pure $ TypeDef name dir fields
-    Rule name terms body -> Rule name terms <$> simplify body
-    Atom name terms -> pure $ Atom name terms
-    And exprs -> case mapMaybe simplify exprs of
+    TypeDef' name dir fields -> pure $ TypeDef name dir fields
+    Rule' name terms body -> Rule name terms <$> simplify body
+    Atom' name terms -> pure $ Atom name terms
+    And' exprs -> case mapMaybe simplify exprs of
       [] -> Nothing
-      exprs' -> pure $ foldl1 (curry And) exprs'
-    Or exprs -> case mapMaybe simplify exprs of
+      exprs' -> pure $ foldl1 And exprs'
+    Or' exprs -> case mapMaybe simplify exprs of
       [] -> Nothing
-      exprs' -> pure $ foldl1 (curry Or) exprs'
-    Not expr -> Not <$> simplify expr
+      exprs' -> pure $ foldl1 Or exprs'
+    Not' expr -> Not <$> simplify expr
 
 var :: NoVarsInAtom ctx => VarName -> DSL ctx' (Term ctx ty)
 var name = do
@@ -86,29 +85,29 @@ var name = do
   let varName = if count == 0 then name else name <> "_" <> T.pack (show count)
   pure $ VarTerm varName
 
-addDefinition :: DL 'Original -> DSL 'Definition ()
+addDefinition :: AST -> DSL 'Definition ()
 addDefinition dl = tell [dl]
 
 data Head ctx unused
   = Head Name (NonEmpty SimpleTerm)
 
-newtype Body ctx a = Body (Writer [DL 'Original] a)
-  deriving (Functor, Applicative, Monad, MonadWriter [DL 'Original])
-  via (Writer [DL 'Original])
+newtype Body ctx a = Body (Writer [AST] a)
+  deriving (Functor, Applicative, Monad, MonadWriter [AST])
+  via (Writer [AST])
 
 (\/) :: Body ctx () -> Body ctx () -> Body ctx ()
 body1 \/ body2 = do
-  let rules1 = combineRules $ runBody body1
-      rules2 = combineRules $ runBody body2
-  tell [Or [rules1, rules2]]
+  let rules1 = And' $ runBody body1
+      rules2 = And' $ runBody body2
+  tell [Or' [rules1, rules2]]
 
 not' :: Body ctx a -> Body ctx b
 not' body = do
-  let rules = combineRules $ runBody body
-  tell [Not rules]
+  let rules = And' $ runBody body
+  tell [Not' rules]
   pure undefined
 
-runBody :: Body ctx a -> [DL 'Original]
+runBody :: Body ctx a -> [AST]
 runBody (Body m) = execWriter m
 
 data TypeInfo (a :: k) (ts :: [Type])
@@ -133,18 +132,15 @@ typeDef d = do
       accNames = maybe genericNames id $ accessorNames p
       tys = getTypes (Proxy :: Proxy ts)
       fields = map (uncurry FieldData) $ zip tys accNames
-      definition = TypeDef name d fields
+      definition = TypeDef' name d fields
   addDefinition definition
   pure $ Predicate $ toFragment typeInfo name
 
 (|-) :: Head 'Relation a -> Body 'Relation () -> DSL 'Definition ()
 Head name terms |- body =
   let rules = runBody body
-      relation = Rule name terms (combineRules rules)
+      relation = Rule' name terms (And' rules)
   in addDefinition relation
-
-combineRules :: [DL 'Original] -> DL 'Original
-combineRules = And
 
 class Fragment f ctx where
   toFragment :: ToTerms ts => TypeInfo a ts -> Name -> Tuple ctx ts -> f ctx ()
@@ -157,20 +153,20 @@ instance Fragment Head 'Relation where
 instance Fragment Body ctx where
   toFragment typeInfo name terms =
     let terms' = toTerms (Proxy :: Proxy ctx) typeInfo terms
-    in tell [Atom name terms']
+    in tell [Atom' name terms']
 
 instance Fragment DSL 'Definition where
   toFragment typeInfo name terms =
     let terms' = toTerms (Proxy :: Proxy 'Definition) typeInfo terms
-     in addDefinition $ Atom name terms'
+     in addDefinition $ Atom' name terms'
 
 
 data RenderMode = Nested | TopLevel
 
-renderIO :: FilePath -> DL 'Simplified -> IO ()
+renderIO :: FilePath -> DL -> IO ()
 renderIO path = TIO.writeFile path . render
 
-render :: DL 'Simplified -> T.Text
+render :: DL -> T.Text
 render = flip runReader TopLevel . f where
   f = \case
     Program stmts ->
@@ -191,14 +187,14 @@ render = flip runReader TopLevel . f where
             name <> "(" <> renderTerms (toList terms) <> ") :-\n" <>
             T.intercalate "\n" (map indent $ T.lines body')
       pure rendered
-    And (e1, e2) -> do
+    And e1 e2 -> do
       txt <- nested $ do
         txt1 <- f e1
         txt2 <- f e2
         pure $ txt1 <> ",\n" <> txt2
       end <- maybeDot
       pure $ txt <> end
-    Or (e1, e2) -> do
+    Or e1 e2 -> do
       txt <- nested $ do
         txt1 <- f e1
         txt2 <- f e2
@@ -209,7 +205,7 @@ render = flip runReader TopLevel . f where
         _ -> pure $ "(" <> txt <> ")"
     Not e -> do
       let maybeAddParens txt = case e of
-            And _ -> "(" <> txt <> ")"
+            And _ _ -> "(" <> txt <> ")"
             _ -> txt
       txt <- maybeAddParens <$> nested (f e)
       end <- maybeDot
@@ -330,23 +326,22 @@ data SimpleTerm
   | S String
   | Underscore
 
-data Phase
-  = Original
-  | Simplified
+data AST
+  = TypeDef' VarName Direction [FieldData]
+  | Rule' Name (NonEmpty SimpleTerm) AST
+  | Atom' Name (NonEmpty SimpleTerm)
+  | And' [AST]
+  | Or' [AST]
+  | Not' AST
 
-type family Rules (ph :: Phase) :: Type where
-  Rules 'Original = [DL 'Original]
-  Rules 'Simplified = (DL 'Simplified, DL 'Simplified)
-
--- TODO split into separate type?
-data DL (ph :: Phase) where
-  Program :: [DL ph] -> DL ph
-  TypeDef :: VarName -> Direction -> [FieldData] -> DL ph
-  Rule :: Name -> NonEmpty SimpleTerm -> DL ph -> DL ph
-  Atom :: Name -> NonEmpty SimpleTerm -> DL ph
-  And :: Rules ph -> DL ph
-  Or :: Rules ph -> DL ph
-  Not :: DL ph -> DL ph
+data DL
+  = Program [DL]
+  | TypeDef VarName Direction [FieldData]
+  | Rule Name (NonEmpty SimpleTerm) DL
+  | Atom Name (NonEmpty SimpleTerm)
+  | And DL DL
+  | Or DL DL
+  | Not DL
 
 
 class ToDLTypes (ts :: [Type]) where
