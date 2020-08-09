@@ -421,3 +421,108 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
           edge(a, a_1).
         |]
 
+    describe "operators" $ parallel $ do
+      -- TODO: check for number, unsigned, float; check underscore is not allowed
+      describe "arithmetic" $ parallel $ do
+        it "supports +" $ do
+          let prog = do
+                Predicate int <- typeDef @IntFact Input
+                Predicate unsigned <- typeDef @UnsignedFact Input
+                Predicate float <- typeDef @FloatFact Input
+                int(10 + 32)
+                int(10 + 80 + 10)
+                unsigned(10 + 32)
+                float(10.12 + 31.88)
+          prog ==> [text|
+            .decl intfact(t1: number)
+            .input intfact
+            .decl unsignedfact(t1: unsigned)
+            .input unsignedfact
+            .decl floatfact(t1: float)
+            .input floatfact
+            intfact(10 + 32).
+            intfact(10 + 80 + 10).
+            unsignedfact(10 + 32).
+            floatfact(10.12 + 31.88).
+            |]
+
+        it "supports *" $ do
+          let prog = do
+                Predicate int <- typeDef @IntFact Input
+                Predicate unsigned <- typeDef @UnsignedFact Input
+                Predicate float <- typeDef @FloatFact Input
+                int(10 * 32)
+                int(10 * 80 * 10)
+                unsigned(10 * 32)
+                float(10.12 * 31.88)
+          prog ==> [text|
+            .decl intfact(t1: number)
+            .input intfact
+            .decl unsignedfact(t1: unsigned)
+            .input unsignedfact
+            .decl floatfact(t1: float)
+            .input floatfact
+            intfact(10 * 32).
+            intfact(10 * 80 * 10).
+            unsignedfact(10 * 32).
+            floatfact(10.12 * 31.88).
+            |]
+
+        it "supports binary -" $ do
+          let prog = do
+                Predicate int <- typeDef @IntFact Input
+                Predicate unsigned <- typeDef @UnsignedFact Input
+                Predicate float <- typeDef @FloatFact Input
+                int(10 - 32)
+                int(10 - 80 - 10)
+                unsigned(10 - 32)
+                float(10.12 - 31.88)
+          prog ==> [text|
+            .decl intfact(t1: number)
+            .input intfact
+            .decl unsignedfact(t1: unsigned)
+            .input unsignedfact
+            .decl floatfact(t1: float)
+            .input floatfact
+            intfact(10 - 32).
+            intfact(10 - 80 - 10).
+            unsignedfact(10 - 32).
+            floatfact(10.12 - 31.88).
+            |]
+
+        it "supports unary -" pending
+
+        it "supports /" pending
+
+        it "supports ^" pending
+
+        it "supports %" pending
+
+      describe "logical operators" $ parallel $ do
+        it "supports band" pending
+
+        it "supports bor" pending
+
+        it "supports bxor" pending
+
+        it "supports land" pending
+
+        it "supports lor" pending
+
+      describe "comparisons and equality operators" $ parallel $ do
+        it "supports <" pending
+
+        it "supports <=" pending
+
+        it "supports >" pending
+
+        it "supports >=" pending
+
+        it "supports =" pending
+
+        it "supports !=" pending
+
+    describe "functors" $ parallel $ do
+      it "supports max" pending
+
+      it "supports min" pending

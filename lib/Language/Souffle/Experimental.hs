@@ -247,6 +247,13 @@ renderTerm = \case
   V v -> v
   Underscore -> "_"
 
+  BinOp' op t1 t2 -> renderTerm t1 <> " " <> renderOp op <> " " <> renderTerm t2
+  where
+    renderOp = \case
+      Plus -> "+"
+      Mul -> "*"
+      Subtract -> "-"
+
 
 type Name = T.Text
 type VarName = T.Text
@@ -290,6 +297,13 @@ data Term ctx ty where
   FloatTerm :: Float -> Term ctx Float
   StringTerm :: ToString ty => ty -> Term ctx ty
 
+  BinOp :: Num ty => Op -> Term ctx ty -> Term ctx ty -> Term ctx ty
+
+data Op
+  = Plus
+  | Mul
+  | Subtract
+
 underscore, __ :: Term ctx ty
 underscore = UnderscoreTerm
 
@@ -306,14 +320,23 @@ instance IsString (Term ctx String) where fromString = StringTerm
 instance IsString (Term ctx T.Text) where fromString = StringTerm . T.pack
 instance IsString (Term ctx TL.Text) where fromString = StringTerm . TL.pack
 
-instance Num (Term ctx Int32) where
-  fromInteger = NumberTerm . fromInteger
+-- TODO: better name
+class Num ty => SupportsArithmetic ty where
+  fromInteger' :: Integer -> Term ctx ty
 
-instance Num (Term ctx Word32) where
-  fromInteger = UnsignedTerm . fromInteger
+instance SupportsArithmetic Int32 where
+  fromInteger' = NumberTerm . fromInteger
+instance SupportsArithmetic Word32 where
+  fromInteger' = UnsignedTerm . fromInteger
+instance SupportsArithmetic Float where
+  fromInteger' = FloatTerm . fromInteger
 
-instance Num (Term ctx Float) where
-  fromInteger = FloatTerm . fromInteger
+instance (SupportsArithmetic ty, Num ty) => Num (Term ctx ty) where
+  fromInteger = fromInteger'
+  (+) = BinOp Plus
+  (*) = BinOp Mul
+  (-) = BinOp Subtract
+
 
 instance Fractional (Term ctx Float) where
   fromRational = FloatTerm . fromRational
@@ -325,6 +348,8 @@ data SimpleTerm
   | F Float
   | S String
   | Underscore
+
+  | BinOp' Op SimpleTerm SimpleTerm
 
 data AST
   = TypeDef' VarName Direction [FieldData]
@@ -445,6 +470,8 @@ toTerm = \case
   UnsignedTerm x -> U x
   FloatTerm x -> F x
   UnderscoreTerm -> Underscore
+
+  BinOp op t1 t2 -> BinOp' op (toTerm t1) (toTerm t2)
 
 
 -- Helper functions / type families / ...
