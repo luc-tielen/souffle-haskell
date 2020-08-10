@@ -6,6 +6,7 @@ module Test.Language.Souffle.ExperimentalSpec
   ( module Test.Language.Souffle.ExperimentalSpec
   ) where
 
+import Prelude hiding ((^))
 import Test.Hspec
 import GHC.Generics
 import Data.Int
@@ -138,6 +139,7 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
             txt("ijk", "lmn")
             unsigned(42)
             float(42.42)
+            float(0.01)
       prog ==> [text|
         .decl edge(t1: symbol, t2: symbol)
         .input edge
@@ -154,6 +156,7 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
         textfact("ijk", "lmn").
         unsignedfact(42).
         floatfact(42.42).
+        floatfact(0.01).
         |]
 
     it "can render a relation with a single rule" $ do
@@ -490,13 +493,71 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
             floatfact(10.12 - 31.88).
             |]
 
-        it "supports unary -" pending
+        it "supports unary -" $ do
+          let prog = do
+                Predicate int <- typeDef @IntFact Input
+                Predicate float <- typeDef @FloatFact Input
+                int(-42)
+                int(-100)
+                float(-13.37)
+          prog ==> [text|
+            .decl intfact(t1: number)
+            .input intfact
+            .decl floatfact(t1: float)
+            .input floatfact
+            intfact(-42).
+            intfact(-100).
+            floatfact(-13.37).
+            |]
 
-        it "supports /" pending
+        it "supports /" $ do
+          let prog = do
+                Predicate float <- typeDef @FloatFact Input
+                float(13.37 / 0.01)
+          prog ==> [text|
+            .decl floatfact(t1: float)
+            .input floatfact
+            floatfact(13.37 / 0.01).
+            |]
 
-        it "supports ^" pending
+        it "supports ^" $ do
+          let prog = do
+                Predicate int <- typeDef @IntFact Input
+                Predicate unsigned <- typeDef @UnsignedFact Input
+                Predicate float <- typeDef @FloatFact Input
+                int(10 ^ 32)
+                int(10 ^ 80 ^ 10)
+                unsigned(10 ^ 32)
+                float(42.42 ^ 2)
+          prog ==> [text|
+            .decl intfact(t1: number)
+            .input intfact
+            .decl unsignedfact(t1: unsigned)
+            .input unsignedfact
+            .decl floatfact(t1: float)
+            .input floatfact
+            intfact(10 ^ 32).
+            intfact(10 ^ 80 ^ 10).
+            unsignedfact(10 ^ 32).
+            floatfact(42.42 ^ 2.0).
+            |]
 
-        it "supports %" pending
+        it "supports %" $ do
+          let prog = do
+                Predicate int <- typeDef @IntFact Input
+                Predicate unsigned <- typeDef @UnsignedFact Input
+                int(10 % 32)
+                int(10 % 80 % 10)
+                unsigned(10 % 32)
+          prog ==> [text|
+            .decl intfact(t1: number)
+            .input intfact
+            .decl unsignedfact(t1: unsigned)
+            .input unsignedfact
+            intfact(10 % 32).
+            intfact(10 % 80 % 10).
+            unsignedfact(10 % 32).
+            |]
 
       describe "logical operators" $ parallel $ do
         it "supports band" pending

@@ -19,6 +19,8 @@ module Language.Souffle.Experimental
   , underscore
   , __
   , not'
+  , (^)
+  , (%)
   , render
   , renderIO
   , UsageContext(..)
@@ -31,6 +33,7 @@ module Language.Souffle.Experimental
   -- TODO: check if export list is complete
   ) where
 
+import Prelude hiding ((^))
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Writer
@@ -44,6 +47,7 @@ import Data.Word
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import qualified Data.Text.Lazy as TL
+import Text.Printf (printf)
 import Data.Proxy
 import Data.String
 import GHC.Generics
@@ -242,17 +246,22 @@ renderTerm :: SimpleTerm -> T.Text
 renderTerm = \case
   I x -> T.pack $ show x
   U x -> T.pack $ show x
-  F x -> T.pack $ show x
+  F x -> T.pack $ printf "%f" x
   S s -> "\"" <> T.pack s <> "\""
   V v -> v
   Underscore -> "_"
 
-  BinOp' op t1 t2 -> renderTerm t1 <> " " <> renderOp op <> " " <> renderTerm t2
+  BinOp' op t1 t2 -> renderTerm t1 <> " " <> renderBinOp op <> " " <> renderTerm t2
+  UnaryOp' op t1 -> renderUnaryOp op <> renderTerm t1
   where
-    renderOp = \case
+    renderBinOp = \case
       Plus -> "+"
       Mul -> "*"
       Subtract -> "-"
+      Div -> "/"
+      Pow -> "^"
+      Rem -> "%"
+    renderUnaryOp Negate = "-"
 
 
 type Name = T.Text
@@ -297,12 +306,18 @@ data Term ctx ty where
   FloatTerm :: Float -> Term ctx Float
   StringTerm :: ToString ty => ty -> Term ctx ty
 
-  BinOp :: Num ty => Op -> Term ctx ty -> Term ctx ty -> Term ctx ty
+  BinOp :: Num ty => Op2 -> Term ctx ty -> Term ctx ty -> Term ctx ty
+  UnaryOp :: Num ty => Op1 -> Term ctx ty -> Term ctx ty
 
-data Op
+data Op2
   = Plus
   | Mul
   | Subtract
+  | Div
+  | Pow
+  | Rem
+
+data Op1 = Negate
 
 underscore, __ :: Term ctx ty
 underscore = UnderscoreTerm
@@ -336,10 +351,18 @@ instance (SupportsArithmetic ty, Num ty) => Num (Term ctx ty) where
   (+) = BinOp Plus
   (*) = BinOp Mul
   (-) = BinOp Subtract
-
+  negate = UnaryOp Negate
 
 instance Fractional (Term ctx Float) where
   fromRational = FloatTerm . fromRational
+  (/) = BinOp Div
+
+-- TODO: avoid conflict with prelude?
+(^) :: Num ty => Term ctx ty -> Term ctx ty -> Term ctx ty
+(^) = BinOp Pow
+
+(%) :: (Num ty, Integral ty) => Term ctx ty -> Term ctx ty -> Term ctx ty
+(%) = BinOp Rem
 
 data SimpleTerm
   = V VarName
@@ -349,7 +372,8 @@ data SimpleTerm
   | S String
   | Underscore
 
-  | BinOp' Op SimpleTerm SimpleTerm
+  | BinOp' Op2 SimpleTerm SimpleTerm
+  | UnaryOp' Op1 SimpleTerm
 
 data AST
   = TypeDef' VarName Direction [FieldData]
@@ -472,6 +496,7 @@ toTerm = \case
   UnderscoreTerm -> Underscore
 
   BinOp op t1 t2 -> BinOp' op (toTerm t1) (toTerm t2)
+  UnaryOp op t1 -> UnaryOp' op (toTerm t1)
 
 
 -- Helper functions / type families / ...
