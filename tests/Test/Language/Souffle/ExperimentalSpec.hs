@@ -560,15 +560,90 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
             |]
 
       describe "logical operators" $ parallel $ do
-        it "supports band" pending
+        it "supports band" $ do
+          let prog = do
+                Predicate int <- typeDef @IntFact Input
+                Predicate unsigned <- typeDef @UnsignedFact Input
+                int(10 `band` 32)
+                int(10 `band` 80 `band` 10)
+                unsigned(10 `band` 32)
+          prog ==> [text|
+            .decl intfact(t1: number)
+            .input intfact
+            .decl unsignedfact(t1: unsigned)
+            .input unsignedfact
+            intfact(10 band 32).
+            intfact(10 band 80 band 10).
+            unsignedfact(10 band 32).
+            |]
 
-        it "supports bor" pending
+        it "supports bor" $ do
+          let prog = do
+                Predicate int <- typeDef @IntFact Input
+                Predicate unsigned <- typeDef @UnsignedFact Input
+                int(10 `bor` 32)
+                int(10 `bor` 80 `bor` 10)
+                unsigned(10 `bor` 32)
+          prog ==> [text|
+            .decl intfact(t1: number)
+            .input intfact
+            .decl unsignedfact(t1: unsigned)
+            .input unsignedfact
+            intfact(10 bor 32).
+            intfact(10 bor 80 bor 10).
+            unsignedfact(10 bor 32).
+            |]
 
-        it "supports bxor" pending
+        it "supports bxor" $ do
+          let prog = do
+                Predicate int <- typeDef @IntFact Input
+                Predicate unsigned <- typeDef @UnsignedFact Input
+                int(10 `bxor` 32)
+                int(10 `bxor` 80 `bxor` 10)
+                unsigned(10 `bxor` 32)
+          prog ==> [text|
+            .decl intfact(t1: number)
+            .input intfact
+            .decl unsignedfact(t1: unsigned)
+            .input unsignedfact
+            intfact(10 bxor 32).
+            intfact(10 bxor 80 bxor 10).
+            unsignedfact(10 bxor 32).
+            |]
 
-        it "supports land" pending
+        it "supports land" $ do
+          let prog = do
+                Predicate int <- typeDef @IntFact Input
+                Predicate unsigned <- typeDef @UnsignedFact Input
+                int(10 `land` 32)
+                int(10 `land` 80 `land` 10)
+                unsigned(10 `land` 32)
+          prog ==> [text|
+            .decl intfact(t1: number)
+            .input intfact
+            .decl unsignedfact(t1: unsigned)
+            .input unsignedfact
+            intfact(10 land 32).
+            intfact(10 land 80 land 10).
+            unsignedfact(10 land 32).
+            |]
 
-        it "supports lor" pending
+        it "supports lor" $ do
+          let prog = do
+                Predicate int <- typeDef @IntFact Input
+                Predicate unsigned <- typeDef @UnsignedFact Input
+                int(10 `lor` 32)
+                int(10 `lor` 80 `lor` 10)
+                unsigned(10 `lor` 32)
+          prog ==> [text|
+            .decl intfact(t1: number)
+            .input intfact
+            .decl unsignedfact(t1: unsigned)
+            .input unsignedfact
+            intfact(10 lor 32).
+            intfact(10 lor 80 lor 10).
+            unsignedfact(10 lor 32).
+            |]
 
       describe "comparisons and equality operators" $ parallel $ do
         it "supports <" pending

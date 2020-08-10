@@ -10,6 +10,7 @@ module Language.Souffle.Experimental
   ( Predicate(..)
   , DSL
   , DL
+  , Term
   , Direction(..)
   , runDSL
   , var
@@ -21,6 +22,11 @@ module Language.Souffle.Experimental
   , not'
   , (^)
   , (%)
+  , band
+  , bor
+  , bxor
+  , lor
+  , land
   , render
   , renderIO
   , UsageContext(..)
@@ -261,6 +267,11 @@ renderTerm = \case
       Div -> "/"
       Pow -> "^"
       Rem -> "%"
+      BinaryAnd -> "band"
+      BinaryOr -> "bor"
+      BinaryXor -> "bxor"
+      LogicalAnd -> "land"
+      LogicalOr -> "lor"
     renderUnaryOp Negate = "-"
 
 
@@ -316,6 +327,12 @@ data Op2
   | Div
   | Pow
   | Rem
+  | BinaryAnd
+  | BinaryOr
+  | BinaryXor
+  | LogicalAnd
+  | LogicalOr
+
 
 data Op1 = Negate
 
@@ -363,6 +380,15 @@ instance Fractional (Term ctx Float) where
 
 (%) :: (Num ty, Integral ty) => Term ctx ty -> Term ctx ty -> Term ctx ty
 (%) = BinOp Rem
+
+band, bor, bxor, land, lor
+  :: (Num ty, Integral ty)
+  => Term ctx ty -> Term ctx ty -> Term ctx ty
+band = BinOp BinaryAnd
+bor = BinOp BinaryOr
+bxor = BinOp BinaryXor
+land = BinOp LogicalAnd
+lor = BinOp LogicalOr
 
 data SimpleTerm
   = V VarName
