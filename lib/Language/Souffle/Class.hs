@@ -14,11 +14,11 @@
 --   This module also contains some helper type families for additional
 --   type safety and user-friendly error messages.
 module Language.Souffle.Class
-  ( ContainsInputFact
-  , ContainsOutputFact
-  , Program(..)
+  ( Program(..)
   , Fact(..)
   , Direction(..)
+  , ContainsInputFact
+  , ContainsOutputFact
   , MonadSouffle(..)
   , MonadSouffleFileIO(..)
   ) where
@@ -37,9 +37,17 @@ import qualified Language.Souffle.Marshal as Marshal
 import Type.Errors.Pretty
 
 
+-- | A helper type family for checking if a specific Souffle `Program` contains
+--   a certain `Fact`. Additionally, it also checks if the fact is marked as
+--   either `Input` or `InputOutput`. This constraint will generate a
+--   user-friendly type error if these conditions are not met.
 type family ContainsInputFact prog fact :: Constraint where
   ContainsInputFact prog fact = (ContainsFact prog fact, IsInput fact (FactDirection fact))
 
+-- | A helper type family for checking if a specific Souffle `Program` contains
+--   a certain `Fact`. Additionally, it also checks if the fact is marked as
+--   either `Output` or `InputOutput`. This constraint will generate a
+--   user-friendly type error if these conditions are not met.
 type family ContainsOutputFact prog fact :: Constraint where
   ContainsOutputFact prog fact = (ContainsFact prog fact, IsOutput fact (FactDirection fact))
 
@@ -66,8 +74,6 @@ type family FormatDirection (dir :: Direction) where
   FormatDirection 'Input = "input"
   FormatDirection 'Internal = "internal"
 
--- | A helper type family for checking if a specific Souffle `Program` contains a certain `Fact`.
---   This will generate a user-friendly type error if this is not the case.
 type family ContainsFact prog fact :: Constraint where
   ContainsFact prog fact =
     CheckContains prog (ProgramFacts prog) fact
@@ -106,14 +112,11 @@ class Program a where
   -- It uses a 'Proxy' to select the correct instance.
   programName :: Proxy a -> String
 
-data Direction
-  = Input
-  | Output
-  | InputOutput
-  | Internal
-
 -- | A typeclass for data types representing a fact in datalog.
 class Marshal.Marshal a => Fact a where
+  -- | The direction or "mode" a fact can be used in.
+  --   This is used to perform compile-time checks that a fact is only used
+  --   in valid situations. For more information, see the 'Direction' type.
   type FactDirection a :: Direction
 
   -- | Function for obtaining the name of a fact
@@ -125,9 +128,24 @@ class Marshal.Marshal a => Fact a where
   --
   -- @
   -- instance Fact Edge where
+  --   type FactDirection Edge = 'Input
   --   factName = const "edge"
   -- @
   factName :: Proxy a -> String
+
+-- | A datatype describing which operations a certain fact supports.
+--   The direction is from the datalog perspective, so that it
+--   aligns with ".decl" statements in Souffle.
+data Direction
+  = Input
+  -- ^ Fact can only be stored in Datalog (using `addFact`/`addFacts`).
+  | Output
+  -- ^ Fact can only be read from Datalog (using `getFacts`/`findFact`).
+  | InputOutput
+  -- ^ Fact supports both reading from / writing to Datalog.
+  | Internal
+  -- ^ Supports neither reading from / writing to Datalog. This is used for
+  --   facts that are only visible inside Datalog itself.
 
 
 -- | A mtl-style typeclass for Souffle-related actions.

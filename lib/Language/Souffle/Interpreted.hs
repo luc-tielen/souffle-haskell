@@ -14,6 +14,8 @@ module Language.Souffle.Interpreted
   , Fact(..)
   , Marshal(..)
   , Direction(..)
+  , ContainsInputFact
+  , ContainsOutputFact
   , Config(..)
   , Handle
   , SouffleM

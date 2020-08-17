@@ -15,9 +15,12 @@ module Language.Souffle.Compiled
   , Fact(..)
   , Marshal(..)
   , Direction(..)
+  , ContainsInputFact
+  , ContainsOutputFact
   , Handle
   , SouffleM
   , MonadSouffle(..)
+  , MonadSouffleFileIO(..)
   , runSouffle
   ) where
 
