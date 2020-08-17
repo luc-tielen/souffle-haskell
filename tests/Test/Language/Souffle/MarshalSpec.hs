@@ -100,21 +100,27 @@ newtype FloatFact = FloatFact Float
   deriving (Eq, Show, Generic)
 
 instance Souffle.Fact StringFact where
+  type FactDirection StringFact = 'Souffle.InputOutput
   factName = const "string_fact"
 
 instance Souffle.Fact TextFact where
+  type FactDirection TextFact = 'Souffle.InputOutput
   factName = const "string_fact"
 
 instance Souffle.Fact LazyTextFact where
+  type FactDirection LazyTextFact = 'Souffle.InputOutput
   factName = const "string_fact"
 
 instance Souffle.Fact Int32Fact where
+  type FactDirection Int32Fact = 'Souffle.InputOutput
   factName = const "number_fact"
 
 instance Souffle.Fact Word32Fact where
+  type FactDirection Word32Fact = 'Souffle.InputOutput
   factName = const "unsigned_fact"
 
 instance Souffle.Fact FloatFact where
+  type FactDirection FloatFact = 'Souffle.InputOutput
   factName = const "float_fact"
 
 instance Souffle.Marshal StringFact
@@ -130,7 +136,9 @@ instance Souffle.Program RoundTrip where
   programName = const "round_trip"
 
 type RoundTripAction
-  = forall a. (Souffle.Fact a, Souffle.ContainsFact RoundTrip a)
+  = forall a. Souffle.Fact a
+  => Souffle.ContainsInputFact RoundTrip a
+  => Souffle.ContainsOutputFact RoundTrip a
   => a -> PropertyT IO a
 
 spec :: Spec

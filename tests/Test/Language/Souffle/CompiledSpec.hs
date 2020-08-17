@@ -24,9 +24,11 @@ instance Souffle.Program Path where
   programName = const "path"
 
 instance Souffle.Fact Edge where
+  type FactDirection Edge = 'Souffle.InputOutput
   factName = const "edge"
 
 instance Souffle.Fact Reachable where
+  type FactDirection Reachable = 'Souffle.Output
   factName = const "reachable"
 
 instance Souffle.Marshal Edge
@@ -100,16 +102,6 @@ spec = describe "Souffle API" $ parallel $ do
         pure (es1, es2)
       edgesBefore `shouldBe` [Edge "b" "c", Edge "a" "b"]
       edgesAfter `shouldBe` [Edge "e" "f", Edge "b" "c", Edge "a" "b"]
-
-    -- NOTE: this is different compared to interpreted version (bug in Souffle?)
-    it "can add a fact even if it is marked as output" $ do
-      reachables <- Souffle.runSouffle $ do
-        prog <- fromJust <$> Souffle.init Path
-        Souffle.addFact prog $ Reachable "e" "f"
-        Souffle.run prog
-        Souffle.getFacts prog
-      reachables `shouldBe` [ Reachable "e" "f", Reachable "b" "c"
-                            , Reachable "a" "c", Reachable "a" "b" ]
 
   describe "addFacts" $ parallel $
     it "can add multiple facts at once" $ do

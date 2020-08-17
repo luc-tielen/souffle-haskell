@@ -14,9 +14,11 @@
 --   This module also contains some helper type families for additional
 --   type safety and user-friendly error messages.
 module Language.Souffle.Class
-  ( ContainsFact
+  ( ContainsInputFact
+  , ContainsOutputFact
   , Program(..)
   , Fact(..)
+  , Direction(..)
   , MonadSouffle(..)
   , MonadSouffleFileIO(..)
   ) where
@@ -34,6 +36,35 @@ import Data.Word
 import qualified Language.Souffle.Marshal as Marshal
 import Type.Errors.Pretty
 
+
+type family ContainsInputFact prog fact :: Constraint where
+  ContainsInputFact prog fact = (ContainsFact prog fact, IsInput fact (FactDirection fact))
+
+type family ContainsOutputFact prog fact :: Constraint where
+  ContainsOutputFact prog fact = (ContainsFact prog fact, IsOutput fact (FactDirection fact))
+
+type family IsInput (fact :: Type) (dir :: Direction) :: Constraint where
+  IsInput _ 'Input = ()
+  IsInput _ 'InputOutput = ()
+  IsInput fact dir = TypeError
+    ( "You tried to use an " <> FormatDirection dir <> " fact of type " <> fact <> " as an input."
+    % "Possible solution: change the FactDirection of " <> fact
+      <> " to either 'Input' or 'InputOutput'."
+    )
+
+type family IsOutput (fact :: Type) (dir :: Direction) :: Constraint where
+  IsOutput _ 'Output = ()
+  IsOutput _ 'InputOutput = ()
+  IsOutput fact dir = TypeError
+    ( "You tried to use an " <> FormatDirection dir <> " fact of type " <> fact <> " as an output."
+    % "Possible solution: change the FactDirection of " <> fact
+      <> " to either 'Output' or 'InputOutput'."
+    )
+
+type family FormatDirection (dir :: Direction) where
+  FormatDirection 'Output = "output"
+  FormatDirection 'Input = "input"
+  FormatDirection 'Internal = "internal"
 
 -- | A helper type family for checking if a specific Souffle `Program` contains a certain `Fact`.
 --   This will generate a user-friendly type error if this is not the case.
@@ -75,8 +106,16 @@ class Program a where
   -- It uses a 'Proxy' to select the correct instance.
   programName :: Proxy a -> String
 
+data Direction
+  = Input
+  | Output
+  | InputOutput
+  | Internal
+
 -- | A typeclass for data types representing a fact in datalog.
 class Marshal.Marshal a => Fact a where
+  type FactDirection a :: Direction
+
   -- | Function for obtaining the name of a fact
   --   (has to be the same as described in the Datalog program).
   --
@@ -122,7 +161,7 @@ class Monad m => MonadSouffle m where
 
   -- | Returns all facts of a program. This function makes use of type inference
   --   to select the type of fact to return.
-  getFacts :: (Fact a, ContainsFact prog a, CollectFacts m c)
+  getFacts :: (Fact a, ContainsOutputFact prog a, CollectFacts m c)
            => Handler m prog -> m (c a)
 
   -- | Searches for a fact in a program.
@@ -130,16 +169,16 @@ class Monad m => MonadSouffle m where
   --
   --   Conceptually equivalent to @List.find (== fact) \<$\> getFacts prog@,
   --   but this operation can be implemented much faster.
-  findFact :: (Fact a, ContainsFact prog a, Eq a)
+  findFact :: (Fact a, ContainsOutputFact prog a, Eq a)
            => Handler m prog -> a -> m (Maybe a)
 
   -- | Adds a fact to the program.
-  addFact :: (Fact a, ContainsFact prog a)
+  addFact :: (Fact a, ContainsInputFact prog a)
           => Handler m prog -> a -> m ()
 
   -- | Adds multiple facts to the program. This function could be implemented
   --   in terms of 'addFact', but this is done as a minor optimization.
-  addFacts :: (Foldable t, Fact a, ContainsFact prog a)
+  addFacts :: (Foldable t, Fact a, ContainsInputFact prog a)
            => Handler m prog -> t a -> m ()
 
 instance MonadSouffle m => MonadSouffle (ReaderT r m) where

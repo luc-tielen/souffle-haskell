@@ -30,9 +30,11 @@ data Reachable = Reachable String String
   deriving (Eq, Show, Generic)
 
 instance Souffle.Fact Edge where
+  type FactDirection Edge = 'Souffle.InputOutput
   factName = const "edge"
 
 instance Souffle.Fact Reachable where
+  type FactDirection Reachable = 'Souffle.Output
   factName = const "reachable"
 
 instance Souffle.Marshal Edge
@@ -136,18 +138,6 @@ spec = describe "Souffle API" $ parallel $ do
         Souffle.cleanup prog
         pure edges
       edges `shouldBe` [Edge "a" "b", Edge "b" "c", Edge "e" "f"]
-
-    -- NOTE: this is different compared to compiled version (bug in Souffle?)
-    it "can not add a fact if it is not marked as input" $ do
-      reachables <- Souffle.runSouffle $ do
-        prog <- fromJust <$> Souffle.init PathNoInput
-        Souffle.addFact prog $ Reachable "e" "f"
-        Souffle.run prog
-        reachables <- Souffle.getFacts prog
-        Souffle.cleanup prog
-        pure reachables
-      reachables `shouldBe`
-        [ Reachable "a" "b", Reachable "a" "c", Reachable "b" "c" ]
 
     it "adds a fact to a custom input directory" $ do
       cfg <- Souffle.defaultConfig
