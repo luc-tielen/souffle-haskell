@@ -90,7 +90,7 @@ spec = describe "Souffle API" $ parallel $ do
         Souffle.getFacts prog
       edges `shouldBe` ([] :: [Edge])
 
-  describe "addFact" $ parallel $ do
+  describe "addFact" $ parallel $
     it "adds a fact" $ do
       (edgesBefore, edgesAfter) <- Souffle.runSouffle $ do
         prog <- fromJust <$> Souffle.init Path
