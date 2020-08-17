@@ -46,28 +46,28 @@ data Reachable = Reachable String String
   deriving (Generic, Marshal)
 
 instance Fact Point where
-  type FactDirection Point = 'Output
+  type FactDirection Point = 'Input
   factName = const "point"
 instance Fact IntFact where
-  type FactDirection IntFact = 'Output
+  type FactDirection IntFact = 'Input
   factName = const "intfact"
 instance Fact FloatFact where
-  type FactDirection FloatFact = 'Output
+  type FactDirection FloatFact = 'Input
   factName = const "floatfact"
 instance Fact UnsignedFact where
-  type FactDirection UnsignedFact = 'Output
+  type FactDirection UnsignedFact = 'Input
   factName = const "unsignedfact"
 instance Fact TextFact where
-  type FactDirection TextFact = 'Output
+  type FactDirection TextFact = 'InputOutput
   factName = const "textfact"
 instance Fact Triple where
-  type FactDirection Triple = 'Output
+  type FactDirection Triple = 'Internal
   factName = const "triple"
 instance Fact Vertex where
   type FactDirection Vertex = 'Output
   factName = const "vertex"
 instance Fact Edge where
-  type FactDirection Edge = 'Output
+  type FactDirection Edge = 'Input
   factName = const "edge"
 instance Fact Reachable where
   type FactDirection Reachable = 'Output
@@ -75,7 +75,7 @@ instance Fact Reachable where
 
 
 spec :: Spec
-spec = fdescribe "Souffle DSL" $ parallel $ do
+spec = describe "Souffle DSL" $ parallel $ do
   describe "code generation" $ parallel $ do
     let prog ==> txt = render (runDSL prog) `shouldBe` (txt <> "\n")
 
@@ -84,7 +84,7 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
     it "can render a program with an input type definition" $ do
       let prog = do
-            Predicate _ <- typeDef @Edge Input
+            Predicate _ <- predicateFor @Edge
             pure ()
       prog ==> [text|
         .decl edge(t1: symbol, t2: symbol)
@@ -93,37 +93,37 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
     it "can render a program with an output type definition" $ do
       let prog = do
-            Predicate _ <- typeDef @Edge Output
+            Predicate _ <- predicateFor @Reachable
             pure ()
       prog ==> [text|
-        .decl edge(t1: symbol, t2: symbol)
-        .output edge
+        .decl reachable(t1: symbol, t2: symbol)
+        .output reachable
         |]
 
     it "can render a program with type declared both as in- and output" $ do
       let prog = do
-            Predicate _ <- typeDef @Edge InputOutput
+            Predicate _ <- predicateFor @TextFact
             pure ()
       prog ==> [text|
-        .decl edge(t1: symbol, t2: symbol)
-        .input edge
-        .output edge
+        .decl textfact(t1: symbol, t2: symbol)
+        .input textfact
+        .output textfact
         |]
 
     it "can render a program with type declared and only used internally" $ do
       let prog = do
-            Predicate _ <- typeDef @Edge Internal
+            Predicate _ <- predicateFor @Triple
             pure ()
       prog ==> [text|
-        .decl edge(t1: symbol, t2: symbol)
+        .decl triple(t1: symbol, t2: number, t3: symbol)
         |]
 
     it "renders type declaration based on type info" $ do
       let prog = do
-            Predicate _ <- typeDef @IntFact Input
-            Predicate _ <- typeDef @UnsignedFact Input
-            Predicate _ <- typeDef @FloatFact Input
-            Predicate _ <- typeDef @Triple Output
+            Predicate _ <- predicateFor @IntFact
+            Predicate _ <- predicateFor @UnsignedFact
+            Predicate _ <- predicateFor @FloatFact
+            Predicate _ <- predicateFor @Triple
             pure ()
       prog ==> [text|
         .decl intfact(t1: number)
@@ -133,12 +133,11 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
         .decl floatfact(t1: float)
         .input floatfact
         .decl triple(t1: symbol, t2: number, t3: symbol)
-        .output triple
         |]
 
     it "uses record accessors as attribute names in type declaration if provided" $ do
       let prog = do
-            Predicate _ <- typeDef @Point Input
+            Predicate _ <- predicateFor @Point
             pure ()
       prog ==> [text|
         .decl point(x: number, y: number)
@@ -147,11 +146,11 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
     it "can render facts" $ do
       let prog = do
-            Predicate edge <- typeDef @Edge Input
-            Predicate triple <- typeDef @Triple Input
-            Predicate txt <- typeDef @TextFact Input
-            Predicate unsigned <- typeDef @UnsignedFact Input
-            Predicate float <- typeDef @FloatFact Input
+            Predicate edge <- predicateFor @Edge
+            Predicate triple <- predicateFor @Triple
+            Predicate txt <- predicateFor @TextFact
+            Predicate unsigned <- predicateFor @UnsignedFact
+            Predicate float <- predicateFor @FloatFact
             edge("a", "b")
             triple("cde", 1000, "fgh")
             txt("ijk", "lmn")
@@ -162,9 +161,9 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
         .decl edge(t1: symbol, t2: symbol)
         .input edge
         .decl triple(t1: symbol, t2: number, t3: symbol)
-        .input triple
         .decl textfact(t1: symbol, t2: symbol)
         .input textfact
+        .output textfact
         .decl unsignedfact(t1: unsigned)
         .input unsignedfact
         .decl floatfact(t1: float)
@@ -179,8 +178,8 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
     it "can render a relation with a single rule" $ do
       let prog = do
-            Predicate edge <- typeDef @Edge Input
-            Predicate reachable <- typeDef @Reachable Output
+            Predicate edge <- predicateFor @Edge
+            Predicate reachable <- predicateFor @Reachable
             a <- var "a"
             b <- var "b"
             reachable(a, b) |- edge(a, b)
@@ -195,8 +194,8 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
     it "can render a relation with multiple rules" $ do
       let prog = do
-            Predicate edge <- typeDef @Edge Input
-            Predicate reachable <- typeDef @Reachable Output
+            Predicate edge <- predicateFor @Edge
+            Predicate reachable <- predicateFor @Reachable
             a <- var "a"
             b <- var "b"
             reachable(a, b) |- do
@@ -216,8 +215,8 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
     it "can render a relation containing a wildcard" $ do
       let prog = do
-            Predicate edge <- typeDef @Edge Input
-            Predicate vertex <- typeDef @Vertex Output
+            Predicate edge <- predicateFor @Edge
+            Predicate vertex <- predicateFor @Vertex
             a <- var "a"
             vertex(a) |- do
               edge(a, __)
@@ -234,8 +233,8 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
     it "can render a relation with a logical or in the rule block" $ do
       let prog = do
-            Predicate edge <- typeDef @Edge Input
-            Predicate reachable <- typeDef @Reachable Output
+            Predicate edge <- predicateFor @Edge
+            Predicate reachable <- predicateFor @Reachable
             a <- var "a"
             b <- var "b"
             reachable(a, b) |- do
@@ -260,8 +259,8 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
     it "can render a relation with multiple clauses" $ do
       let prog = do
-            Predicate edge <- typeDef @Edge Input
-            Predicate reachable <- typeDef @Reachable Output
+            Predicate edge <- predicateFor @Edge
+            Predicate reachable <- predicateFor @Reachable
             a <- var "a"
             b <- var "b"
             c <- var "c"
@@ -283,8 +282,8 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
     it "can render a mix of and- and or- clauses correctly" $ do
       let prog = do
-            Predicate edge <- typeDef @Edge Input
-            Predicate reachable <- typeDef @Reachable Output
+            Predicate edge <- predicateFor @Edge
+            Predicate reachable <- predicateFor @Reachable
             a <- var "a"
             b <- var "b"
             c <- var "c"
@@ -304,8 +303,8 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
     it "discards empty alternative blocks" $ do
       let prog = do
-            Predicate edge <- typeDef @Edge Input
-            Predicate reachable <- typeDef @Reachable Output
+            Predicate edge <- predicateFor @Edge
+            Predicate reachable <- predicateFor @Reachable
             a <- var "a"
             b <- var "b"
             c <- var "c"
@@ -337,7 +336,7 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
     it "discards rules with empty rule blocks completely" $ do
       let prog = do
-            Predicate reachable <- typeDef @Reachable Output
+            Predicate reachable <- predicateFor @Reachable
             a <- var "a"
             b <- var "b"
             reachable(a, b) |- do
@@ -352,7 +351,7 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
     it "discards empty negations" $ do
       let prog = do
-            Predicate reachable <- typeDef @Reachable Output
+            Predicate reachable <- predicateFor @Reachable
             a <- var "a"
             b <- var "b"
             reachable(a, b) |- do
@@ -377,8 +376,8 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
               p2(a, c)
               p1(c, b)
           prog = do
-            edge <- typeDef @Edge Input
-            reachable <- typeDef @Reachable Output
+            edge <- predicateFor @Edge
+            reachable <- predicateFor @Reachable
             transitive reachable edge
       prog ==> [text|
         .decl edge(t1: symbol, t2: symbol)
@@ -394,8 +393,8 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
     it "can render logical negation in rule block" $ do
       let prog = do
-            Predicate edge <- typeDef @Edge Input
-            Predicate triple <- typeDef @Triple Output
+            Predicate edge <- predicateFor @Edge
+            Predicate triple <- predicateFor @Triple
             a <- var "a"
             b <- var "b"
             c <- var "c"
@@ -413,7 +412,6 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
         .decl edge(t1: symbol, t2: symbol)
         .input edge
         .decl triple(t1: symbol, t2: number, t3: symbol)
-        .output triple
         triple(a, b, c) :-
           !edge(a, c).
         triple(a, b, c) :-
@@ -428,8 +426,8 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
     it "generates unique var names to avoid name collisions" $ do
       let prog = do
-            Predicate edge <- typeDef @Edge Input
-            Predicate reachable <- typeDef @Reachable Output
+            Predicate edge <- predicateFor @Edge
+            Predicate reachable <- predicateFor @Reachable
             a <- var "a"
             a' <- var "a"
             reachable(a, a') |- edge(a, a')
@@ -447,9 +445,9 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
       describe "arithmetic" $ parallel $ do
         it "supports +" $ do
           let prog = do
-                Predicate int <- typeDef @IntFact Input
-                Predicate unsigned <- typeDef @UnsignedFact Input
-                Predicate float <- typeDef @FloatFact Input
+                Predicate int <- predicateFor @IntFact
+                Predicate unsigned <- predicateFor @UnsignedFact
+                Predicate float <- predicateFor @FloatFact
                 int(10 + 32)
                 int(10 + 80 + 10)
                 unsigned(10 + 32)
@@ -469,9 +467,9 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
         it "supports *" $ do
           let prog = do
-                Predicate int <- typeDef @IntFact Input
-                Predicate unsigned <- typeDef @UnsignedFact Input
-                Predicate float <- typeDef @FloatFact Input
+                Predicate int <- predicateFor @IntFact
+                Predicate unsigned <- predicateFor @UnsignedFact
+                Predicate float <- predicateFor @FloatFact
                 int(10 * 32)
                 int(10 * 80 * 10)
                 unsigned(10 * 32)
@@ -491,9 +489,9 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
         it "supports binary -" $ do
           let prog = do
-                Predicate int <- typeDef @IntFact Input
-                Predicate unsigned <- typeDef @UnsignedFact Input
-                Predicate float <- typeDef @FloatFact Input
+                Predicate int <- predicateFor @IntFact
+                Predicate unsigned <- predicateFor @UnsignedFact
+                Predicate float <- predicateFor @FloatFact
                 int(10 - 32)
                 int(10 - 80 - 10)
                 unsigned(10 - 32)
@@ -513,8 +511,8 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
         it "supports unary -" $ do
           let prog = do
-                Predicate int <- typeDef @IntFact Input
-                Predicate float <- typeDef @FloatFact Input
+                Predicate int <- predicateFor @IntFact
+                Predicate float <- predicateFor @FloatFact
                 int(-42)
                 int(-100)
                 float(-13.37)
@@ -530,7 +528,7 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
         it "supports /" $ do
           let prog = do
-                Predicate float <- typeDef @FloatFact Input
+                Predicate float <- predicateFor @FloatFact
                 float(13.37 / 0.01)
           prog ==> [text|
             .decl floatfact(t1: float)
@@ -540,9 +538,9 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
         it "supports ^" $ do
           let prog = do
-                Predicate int <- typeDef @IntFact Input
-                Predicate unsigned <- typeDef @UnsignedFact Input
-                Predicate float <- typeDef @FloatFact Input
+                Predicate int <- predicateFor @IntFact
+                Predicate unsigned <- predicateFor @UnsignedFact
+                Predicate float <- predicateFor @FloatFact
                 int(10 ^ 32)
                 int(10 ^ 80 ^ 10)
                 unsigned(10 ^ 32)
@@ -562,8 +560,8 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
         it "supports %" $ do
           let prog = do
-                Predicate int <- typeDef @IntFact Input
-                Predicate unsigned <- typeDef @UnsignedFact Input
+                Predicate int <- predicateFor @IntFact
+                Predicate unsigned <- predicateFor @UnsignedFact
                 int(10 % 32)
                 int(10 % 80 % 10)
                 unsigned(10 % 32)
@@ -580,8 +578,8 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
       describe "logical operators" $ parallel $ do
         it "supports band" $ do
           let prog = do
-                Predicate int <- typeDef @IntFact Input
-                Predicate unsigned <- typeDef @UnsignedFact Input
+                Predicate int <- predicateFor @IntFact
+                Predicate unsigned <- predicateFor @UnsignedFact
                 int(10 `band` 32)
                 int(10 `band` 80 `band` 10)
                 unsigned(10 `band` 32)
@@ -597,8 +595,8 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
         it "supports bor" $ do
           let prog = do
-                Predicate int <- typeDef @IntFact Input
-                Predicate unsigned <- typeDef @UnsignedFact Input
+                Predicate int <- predicateFor @IntFact
+                Predicate unsigned <- predicateFor @UnsignedFact
                 int(10 `bor` 32)
                 int(10 `bor` 80 `bor` 10)
                 unsigned(10 `bor` 32)
@@ -614,8 +612,8 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
         it "supports bxor" $ do
           let prog = do
-                Predicate int <- typeDef @IntFact Input
-                Predicate unsigned <- typeDef @UnsignedFact Input
+                Predicate int <- predicateFor @IntFact
+                Predicate unsigned <- predicateFor @UnsignedFact
                 int(10 `bxor` 32)
                 int(10 `bxor` 80 `bxor` 10)
                 unsigned(10 `bxor` 32)
@@ -631,8 +629,8 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
         it "supports land" $ do
           let prog = do
-                Predicate int <- typeDef @IntFact Input
-                Predicate unsigned <- typeDef @UnsignedFact Input
+                Predicate int <- predicateFor @IntFact
+                Predicate unsigned <- predicateFor @UnsignedFact
                 int(10 `land` 32)
                 int(10 `land` 80 `land` 10)
                 unsigned(10 `land` 32)
@@ -648,8 +646,8 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
         it "supports lor" $ do
           let prog = do
-                Predicate int <- typeDef @IntFact Input
-                Predicate unsigned <- typeDef @UnsignedFact Input
+                Predicate int <- predicateFor @IntFact
+                Predicate unsigned <- predicateFor @UnsignedFact
                 int(10 `lor` 32)
                 int(10 `lor` 80 `lor` 10)
                 unsigned(10 `lor` 32)
@@ -668,9 +666,9 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
         -- since vars are not grounded (but is done to keep tests succinct)
         it "supports <" $ do
           let prog = do
-                Predicate int <- typeDef @IntFact Input
-                Predicate unsigned <- typeDef @UnsignedFact Input
-                Predicate float <- typeDef @FloatFact Input
+                Predicate int <- predicateFor @IntFact
+                Predicate unsigned <- predicateFor @UnsignedFact
+                Predicate float <- predicateFor @FloatFact
                 a <- var "a"
                 b <- var "b"
                 c <- var "c"
@@ -694,9 +692,9 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
         it "supports <=" $ do
           let prog = do
-                Predicate int <- typeDef @IntFact Input
-                Predicate unsigned <- typeDef @UnsignedFact Input
-                Predicate float <- typeDef @FloatFact Input
+                Predicate int <- predicateFor @IntFact
+                Predicate unsigned <- predicateFor @UnsignedFact
+                Predicate float <- predicateFor @FloatFact
                 a <- var "a"
                 b <- var "b"
                 c <- var "c"
@@ -720,9 +718,9 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
         it "supports >" $ do
           let prog = do
-                Predicate int <- typeDef @IntFact Input
-                Predicate unsigned <- typeDef @UnsignedFact Input
-                Predicate float <- typeDef @FloatFact Input
+                Predicate int <- predicateFor @IntFact
+                Predicate unsigned <- predicateFor @UnsignedFact
+                Predicate float <- predicateFor @FloatFact
                 a <- var "a"
                 b <- var "b"
                 c <- var "c"
@@ -746,9 +744,9 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
         it "supports >=" $ do
           let prog = do
-                Predicate int <- typeDef @IntFact Input
-                Predicate unsigned <- typeDef @UnsignedFact Input
-                Predicate float <- typeDef @FloatFact Input
+                Predicate int <- predicateFor @IntFact
+                Predicate unsigned <- predicateFor @UnsignedFact
+                Predicate float <- predicateFor @FloatFact
                 a <- var "a"
                 b <- var "b"
                 c <- var "c"
@@ -772,9 +770,9 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
         it "supports =" $ do
           let prog = do
-                Predicate int <- typeDef @IntFact Input
-                Predicate unsigned <- typeDef @UnsignedFact Input
-                Predicate float <- typeDef @FloatFact Input
+                Predicate int <- predicateFor @IntFact
+                Predicate unsigned <- predicateFor @UnsignedFact
+                Predicate float <- predicateFor @FloatFact
                 a <- var "a"
                 b <- var "b"
                 c <- var "c"
@@ -798,9 +796,9 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
         it "supports !=" $ do
           let prog = do
-                Predicate int <- typeDef @IntFact Input
-                Predicate unsigned <- typeDef @UnsignedFact Input
-                Predicate float <- typeDef @FloatFact Input
+                Predicate int <- predicateFor @IntFact
+                Predicate unsigned <- predicateFor @UnsignedFact
+                Predicate float <- predicateFor @FloatFact
                 a <- var "a"
                 b <- var "b"
                 c <- var "c"
@@ -825,9 +823,9 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
     describe "functors" $ parallel $ do
       it "supports max" $ do
         let prog = do
-              Predicate int <- typeDef @IntFact Input
-              Predicate unsigned <- typeDef @UnsignedFact Input
-              Predicate float <- typeDef @FloatFact Input
+              Predicate int <- predicateFor @IntFact
+              Predicate unsigned <- predicateFor @UnsignedFact
+              Predicate float <- predicateFor @FloatFact
               int(max' 10 32)
               int(max' (max' 10 80) 10)
               unsigned(max' 10 32)
@@ -847,9 +845,9 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
 
       it "supports min" $ do
         let prog = do
-              Predicate int <- typeDef @IntFact Input
-              Predicate unsigned <- typeDef @UnsignedFact Input
-              Predicate float <- typeDef @FloatFact Input
+              Predicate int <- predicateFor @IntFact
+              Predicate unsigned <- predicateFor @UnsignedFact
+              Predicate float <- predicateFor @FloatFact
               int(min' 10 32)
               int(min' (min' 10 80) 10)
               unsigned(min' 10 32)

@@ -14,7 +14,7 @@ module Language.Souffle.Experimental
   , Direction(..)
   , runDSL
   , var
-  , typeDef
+  , predicateFor
   , (|-)
   , (\/)
   , underscore
@@ -42,7 +42,7 @@ module Language.Souffle.Experimental
   , Body
   , Structure
   , Fragment
-  , CanTypeDef
+  , ToPredicate
   , NoVarsInAtom
   -- TODO: check if export list is complete
   ) where
@@ -81,11 +81,10 @@ newtype DSL ctx a = DSL (StateT VarMap (Writer [AST]) a)
   via (StateT VarMap (Writer [AST]))
 
 
-
 runDSL :: DSL 'Definition a -> DL
-runDSL (DSL a) = Program $ mapMaybe simplify $ execWriter (evalStateT a mempty) where
+runDSL (DSL a) = Statements $ mapMaybe simplify $ execWriter (evalStateT a mempty) where
   simplify = \case
-    TypeDef' name dir fields -> pure $ TypeDef name dir fields
+    Declare' name dir fields -> pure $ Declare name dir fields
     Rule' name terms body -> Rule name terms <$> simplify body
     Atom' name terms -> pure $ Atom name terms
     And' exprs -> case mapMaybe simplify exprs of
@@ -131,28 +130,43 @@ runBody (Body m) = execWriter m
 data TypeInfo (a :: k) (ts :: [Type])
   = TypeInfo
 
-type CanTypeDef a ts =
-  ( Assert (Length ts <=? 10) BigTupleError
-  , ToDLTypes ts
-  , ToTerms ts
-  , KnownSymbols (AccessorNames a)
+type ToPredicate a =
+  ( Fact a
   , SimpleProduct a
-  , Fact a
+  , Assert (Length (Structure a) <=? 10) BigTupleError
+  , KnownDLTypes (Structure a)
+  , KnownDirection (FactDirection a)
+  , KnownSymbols (AccessorNames a)
+  , ToTerms (Structure a)
   )
 
-typeDef :: forall a ts. (ts ~ Structure a, CanTypeDef a ts)
-        => Direction -> DSL 'Definition (Predicate a)
-typeDef d = do
-  let p = Proxy :: Proxy a
-      typeInfo = TypeInfo :: TypeInfo a ts
+-- TODO:
+-- store program handle type on DSL as type param, pass in via runDSL
+-- add extra checks to predicateFor
+-- make Language.Souffle.Class leading...
+-- add functions for running interpreted souffle
+
+predicateFor :: forall a. ToPredicate a => DSL 'Definition (Predicate a)
+predicateFor = do
+  let typeInfo = TypeInfo :: TypeInfo a (Structure a)
+      p = Proxy :: Proxy a
       name = T.pack $ factName p
-      genericNames = map (("t" <>) . T.pack . show) [1..]
       accNames = maybe genericNames id $ accessorNames p
-      tys = getTypes (Proxy :: Proxy ts)
+      genericNames = map (("t" <>) . T.pack . show) [1..]
+      tys = getTypes (Proxy :: Proxy (Structure a))
+      direction = getDirection (Proxy :: Proxy (FactDirection a))
       fields = map (uncurry FieldData) $ zip tys accNames
-      definition = TypeDef' name d fields
+      definition = Declare' name direction fields
   addDefinition definition
   pure $ Predicate $ toFragment typeInfo name
+
+
+class KnownDirection a where
+  getDirection :: Proxy a -> Direction
+instance KnownDirection 'Input where getDirection = const Input
+instance KnownDirection 'Output where getDirection = const Output
+instance KnownDirection 'InputOutput where getDirection = const InputOutput
+instance KnownDirection 'Internal where getDirection = const Internal
 
 (|-) :: Head 'Relation a -> Body 'Relation () -> DSL 'Definition ()
 Head name terms |- body =
@@ -189,9 +203,9 @@ renderIO path = TIO.writeFile path . render
 render :: DL -> T.Text
 render = flip runReader TopLevel . f where
   f = \case
-    Program stmts ->
+    Statements stmts ->
       T.unlines <$> traverse f stmts
-    TypeDef name dir fields ->
+    Declare name dir fields ->
       let fieldPairs = map renderField fields
        in pure $ T.intercalate "\n" $ catMaybes
         [ Just $ ".decl " <> name <> "(" <> T.intercalate ", " fieldPairs <> ")"
@@ -462,7 +476,7 @@ data SimpleTerm
   | Func' FuncName (NonEmpty SimpleTerm)
 
 data AST
-  = TypeDef' VarName Direction [FieldData]
+  = Declare' VarName Direction [FieldData]
   | Rule' Name (NonEmpty SimpleTerm) AST
   | Atom' Name (NonEmpty SimpleTerm)
   | And' [AST]
@@ -471,8 +485,8 @@ data AST
   | Constrain' SimpleTerm
 
 data DL
-  = Program [DL]
-  | TypeDef VarName Direction [FieldData]
+  = Statements [DL]
+  | Declare VarName Direction [FieldData]
   | Rule Name (NonEmpty SimpleTerm) DL
   | Atom Name (NonEmpty SimpleTerm)
   | And DL DL
@@ -481,24 +495,24 @@ data DL
   | Constrain SimpleTerm
 
 
-class ToDLTypes (ts :: [Type]) where
+class KnownDLTypes (ts :: [Type]) where
   getTypes :: Proxy ts -> [DLType]
 
-instance ToDLTypes '[] where
+instance KnownDLTypes '[] where
   getTypes _ = []
 
-instance (ToDLType t, ToDLTypes ts) => ToDLTypes (t ': ts) where
+instance (KnownDLType t, KnownDLTypes ts) => KnownDLTypes (t ': ts) where
   getTypes _ = getType (Proxy :: Proxy t) : getTypes (Proxy :: Proxy ts)
 
-class ToDLType t where
+class KnownDLType t where
   getType :: Proxy t -> DLType
 
-instance ToDLType Int32 where getType = const DLNumber
-instance ToDLType Word32 where getType = const DLUnsigned
-instance ToDLType Float where getType = const DLFloat
-instance ToDLType String where getType = const DLString
-instance ToDLType T.Text where getType = const DLString
-instance ToDLType TL.Text where getType = const DLString
+instance KnownDLType Int32 where getType = const DLNumber
+instance KnownDLType Word32 where getType = const DLUnsigned
+instance KnownDLType Float where getType = const DLFloat
+instance KnownDLType String where getType = const DLString
+instance KnownDLType T.Text where getType = const DLString
+instance KnownDLType TL.Text where getType = const DLString
 
 type family AccessorNames a :: [Symbol] where
   AccessorNames a = GetAccessorNames (Rep a)
