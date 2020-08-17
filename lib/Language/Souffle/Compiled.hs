@@ -14,9 +14,13 @@ module Language.Souffle.Compiled
   ( Program(..)
   , Fact(..)
   , Marshal(..)
+  , Direction(..)
+  , ContainsInputFact
+  , ContainsOutputFact
   , Handle
   , SouffleM
   , MonadSouffle(..)
+  , MonadSouffleFileIO(..)
   , runSouffle
   ) where
 
@@ -171,7 +175,7 @@ instance MonadSouffle SouffleM where
     SouffleM $ Internal.getNumThreads prog
   {-# INLINABLE getNumThreads #-}
 
-  addFact :: forall a prog. (Fact a, ContainsFact prog a)
+  addFact :: forall a prog. (Fact a, ContainsInputFact prog a)
           => Handle prog -> a -> SouffleM ()
   addFact (Handle prog) fact = liftIO $ do
     let relationName = factName (Proxy :: Proxy a)
@@ -179,7 +183,7 @@ instance MonadSouffle SouffleM where
     addFact' relation fact
   {-# INLINABLE addFact #-}
 
-  addFacts :: forall t a prog . (Foldable t, Fact a, ContainsFact prog a)
+  addFacts :: forall t a prog . (Foldable t, Fact a, ContainsInputFact prog a)
            => Handle prog -> t a -> SouffleM ()
   addFacts (Handle prog) facts = liftIO $ do
     let relationName = factName (Proxy :: Proxy a)
@@ -187,7 +191,7 @@ instance MonadSouffle SouffleM where
     traverse_ (addFact' relation) facts
   {-# INLINABLE addFacts #-}
 
-  getFacts :: forall a c prog. (Fact a, ContainsFact prog a, Collect c)
+  getFacts :: forall a c prog. (Fact a, ContainsOutputFact prog a, Collect c)
            => Handle prog -> SouffleM (c a)
   getFacts (Handle prog) = SouffleM $ do
     let relationName = factName (Proxy :: Proxy a)
@@ -196,7 +200,7 @@ instance MonadSouffle SouffleM where
     Internal.getRelationIterator relation >>= collect factCount
   {-# INLINABLE getFacts #-}
 
-  findFact :: forall a prog. (Fact a, ContainsFact prog a)
+  findFact :: forall a prog. (Fact a, ContainsOutputFact prog a)
            => Handle prog -> a -> SouffleM (Maybe a)
   findFact (Handle prog) fact = SouffleM $ do
     let relationName = factName (Proxy :: Proxy a)

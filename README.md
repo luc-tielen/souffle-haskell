@@ -77,9 +77,11 @@ instance Souffle.Program Path where
 -- By making a data type an instance of Fact, we give Haskell the
 -- necessary information to bind to the datalog fact.
 instance Souffle.Fact Edge where
+  type FactDirection Edge = 'Souffle.Input
   factName = const "edge"
 
 instance Souffle.Fact Reachable where
+  type FactDirection Reachable = 'Souffle.Output
   factName = const "reachable"
 
 -- For simple product types, we can automatically generate the

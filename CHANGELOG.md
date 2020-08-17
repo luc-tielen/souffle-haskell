@@ -3,6 +3,19 @@
 All notable changes to this project (as seen by library users) will be documented in this file.
 The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-haskell.git/CHANGELOG.md).
 
+## [???] - Unreleased
+
+### Added
+
+- The `Fact` typeclass now also requires you to specify the `FactDirection`.
+  This prevents inconsistent and buggy behavior when trying to use a fact in
+  an invalid way (e.g. trying to add an output-only fact).
+
+### Changed
+
+- `getFacts`, `findFact`, `addFact` and `addFacts` now have stricter
+  constraints in their type signatures to prevent invalid usage of facts.
+
 ## [1.1.0] - 2020-07-26
 
 ### Added
