@@ -646,19 +646,205 @@ spec = fdescribe "Souffle DSL" $ parallel $ do
             |]
 
       describe "comparisons and equality operators" $ parallel $ do
-        it "supports <" pending
+        -- NOTE: the following generated programs are not correct
+        -- since vars are not grounded (but is done to keep tests succinct)
+        it "supports <" $ do
+          let prog = do
+                Predicate int <- typeDef @IntFact Input
+                Predicate unsigned <- typeDef @UnsignedFact Input
+                Predicate float <- typeDef @FloatFact Input
+                a <- var "a"
+                b <- var "b"
+                c <- var "c"
+                int(a) |- a .< 10
+                unsigned(b) |- b .< 10
+                float(c) |- c .< 10.1
+          prog ==> [text|
+            .decl intfact(t1: number)
+            .input intfact
+            .decl unsignedfact(t1: unsigned)
+            .input unsignedfact
+            .decl floatfact(t1: float)
+            .input floatfact
+            intfact(a) :-
+              a < 10.
+            unsignedfact(b) :-
+              b < 10.
+            floatfact(c) :-
+              c < 10.1.
+            |]
 
-        it "supports <=" pending
+        it "supports <=" $ do
+          let prog = do
+                Predicate int <- typeDef @IntFact Input
+                Predicate unsigned <- typeDef @UnsignedFact Input
+                Predicate float <- typeDef @FloatFact Input
+                a <- var "a"
+                b <- var "b"
+                c <- var "c"
+                int(a) |- a .<= 10
+                unsigned(b) |- b .<= 10
+                float(c) |- c .<= 10.1
+          prog ==> [text|
+            .decl intfact(t1: number)
+            .input intfact
+            .decl unsignedfact(t1: unsigned)
+            .input unsignedfact
+            .decl floatfact(t1: float)
+            .input floatfact
+            intfact(a) :-
+              a <= 10.
+            unsignedfact(b) :-
+              b <= 10.
+            floatfact(c) :-
+              c <= 10.1.
+            |]
 
-        it "supports >" pending
+        it "supports >" $ do
+          let prog = do
+                Predicate int <- typeDef @IntFact Input
+                Predicate unsigned <- typeDef @UnsignedFact Input
+                Predicate float <- typeDef @FloatFact Input
+                a <- var "a"
+                b <- var "b"
+                c <- var "c"
+                int(a) |- a .> 10
+                unsigned(b) |- b .> 10
+                float(c) |- c .> 10.1
+          prog ==> [text|
+            .decl intfact(t1: number)
+            .input intfact
+            .decl unsignedfact(t1: unsigned)
+            .input unsignedfact
+            .decl floatfact(t1: float)
+            .input floatfact
+            intfact(a) :-
+              a > 10.
+            unsignedfact(b) :-
+              b > 10.
+            floatfact(c) :-
+              c > 10.1.
+            |]
 
-        it "supports >=" pending
+        it "supports >=" $ do
+          let prog = do
+                Predicate int <- typeDef @IntFact Input
+                Predicate unsigned <- typeDef @UnsignedFact Input
+                Predicate float <- typeDef @FloatFact Input
+                a <- var "a"
+                b <- var "b"
+                c <- var "c"
+                int(a) |- a .>= 10
+                unsigned(b) |- b .>= 10
+                float(c) |- c .>= 10.1
+          prog ==> [text|
+            .decl intfact(t1: number)
+            .input intfact
+            .decl unsignedfact(t1: unsigned)
+            .input unsignedfact
+            .decl floatfact(t1: float)
+            .input floatfact
+            intfact(a) :-
+              a >= 10.
+            unsignedfact(b) :-
+              b >= 10.
+            floatfact(c) :-
+              c >= 10.1.
+            |]
 
-        it "supports =" pending
+        it "supports =" $ do
+          let prog = do
+                Predicate int <- typeDef @IntFact Input
+                Predicate unsigned <- typeDef @UnsignedFact Input
+                Predicate float <- typeDef @FloatFact Input
+                a <- var "a"
+                b <- var "b"
+                c <- var "c"
+                int(a) |- a .= 10
+                unsigned(b) |- b .= 10
+                float(c) |- c .= 10.1
+          prog ==> [text|
+            .decl intfact(t1: number)
+            .input intfact
+            .decl unsignedfact(t1: unsigned)
+            .input unsignedfact
+            .decl floatfact(t1: float)
+            .input floatfact
+            intfact(a) :-
+              a = 10.
+            unsignedfact(b) :-
+              b = 10.
+            floatfact(c) :-
+              c = 10.1.
+            |]
 
-        it "supports !=" pending
+        it "supports !=" $ do
+          let prog = do
+                Predicate int <- typeDef @IntFact Input
+                Predicate unsigned <- typeDef @UnsignedFact Input
+                Predicate float <- typeDef @FloatFact Input
+                a <- var "a"
+                b <- var "b"
+                c <- var "c"
+                int(a) |- a .!= 10
+                unsigned(b) |- b .!= 10
+                float(c) |- c .!= 10.1
+          prog ==> [text|
+            .decl intfact(t1: number)
+            .input intfact
+            .decl unsignedfact(t1: unsigned)
+            .input unsignedfact
+            .decl floatfact(t1: float)
+            .input floatfact
+            intfact(a) :-
+              a != 10.
+            unsignedfact(b) :-
+              b != 10.
+            floatfact(c) :-
+              c != 10.1.
+            |]
 
     describe "functors" $ parallel $ do
-      it "supports max" pending
+      it "supports max" $ do
+        let prog = do
+              Predicate int <- typeDef @IntFact Input
+              Predicate unsigned <- typeDef @UnsignedFact Input
+              Predicate float <- typeDef @FloatFact Input
+              int(max' 10 32)
+              int(max' (max' 10 80) 10)
+              unsigned(max' 10 32)
+              float(max' 42.42 2)
+        prog ==> [text|
+          .decl intfact(t1: number)
+          .input intfact
+          .decl unsignedfact(t1: unsigned)
+          .input unsignedfact
+          .decl floatfact(t1: float)
+          .input floatfact
+          intfact(max(10, 32)).
+          intfact(max(max(10, 80), 10)).
+          unsignedfact(max(10, 32)).
+          floatfact(max(42.42, 2.0)).
+          |]
 
-      it "supports min" pending
+      it "supports min" $ do
+        let prog = do
+              Predicate int <- typeDef @IntFact Input
+              Predicate unsigned <- typeDef @UnsignedFact Input
+              Predicate float <- typeDef @FloatFact Input
+              int(min' 10 32)
+              int(min' (min' 10 80) 10)
+              unsigned(min' 10 32)
+              float(min' 42.42 2)
+        prog ==> [text|
+          .decl intfact(t1: number)
+          .input intfact
+          .decl unsignedfact(t1: unsigned)
+          .input unsignedfact
+          .decl floatfact(t1: float)
+          .input floatfact
+          intfact(min(10, 32)).
+          intfact(min(min(10, 80), 10)).
+          unsignedfact(min(10, 32)).
+          floatfact(min(42.42, 2.0)).
+          |]

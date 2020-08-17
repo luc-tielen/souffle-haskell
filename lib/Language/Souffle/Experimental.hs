@@ -20,6 +20,12 @@ module Language.Souffle.Experimental
   , underscore
   , __
   , not'
+  , (.<)
+  , (.<=)
+  , (.>)
+  , (.>=)
+  , (.=)
+  , (.!=)
   , (^)
   , (%)
   , band
@@ -27,6 +33,8 @@ module Language.Souffle.Experimental
   , bxor
   , lor
   , land
+  , max'
+  , min'
   , render
   , renderIO
   , UsageContext(..)
@@ -87,6 +95,7 @@ runDSL (DSL a) = Program $ mapMaybe simplify $ execWriter (evalStateT a mempty) 
       [] -> Nothing
       exprs' -> pure $ foldl1 Or exprs'
     Not' expr -> Not <$> simplify expr
+    Constrain' e -> pure $ Constrain e
 
 var :: NoVarsInAtom ctx => VarName -> DSL ctx' (Term ctx ty)
 var name = do
@@ -111,11 +120,10 @@ body1 \/ body2 = do
       rules2 = And' $ runBody body2
   tell [Or' [rules1, rules2]]
 
-not' :: Body ctx a -> Body ctx b
+not' :: Body ctx a -> Body ctx ()
 not' body = do
   let rules = And' $ runBody body
   tell [Not' rules]
-  pure undefined
 
 runBody :: Body ctx a -> [AST]
 runBody (Body m) = execWriter m
@@ -151,6 +159,8 @@ Head name terms |- body =
   let rules = runBody body
       relation = Rule' name terms (And' rules)
   in addDefinition relation
+
+infixl 0 |-
 
 class Fragment f ctx where
   toFragment :: ToTerms ts => TypeInfo a ts -> Name -> Tuple ctx ts -> f ctx ()
@@ -222,6 +232,12 @@ render = flip runReader TopLevel . f where
       case end of
         "." -> pure $ "!" <> txt <> end
         _ -> pure $ "!" <> txt
+    Constrain t -> do
+      let t' = renderTerm t
+      end <- maybeDot
+      case end of
+        "." -> pure $ t' <> "."
+        _ -> pure t'
   indent = ("  " <>)
   nested = local (const Nested)
   maybeDot = ask >>= \case
@@ -259,7 +275,11 @@ renderTerm = \case
 
   BinOp' op t1 t2 -> renderTerm t1 <> " " <> renderBinOp op <> " " <> renderTerm t2
   UnaryOp' op t1 -> renderUnaryOp op <> renderTerm t1
+  Func' name ts -> renderFunc name <> "(" <> renderTerms (toList ts) <> ")"
   where
+    renderFunc = \case
+      Max -> "max"
+      Min -> "min"
     renderBinOp = \case
       Plus -> "+"
       Mul -> "*"
@@ -272,6 +292,12 @@ renderTerm = \case
       BinaryXor -> "bxor"
       LogicalAnd -> "land"
       LogicalOr -> "lor"
+      LessThan -> "<"
+      LessThanOrEqual -> "<="
+      GreaterThan -> ">"
+      GreaterThanOrEqual -> ">="
+      IsEqual -> "="
+      IsNotEqual -> "!="
     renderUnaryOp Negate = "-"
 
 
@@ -317,8 +343,9 @@ data Term ctx ty where
   FloatTerm :: Float -> Term ctx Float
   StringTerm :: ToString ty => ty -> Term ctx ty
 
-  BinOp :: Num ty => Op2 -> Term ctx ty -> Term ctx ty -> Term ctx ty
   UnaryOp :: Num ty => Op1 -> Term ctx ty -> Term ctx ty
+  BinOp :: Num ty => Op2 -> Term ctx ty -> Term ctx ty -> Term ctx ty
+  Func :: FuncName -> NonEmpty (Term ctx ty) -> Term ctx ty
 
 data Op2
   = Plus
@@ -332,9 +359,19 @@ data Op2
   | BinaryXor
   | LogicalAnd
   | LogicalOr
-
+  | LessThan
+  | LessThanOrEqual
+  | GreaterThan
+  | GreaterThanOrEqual
+  | IsEqual
+  | IsNotEqual
 
 data Op1 = Negate
+
+data FuncName
+  = Max
+  | Min
+
 
 underscore, __ :: Term ctx ty
 underscore = UnderscoreTerm
@@ -381,6 +418,27 @@ instance Fractional (Term ctx Float) where
 (%) :: (Num ty, Integral ty) => Term ctx ty -> Term ctx ty -> Term ctx ty
 (%) = BinOp Rem
 
+type Comparison ctx ty = Num ty => Term ctx ty -> Term ctx ty -> Body ctx ()
+
+(.<), (.<=), (.>), (.>=), (.=), (.!=) :: Comparison ctx ty
+(.<) = addConstraint LessThan
+(.<=) = addConstraint LessThanOrEqual
+(.>) = addConstraint GreaterThan
+(.>=) = addConstraint GreaterThanOrEqual
+(.=) = addConstraint IsEqual
+(.!=) = addConstraint IsNotEqual
+infix 1 .<
+infix 1 .<=
+infix 1 .>
+infix 1 .>=
+infix 1 .=
+infix 1 .!=
+
+addConstraint :: Op2 -> Comparison ctx ty
+addConstraint op e1 e2 =
+  let expr = BinOp' op (toTerm e1) (toTerm e2)
+   in tell [Constrain' expr]
+
 band, bor, bxor, land, lor
   :: (Num ty, Integral ty)
   => Term ctx ty -> Term ctx ty -> Term ctx ty
@@ -389,6 +447,13 @@ bor = BinOp BinaryOr
 bxor = BinOp BinaryXor
 land = BinOp LogicalAnd
 lor = BinOp LogicalOr
+
+max', min' :: Num ty => Term ctx ty -> Term ctx ty -> Term ctx ty
+max' = func2 Max
+min' = func2 Min
+
+func2 :: FuncName -> Term ctx ty -> Term ctx ty -> Term ctx ty
+func2 name a b = Func name $ a :| [b]
 
 data SimpleTerm
   = V VarName
@@ -400,6 +465,7 @@ data SimpleTerm
 
   | BinOp' Op2 SimpleTerm SimpleTerm
   | UnaryOp' Op1 SimpleTerm
+  | Func' FuncName (NonEmpty SimpleTerm)
 
 data AST
   = TypeDef' VarName Direction [FieldData]
@@ -408,6 +474,7 @@ data AST
   | And' [AST]
   | Or' [AST]
   | Not' AST
+  | Constrain' SimpleTerm
 
 data DL
   = Program [DL]
@@ -417,6 +484,7 @@ data DL
   | And DL DL
   | Or DL DL
   | Not DL
+  | Constrain SimpleTerm
 
 
 class ToDLTypes (ts :: [Type]) where
@@ -523,6 +591,7 @@ toTerm = \case
 
   BinOp op t1 t2 -> BinOp' op (toTerm t1) (toTerm t2)
   UnaryOp op t1 -> UnaryOp' op (toTerm t1)
+  Func name ts -> Func' name $ fmap toTerm ts
 
 
 -- Helper functions / type families / ...
