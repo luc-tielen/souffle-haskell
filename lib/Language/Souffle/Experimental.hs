@@ -67,7 +67,7 @@ import Data.String
 import GHC.Generics
 import GHC.TypeLits
 import Language.Souffle.Internal.Constraints (SimpleProduct)
-import Language.Souffle.Class (Fact(..))
+import Language.Souffle.Class (Fact(..), Direction(..))
 import Type.Errors.Pretty
 
 
@@ -312,12 +312,6 @@ data DLType
   | DLString
 
 data FieldData = FieldData DLType AccessorName
-
-data Direction
-  = Input
-  | Output
-  | InputOutput
-  | Internal
 
 data UsageContext
   = Definition

@@ -13,6 +13,9 @@ module Language.Souffle.Interpreted
   ( Program(..)
   , Fact(..)
   , Marshal(..)
+  , Direction(..)
+  , ContainsInputFact
+  , ContainsOutputFact
   , Config(..)
   , Handle
   , SouffleM
@@ -277,7 +280,7 @@ instance MonadSouffle SouffleM where
     noOfThreads <$> readIORef (handleData handle)
   {-# INLINABLE getNumThreads #-}
 
-  getFacts :: forall a c prog. (Marshal a, Fact a, ContainsFact prog a, Collect c)
+  getFacts :: forall a c prog. (Marshal a, Fact a, ContainsOutputFact prog a, Collect c)
            => Handle prog -> SouffleM (c a)
   getFacts h = liftIO $ do
     handle <- readIORef $ handleData h
@@ -287,14 +290,14 @@ instance MonadSouffle SouffleM where
     pure $! facts  -- force facts before running to avoid issues with lazy IO
   {-# INLINABLE getFacts #-}
 
-  findFact :: (Fact a, ContainsFact prog a, Eq a)
+  findFact :: (Fact a, ContainsOutputFact prog a, Eq a)
            => Handle prog -> a -> SouffleM (Maybe a)
   findFact prog fact = do
     facts :: [a] <- getFacts prog
     pure $ find (== fact) facts
   {-# INLINABLE findFact #-}
 
-  addFact :: forall a prog. (Fact a, ContainsFact prog a, Marshal a)
+  addFact :: forall a prog. (Fact a, ContainsInputFact prog a, Marshal a)
           => Handle prog -> a -> SouffleM ()
   addFact h fact = liftIO $ do
     handle <- readIORef $ handleData h
@@ -304,7 +307,7 @@ instance MonadSouffle SouffleM where
     appendFile factFile $ intercalate "\t" line ++ "\n"
   {-# INLINABLE addFact #-}
 
-  addFacts :: forall a prog f. (Fact a, ContainsFact prog a, Marshal a, Foldable f)
+  addFacts :: forall a prog f. (Fact a, ContainsInputFact prog a, Marshal a, Foldable f)
            => Handle prog -> f a -> SouffleM ()
   addFacts h facts = liftIO $ do
     handle <- readIORef $ handleData h

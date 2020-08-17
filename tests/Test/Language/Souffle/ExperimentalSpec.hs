@@ -45,15 +45,33 @@ data Edge = Edge String String
 data Reachable = Reachable String String
   deriving (Generic, Marshal)
 
-instance Fact Point where factName = const "point"
-instance Fact IntFact where factName = const "intfact"
-instance Fact FloatFact where factName = const "floatfact"
-instance Fact UnsignedFact where factName = const "unsignedfact"
-instance Fact TextFact where factName = const "textfact"
-instance Fact Triple where factName = const "triple"
-instance Fact Vertex where factName = const "vertex"
-instance Fact Edge where factName = const "edge"
-instance Fact Reachable where factName = const "reachable"
+instance Fact Point where
+  type FactDirection Point = 'Output
+  factName = const "point"
+instance Fact IntFact where
+  type FactDirection IntFact = 'Output
+  factName = const "intfact"
+instance Fact FloatFact where
+  type FactDirection FloatFact = 'Output
+  factName = const "floatfact"
+instance Fact UnsignedFact where
+  type FactDirection UnsignedFact = 'Output
+  factName = const "unsignedfact"
+instance Fact TextFact where
+  type FactDirection TextFact = 'Output
+  factName = const "textfact"
+instance Fact Triple where
+  type FactDirection Triple = 'Output
+  factName = const "triple"
+instance Fact Vertex where
+  type FactDirection Vertex = 'Output
+  factName = const "vertex"
+instance Fact Edge where
+  type FactDirection Edge = 'Output
+  factName = const "edge"
+instance Fact Reachable where
+  type FactDirection Reachable = 'Output
+  factName = const "reachable"
 
 
 spec :: Spec
