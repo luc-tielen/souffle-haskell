@@ -1,7 +1,7 @@
 
 {-# LANGUAGE GADTs, RankNTypes, TypeFamilies, DataKinds #-}
 {-# LANGUAGE TypeOperators, UndecidableInstances, FlexibleContexts #-}
-{-# LANGUAGE FunctionalDependencies, FlexibleInstances, DerivingVia #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, DerivingVia #-}
 {-# LANGUAGE ScopedTypeVariables, PolyKinds, ConstraintKinds #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# OPTIONS_GHC -Wno-missing-methods #-} -- TODO: fix this by implementing arithmetic
@@ -146,11 +146,11 @@ predicateFor = do
   let typeInfo = TypeInfo :: TypeInfo a (Structure a)
       p = Proxy :: Proxy a
       name = T.pack $ factName p
-      accNames = maybe genericNames id $ accessorNames p
+      accNames = fromMaybe genericNames $ accessorNames p
       genericNames = map (("t" <>) . T.pack . show) [1..]
       tys = getTypes (Proxy :: Proxy (Structure a))
       direction = getDirection (Proxy :: Proxy (FactDirection a))
-      fields = map (uncurry FieldData) $ zip tys accNames
+      fields = zipWith FieldData tys accNames
       definition = Declare' name direction fields
   addDefinition definition
   pure $ Predicate $ toFragment typeInfo name

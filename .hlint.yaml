@@ -55,7 +55,12 @@
     within:
       - Test.Language.Souffle.CompiledSpec
       - Test.Language.Souffle.InterpretedSpec
+      - Test.Language.Souffle.ExperimentalSpec
       - Language.Souffle.Interpreted
+- ignore:
+    name: Redundant bracket
+    within:
+      - Test.Language.Souffle.ExperimentalSpec
 
 
 # Define some custom infix operators
