@@ -67,7 +67,7 @@ import Data.String
 import GHC.Generics
 import GHC.TypeLits
 import Language.Souffle.Internal.Constraints (SimpleProduct)
-import Language.Souffle.Class (Fact(..), Direction(..))
+import Language.Souffle.Class (Program(..), Fact(..), ContainsFact, Direction(..))
 import Type.Errors.Pretty
 
 
@@ -76,13 +76,13 @@ newtype Predicate p
 
 type VarMap = Map VarName Int
 
-newtype DSL ctx a = DSL (StateT VarMap (Writer [AST]) a)
+newtype DSL prog ctx a = DSL (StateT VarMap (Writer [AST]) a)
   deriving (Functor, Applicative, Monad, MonadWriter [AST], MonadState VarMap)
   via (StateT VarMap (Writer [AST]))
 
 
-runDSL :: DSL 'Definition a -> DL
-runDSL (DSL a) = Statements $ mapMaybe simplify $ execWriter (evalStateT a mempty) where
+runDSL :: Program prog => prog -> DSL prog 'Definition a -> DL
+runDSL _ (DSL a) = Statements $ mapMaybe simplify $ execWriter (evalStateT a mempty) where
   simplify = \case
     Declare' name dir fields -> pure $ Declare name dir fields
     Rule' name terms body -> Rule name terms <$> simplify body
@@ -96,14 +96,14 @@ runDSL (DSL a) = Statements $ mapMaybe simplify $ execWriter (evalStateT a mempt
     Not' expr -> Not <$> simplify expr
     Constrain' e -> pure $ Constrain e
 
-var :: NoVarsInAtom ctx => VarName -> DSL ctx' (Term ctx ty)
+var :: NoVarsInAtom ctx => VarName -> DSL prog ctx' (Term ctx ty)
 var name = do
   count <- fromMaybe 0 <$> gets (Map.lookup name)
   modify $ Map.insert name (count + 1)
   let varName = if count == 0 then name else name <> "_" <> T.pack (show count)
   pure $ VarTerm varName
 
-addDefinition :: AST -> DSL 'Definition ()
+addDefinition :: AST -> DSL prog 'Definition ()
 addDefinition dl = tell [dl]
 
 data Head ctx unused
@@ -130,8 +130,9 @@ runBody (Body m) = execWriter m
 data TypeInfo (a :: k) (ts :: [Type])
   = TypeInfo
 
-type ToPredicate a =
+type ToPredicate prog a =
   ( Fact a
+  , ContainsFact prog a
   , SimpleProduct a
   , Assert (Length (Structure a) <=? 10) BigTupleError
   , KnownDLTypes (Structure a)
@@ -140,13 +141,7 @@ type ToPredicate a =
   , ToTerms (Structure a)
   )
 
--- TODO:
--- store program handle type on DSL as type param, pass in via runDSL
--- add extra checks to predicateFor
--- make Language.Souffle.Class leading...
--- add functions for running interpreted souffle
-
-predicateFor :: forall a. ToPredicate a => DSL 'Definition (Predicate a)
+predicateFor :: forall a prog. ToPredicate prog a => DSL prog 'Definition (Predicate a)
 predicateFor = do
   let typeInfo = TypeInfo :: TypeInfo a (Structure a)
       p = Proxy :: Proxy a
@@ -168,7 +163,7 @@ instance KnownDirection 'Output where getDirection = const Output
 instance KnownDirection 'InputOutput where getDirection = const InputOutput
 instance KnownDirection 'Internal where getDirection = const Internal
 
-(|-) :: Head 'Relation a -> Body 'Relation () -> DSL 'Definition ()
+(|-) :: Head 'Relation a -> Body 'Relation () -> DSL prog 'Definition ()
 Head name terms |- body =
   let rules = runBody body
       relation = Rule' name terms (And' rules)
@@ -189,7 +184,7 @@ instance Fragment Body ctx where
     let terms' = toTerms (Proxy :: Proxy ctx) typeInfo terms
     in tell [Atom' name terms']
 
-instance Fragment DSL 'Definition where
+instance Fragment (DSL prog) 'Definition where
   toFragment typeInfo name terms =
     let terms' = toTerms (Proxy :: Proxy 'Definition) typeInfo terms
      in addDefinition $ Atom' name terms'

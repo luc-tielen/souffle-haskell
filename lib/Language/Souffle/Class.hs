@@ -20,6 +20,7 @@ module Language.Souffle.Class
   , Direction(..)
   , ContainsInputFact
   , ContainsOutputFact
+  , ContainsFact
   , MonadSouffle(..)
   , MonadSouffleFileIO(..)
   ) where
@@ -75,6 +76,9 @@ type family FormatDirection (dir :: Direction) where
   FormatDirection 'Input = "input"
   FormatDirection 'Internal = "internal"
 
+-- | A helper type family for checking if a specific Souffle `Program` contains
+--   a certain `Fact`. This constraint will generate a user-friendly type error
+--   if this is not the case.
 type family ContainsFact prog fact :: Constraint where
   ContainsFact prog fact =
     CheckContains prog (ProgramFacts prog) fact

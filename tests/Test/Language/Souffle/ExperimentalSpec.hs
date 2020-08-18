@@ -45,6 +45,22 @@ data Edge = Edge String String
 data Reachable = Reachable String String
   deriving (Generic, Marshal)
 
+data DSLProgram = DSLProgram
+
+instance Program DSLProgram where
+  type ProgramFacts DSLProgram =
+    [ Point
+    , IntFact
+    , FloatFact
+    , UnsignedFact
+    , TextFact
+    , Triple
+    , Vertex
+    , Edge
+    , Reachable
+    ]
+  programName = const "dslprogram"
+
 instance Fact Point where
   type FactDirection Point = 'Input
   factName = const "point"
@@ -77,10 +93,10 @@ instance Fact Reachable where
 spec :: Spec
 spec = describe "Souffle DSL" $ parallel $ do
   describe "code generation" $ parallel $ do
-    let prog ==> txt = render (runDSL prog) `shouldBe` (txt <> "\n")
+    let prog ==> txt = render (runDSL DSLProgram prog) `shouldBe` (txt <> "\n")
 
     it "can render an empty program" $ do
-      render (runDSL $ pure ()) `shouldBe` ""
+      render (runDSL DSLProgram $ pure ()) `shouldBe` ""
 
     it "can render a program with an input type definition" $ do
       let prog = do
@@ -364,9 +380,9 @@ spec = describe "Souffle DSL" $ parallel $ do
     it "allows generically describing predicate relations" $ do
       -- NOTE: type signature not required, but it results in more clear type errors
       -- and can serve as documentation.
-      let transitive :: forall p1 p2 t. Structure p1 ~ Structure p2
+      let transitive :: forall prog p1 p2 t. Structure p1 ~ Structure p2
                      => Structure p1 ~ '[t, t]
-                     => Predicate p1 -> Predicate p2 -> DSL 'Definition ()
+                     => Predicate p1 -> Predicate p2 -> DSL prog 'Definition ()
           transitive (Predicate p1) (Predicate p2) = do
             a <- var "a"
             b <- var "b"
