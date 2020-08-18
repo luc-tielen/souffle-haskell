@@ -4,7 +4,6 @@
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, DerivingVia #-}
 {-# LANGUAGE ScopedTypeVariables, PolyKinds, ConstraintKinds #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# OPTIONS_GHC -Wno-missing-methods #-} -- TODO: fix this by implementing arithmetic
 
 module Language.Souffle.Experimental
   ( Predicate(..)
@@ -26,8 +25,8 @@ module Language.Souffle.Experimental
   , (.>=)
   , (.=)
   , (.!=)
-  , (^)
-  , (%)
+  , (.^)
+  , (.%)
   , band
   , bor
   , bxor
@@ -409,17 +408,19 @@ instance (SupportsArithmetic ty, Num ty) => Num (Term ctx ty) where
   (*) = BinOp Mul
   (-) = BinOp Subtract
   negate = UnaryOp Negate
+  abs = error "'abs' is not supported for Souffle terms"
+  signum = error "'signum' is not supported for Souffle terms"
 
 instance Fractional (Term ctx Float) where
   fromRational = FloatTerm . fromRational
   (/) = BinOp Div
 
 -- TODO: avoid conflict with prelude?
-(^) :: Num ty => Term ctx ty -> Term ctx ty -> Term ctx ty
-(^) = BinOp Pow
+(.^) :: Num ty => Term ctx ty -> Term ctx ty -> Term ctx ty
+(.^) = BinOp Pow
 
-(%) :: (Num ty, Integral ty) => Term ctx ty -> Term ctx ty -> Term ctx ty
-(%) = BinOp Rem
+(.%) :: (Num ty, Integral ty) => Term ctx ty -> Term ctx ty -> Term ctx ty
+(.%) = BinOp Rem
 
 type Comparison ctx ty = Num ty => Term ctx ty -> Term ctx ty -> Body ctx ()
 

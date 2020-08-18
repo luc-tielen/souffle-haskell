@@ -6,7 +6,6 @@ module Test.Language.Souffle.ExperimentalSpec
   ( module Test.Language.Souffle.ExperimentalSpec
   ) where
 
-import Prelude hiding ((^))
 import Test.Hspec
 import GHC.Generics
 import Data.Int
@@ -556,10 +555,10 @@ spec = describe "Souffle DSL" $ parallel $ do
               Predicate int <- predicateFor @IntFact
               Predicate unsigned <- predicateFor @UnsignedFact
               Predicate float <- predicateFor @FloatFact
-              int(10 ^ 32)
-              int(10 ^ 80 ^ 10)
-              unsigned(10 ^ 32)
-              float(42.42 ^ 2)
+              int(10 .^ 32)
+              int(10 .^ 80 .^ 10)
+              unsigned(10 .^ 32)
+              float(42.42 .^ 2)
         prog ==> [text|
           .decl intfact(t1: number)
           .input intfact
@@ -577,9 +576,9 @@ spec = describe "Souffle DSL" $ parallel $ do
         let prog = do
               Predicate int <- predicateFor @IntFact
               Predicate unsigned <- predicateFor @UnsignedFact
-              int(10 % 32)
-              int(10 % 80 % 10)
-              unsigned(10 % 32)
+              int(10 .% 32)
+              int(10 .% 80 .% 10)
+              unsigned(10 .% 32)
         prog ==> [text|
           .decl intfact(t1: number)
           .input intfact
