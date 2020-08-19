@@ -56,7 +56,7 @@ import Data.Kind
 import Data.List.NonEmpty (NonEmpty(..), toList)
 import Data.Map ( Map )
 import qualified Data.Map as Map
-import Data.Maybe (fromMaybe, catMaybes, mapMaybe)
+import Data.Maybe (fromMaybe, catMaybes, mapMaybe, fromJust)
 import Data.Word
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
@@ -87,7 +87,7 @@ runSouffleInterpreted
   :: (MonadIO m, Program prog)
   => prog
   -> DSL prog 'Definition ()
-  -> (Maybe (I.Handle prog) -> I.SouffleM a)
+  -> (I.Handle prog -> I.SouffleM a)
   -> m a
 runSouffleInterpreted program dsl f = liftIO $ do
   tmpDir <- getCanonicalTemporaryDirectory
@@ -104,13 +104,13 @@ runSouffleInterpretedWith
   => I.Config
   -> prog
   -> DSL prog 'Definition ()
-  -> (Maybe (I.Handle prog) -> I.SouffleM a)
+  -> (I.Handle prog -> I.SouffleM a)
   -> m a
 runSouffleInterpretedWith config program dsl f = liftIO $ do
   let progName = programName program
       datalogFile = I.cfgDatalogDir config </> progName <.> "dl"
   renderIO datalogFile $ runDSL program dsl
-  I.runSouffleWith config program f
+  I.runSouffleWith config program (f . fromJust)
 
 runDSL :: Program prog => prog -> DSL prog 'Definition a -> DL
 runDSL _ (DSL a) = Statements $ mapMaybe simplify $ execWriter (evalStateT a mempty) where
@@ -447,7 +447,6 @@ instance Fractional (Term ctx Float) where
   fromRational = FloatTerm . fromRational
   (/) = BinOp Div
 
--- TODO: avoid conflict with prelude?
 (.^) :: Num ty => Term ctx ty -> Term ctx ty -> Term ctx ty
 (.^) = BinOp Pow
 

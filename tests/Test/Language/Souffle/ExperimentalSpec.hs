@@ -10,7 +10,6 @@ import Test.Hspec
 import GHC.Generics
 import Data.Int
 import Data.Word
-import Data.Maybe (fromJust)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import System.IO.Temp
@@ -898,8 +897,7 @@ spec = describe "Souffle DSL" $ parallel $ do
             reachable(a, b) |- do
               edge(a, c)
               reachable(c, b)
-          action = \handle -> do
-            let prog = fromJust handle
+          action = \prog -> do
             I.addFacts prog [Edge "a" "b", Edge "b" "c"]
             I.run prog
             I.getFacts prog
@@ -921,8 +919,7 @@ spec = describe "Souffle DSL" $ parallel $ do
             reachable(a, b) |- do
               edge(a, c)
               reachable(c, b)
-          action = \handle -> do
-            let prog = fromJust handle
+          action = \prog -> do
             I.addFacts prog [Edge "a" "b", Edge "b" "c"]
             I.run prog
             I.getFacts prog
