@@ -11,6 +11,8 @@ module Language.Souffle.Experimental
   , DL
   , Term
   , Direction(..)
+  , runSouffleInterpretedWith
+  , runSouffleInterpreted
   , runDSL
   , var
   , predicateFor
@@ -46,7 +48,6 @@ module Language.Souffle.Experimental
   -- TODO: check if export list is complete
   ) where
 
-import Prelude hiding ((^))
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Writer
@@ -65,9 +66,12 @@ import Data.Proxy
 import Data.String
 import GHC.Generics
 import GHC.TypeLits
+import qualified Language.Souffle.Interpreted as I
 import Language.Souffle.Internal.Constraints (SimpleProduct)
 import Language.Souffle.Class (Program(..), Fact(..), ContainsFact, Direction(..))
 import Type.Errors.Pretty
+import System.IO.Temp
+import System.FilePath
 
 
 newtype Predicate p
@@ -79,6 +83,34 @@ newtype DSL prog ctx a = DSL (StateT VarMap (Writer [AST]) a)
   deriving (Functor, Applicative, Monad, MonadWriter [AST], MonadState VarMap)
   via (StateT VarMap (Writer [AST]))
 
+runSouffleInterpreted
+  :: forall a m prog. (MonadIO m, Program prog)
+  => prog
+  -> (DSL prog) 'Definition ()
+  -> I.SouffleM a
+  -> m a
+runSouffleInterpreted program dsl m = liftIO $ do
+  tmpDir <- getCanonicalTemporaryDirectory
+  souffleHsDir <- createTempDirectory tmpDir "souffle-haskell"
+  defaultCfg <- I.defaultConfig
+  let cfg = defaultCfg { I.cfgDatalogDir = souffleHsDir
+                       , I.cfgFactDir = Just souffleHsDir
+                       , I.cfgOutputDir = Just souffleHsDir
+                       }
+  runSouffleInterpretedWith cfg program dsl m
+
+runSouffleInterpretedWith
+  :: forall a m prog. (MonadIO m, Program prog)
+  => I.Config
+  -> prog
+  -> (DSL prog) 'Definition ()
+  -> I.SouffleM a
+  -> m a
+runSouffleInterpretedWith config program dsl m = liftIO $ do
+  let progName = programName (Proxy :: Proxy prog)
+      datalogFile = I.cfgDatalogDir config </> progName <.> "dl"
+  renderIO datalogFile $ runDSL program dsl
+  I.runSouffleWith config m
 
 runDSL :: Program prog => prog -> DSL prog 'Definition a -> DL
 runDSL _ (DSL a) = Statements $ mapMaybe simplify $ execWriter (evalStateT a mempty) where

@@ -72,7 +72,7 @@ newtype SouffleM a
 --   - __cfgFactDir__: The directory where the initial input fact file(s) can be found
 --   if present. If Nothing, then a temporary directory will be used, during the
 --   souffle session.
---   - __cfgOutputDir__: The directory where the output facts file(s) are created.
+--   - __cfgOutputDir__: The directory where the output fact file(s) are created.
 --   If Nothing, it will be part of the temporary directory.
 data Config
   = Config
@@ -353,7 +353,8 @@ readCSVFile path = doesFileExist path >>= \case
 cleanup :: forall prog. Program prog => Handle prog -> SouffleM ()
 cleanup h  = liftIO $ do
   handle <- readIORef $ handleData h
-  traverse_ removeDirectoryRecursive [factPath handle, outputPath handle, basePath handle]
+  let dirs = nub [factPath handle, outputPath handle, basePath handle]
+  traverse_ removeDirectoryRecursive dirs
 {-# INLINABLE cleanup #-}
 
 -- | Returns the handle of stdout from the souffle interpreter.
