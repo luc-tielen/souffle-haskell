@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# LANGUAGE FlexibleInstances, TypeFamilies, DerivingVia, InstanceSigs #-}
+{-# LANGUAGE FlexibleInstances, TypeFamilies, DerivingVia, InstanceSigs, UndecidableInstances #-}
 
 -- | This module provides an implementation for the `MonadSouffle` typeclass
 --   defined in "Language.Souffle.Class".
@@ -23,7 +23,6 @@ module Language.Souffle.Interpreted
   , runSouffle
   , runSouffleWith
   , defaultConfig
-  , cleanup
   , souffleStdOut
   , souffleStdErr
   ) where
@@ -31,7 +30,8 @@ module Language.Souffle.Interpreted
 import Prelude hiding (init)
 
 import Control.DeepSeq (deepseq)
-import Control.Exception (ErrorCall(..), throwIO, bracket)
+import Control.Exception (ErrorCall(..), throwIO)
+import Control.Monad.Catch (MonadThrow, MonadCatch, MonadMask, bracket)
 import Control.Monad.State.Strict
 import Control.Monad.Reader
 import Data.IORef
@@ -59,7 +59,7 @@ import Text.Printf
 -- | A monad for executing Souffle-related actions in.
 newtype SouffleM a
   = SouffleM (ReaderT Config IO a)
-  deriving (Functor, Applicative, Monad, MonadIO)
+  deriving (Functor, Applicative, Monad, MonadIO, MonadThrow, MonadCatch, MonadMask)
   via (ReaderT Config IO)
 
 -- | A helper data type for storing the configurable settings of the
@@ -105,16 +105,49 @@ defaultConfig = liftIO $ do
 
 -- | Returns an IO action that will run the Souffle interpreter with
 --   default settings (see `defaultConfig`).
-runSouffle :: SouffleM a -> IO a
-runSouffle m = do
+runSouffle :: Program prog => prog -> (Maybe (Handle prog) -> SouffleM a) -> IO a
+runSouffle program m = do
   cfg <- defaultConfig
-  runSouffleWith cfg m
+  runSouffleWith cfg program m
 {-# INLINABLE runSouffle #-}
 
 -- | Returns an IO action that will run the Souffle interpreter with
---   the given interpreter settings.
-runSouffleWith :: Config -> SouffleM a -> IO a
-runSouffleWith cfg (SouffleM m) = runReaderT m cfg
+--   the given interpreter settings. TODO update docs
+runSouffleWith :: forall prog a. Program prog
+               => Config -> prog -> (Maybe (Handle prog) -> SouffleM a) -> IO a
+runSouffleWith cfg program action =
+  let (SouffleM m) = bracket initialize maybeCleanup action
+      initialize = SouffleM $ datalogProgramFile program >>= \case
+        Nothing -> pure Nothing
+        Just datalogExecutable -> do
+          souffleTempDir <- liftIO $ do
+            tmpDir <- getCanonicalTemporaryDirectory
+            createTempDirectory tmpDir "souffle-haskell"
+
+          factDir <- fromMaybe (souffleTempDir </> "fact") <$> asks cfgFactDir
+          outDir <- fromMaybe (souffleTempDir </> "out") <$> asks cfgOutputDir
+          liftIO $ do
+            createDirectoryIfMissing True factDir
+            createDirectoryIfMissing True outDir
+          mSouffleBin <- asks cfgSouffleBin
+          liftIO $ forM mSouffleBin $ \souffleBin ->
+            Handle
+              <$> (newIORef $ HandleData
+                    { soufflePath = souffleBin
+                    , basePath    = souffleTempDir
+                    , factPath    = factDir
+                    , outputPath  = outDir
+                    , datalogExec = datalogExecutable
+                    , noOfThreads = 1
+                    })
+              <*> newIORef Nothing
+              <*> newIORef Nothing
+      cleanup h = liftIO $ do
+        handle <- readIORef $ handleData h
+        -- TODO: dont blindly remove files here, add params to config to make conditional?
+        traverse_ removeDirectoryRecursive [factPath handle, outputPath handle, basePath handle]
+      maybeCleanup = maybe (pure ()) cleanup
+  in runReaderT m cfg
 {-# INLINABLE runSouffleWith #-}
 
 -- | A datatype representing a handle to a datalog program.
@@ -209,34 +242,6 @@ instance MonadSouffle SouffleM where
   type Handler SouffleM = Handle
   type CollectFacts SouffleM c = Collect c
 
-  init :: forall prog. Program prog => prog -> SouffleM (Maybe (Handle prog))
-  init prg = SouffleM $ datalogProgramFile prg >>= \case
-    Nothing -> pure Nothing
-    Just datalogExecutable -> do
-      souffleTempDir <- liftIO $ do
-        tmpDir <- getCanonicalTemporaryDirectory
-        createTempDirectory tmpDir "souffle-haskell"
-
-      factDir <- fromMaybe (souffleTempDir </> "fact") <$> asks cfgFactDir
-      outDir <- fromMaybe (souffleTempDir </> "out") <$> asks cfgOutputDir
-      liftIO $ do
-        createDirectoryIfMissing True factDir
-        createDirectoryIfMissing True outDir
-      mSouffleBin <- asks cfgSouffleBin
-      liftIO $ forM mSouffleBin $ \souffleBin ->
-        Handle
-          <$> (newIORef $ HandleData
-                { soufflePath = souffleBin
-                , basePath    = souffleTempDir
-                , factPath    = factDir
-                , outputPath  = outDir
-                , datalogExec = datalogExecutable
-                , noOfThreads = 1
-                })
-          <*> newIORef Nothing
-          <*> newIORef Nothing
-  {-# INLINABLE init #-}
-
   run (Handle refHandleData refHandleStdOut refHandleStdErr) = liftIO $ do
     handle <- readIORef refHandleData
     -- Invoke the souffle binary using parameters, supposing that the facts
@@ -318,9 +323,9 @@ instance MonadSouffle SouffleM where
   {-# INLINABLE addFacts #-}
 
 datalogProgramFile :: forall prog. Program prog => prog -> ReaderT Config IO (Maybe FilePath)
-datalogProgramFile _ = do
+datalogProgramFile prog = do
   dir <- asks cfgDatalogDir
-  let dlFile = dir </> programName (Proxy :: Proxy prog) <.> "dl"
+  let dlFile = dir </> programName prog <.> "dl"
   liftIO $ doesFileExist dlFile >>= \case
     False -> pure Nothing
     True -> pure $ Just dlFile
@@ -346,15 +351,6 @@ readCSVFile path = doesFileExist path >>= \case
     -- deepseq needed to avoid issues with lazy IO
     pure $ contents `deepseq` (map (splitOn '\t') . lines) contents
 {-# INLINABLE readCSVFile #-}
-
--- | Cleans up the temporary directory that this library has written files to.
---   This functionality is only provided for the interpreted version since the
---   compiled version directly (de-)serializes data via the C++ API.
-cleanup :: forall prog. Program prog => Handle prog -> SouffleM ()
-cleanup h  = liftIO $ do
-  handle <- readIORef $ handleData h
-  traverse_ removeDirectoryRecursive [factPath handle, outputPath handle, basePath handle]
-{-# INLINABLE cleanup #-}
 
 -- | Returns the handle of stdout from the souffle interpreter.
 souffleStdOut :: forall prog. Program prog => Handle prog -> SouffleM (Maybe T.Text)
