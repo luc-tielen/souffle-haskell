@@ -95,7 +95,10 @@ instance Fact Reachable where
 spec :: Spec
 spec = describe "Souffle DSL" $ parallel $ do
   describe "code generation" $ parallel $ do
-    let prog ==> txt = render (runDSL DSLProgram prog) `shouldBe` (txt <> "\n")
+    let prog ==> txt =
+          let rendered = T.strip $ render (runDSL DSLProgram prog)
+              expected = T.strip txt
+          in rendered `shouldBe` expected
 
     it "can render an empty program" $
       render (runDSL DSLProgram $ pure ()) `shouldBe` ""
