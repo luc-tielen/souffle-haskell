@@ -18,7 +18,6 @@ extra-source-files:
 
 dependencies:
   - base >= 4.12 && < 5
-  - exceptions >= 0.10.4 && < 1
   - mtl >= 2.0 && < 3
   - template-haskell >= 2 && < 3
   - type-errors-pretty >= 0.0.1.0 && < 1
