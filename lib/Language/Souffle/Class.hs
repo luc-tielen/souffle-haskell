@@ -108,9 +108,7 @@ class Program a where
 
   -- | Function for obtaining the name of a Datalog program.
   --   This has to be the same as the name of the .dl file (minus the extension).
-  --
-  -- It uses a 'Proxy' to select the correct instance.
-  programName :: Proxy a -> String
+  programName :: a -> String
 
 -- | A typeclass for data types representing a fact in datalog.
 class Marshal.Marshal a => Fact a where
@@ -151,22 +149,14 @@ data Direction
 -- | A mtl-style typeclass for Souffle-related actions.
 class Monad m => MonadSouffle m where
   -- | Represents a handle for interacting with a Souffle program.
-  --   See also `init`, which returns a handle of this type.
+  --
+  --   The handle is used in all other functions of this typeclass to perform
+  --   Souffle-related actions.
   type Handler m :: Type -> Type
 
   -- | Helper associated type constraint that allows collecting facts from
   --   Souffle in a list or vector. Only used internally.
   type CollectFacts m (c :: Type -> Type) :: Constraint
-
-  {- | Initializes a Souffle program.
-
-     The action will return 'Nothing' if it failed to load the Souffle C++
-     program or if it failed to find the Souffle interpreter (depending on
-     compiled/interpreted variant).
-     Otherwise it will return a handle that can be used in other functions
-     in this module.
-  -}
-  init :: Program prog => prog -> m (Maybe (Handler m prog))
 
   -- | Runs the Souffle program.
   run :: Handler m prog -> m ()
@@ -203,8 +193,6 @@ instance MonadSouffle m => MonadSouffle (ReaderT r m) where
   type Handler (ReaderT r m) = Handler m
   type CollectFacts (ReaderT r m) c = CollectFacts m c
 
-  init = lift . init
-  {-# INLINABLE init #-}
   run = lift . run
   {-# INLINABLE run #-}
   setNumThreads prog = lift . setNumThreads prog
@@ -224,8 +212,6 @@ instance (Monoid w, MonadSouffle m) => MonadSouffle (WriterT w m) where
   type Handler (WriterT w m) = Handler m
   type CollectFacts (WriterT w m) c = CollectFacts m c
 
-  init = lift . init
-  {-# INLINABLE init #-}
   run = lift . run
   {-# INLINABLE run #-}
   setNumThreads prog = lift . setNumThreads prog
@@ -245,8 +231,6 @@ instance MonadSouffle m => MonadSouffle (StateT s m) where
   type Handler (StateT s m) = Handler m
   type CollectFacts (StateT s m) c = CollectFacts m c
 
-  init = lift . init
-  {-# INLINABLE init #-}
   run = lift . run
   {-# INLINABLE run #-}
   setNumThreads prog = lift . setNumThreads prog
@@ -266,8 +250,6 @@ instance (MonadSouffle m, Monoid w) => MonadSouffle (RWST r w s m) where
   type Handler (RWST r w s m) = Handler m
   type CollectFacts (RWST r w s m) c = CollectFacts m c
 
-  init = lift . init
-  {-# INLINABLE init #-}
   run = lift . run
   {-# INLINABLE run #-}
   setNumThreads prog = lift . setNumThreads prog
@@ -287,8 +269,6 @@ instance MonadSouffle m => MonadSouffle (ExceptT e m) where
   type Handler (ExceptT e m) = Handler m
   type CollectFacts (ExceptT e m) c = CollectFacts m c
 
-  init = lift . init
-  {-# INLINABLE init #-}
   run = lift . run
   {-# INLINABLE run #-}
   setNumThreads prog = lift . setNumThreads prog

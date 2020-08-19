@@ -15,6 +15,17 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
 
 - `getFacts`, `findFact`, `addFact` and `addFacts` now have stricter
   constraints in their type signatures to prevent invalid usage of facts.
+- `runSouffle` for both compiled and interpreted mode and `runSouffleWith`
+  for interpreted mode have updated type signatures to be able to
+  automatically cleanup temporary files created while interacting with Souffle.
+
+### Removed
+
+- `init` function for both compiled and interpreted mode. Initialization is
+  now handled by the `runSouffle*` functions. This change makes automatic
+  cleanup of created files possible and prevents double initialization of
+  Souffle programs.
+- `cleanup` function for interpreted mode, this is handled automatically now.
 
 ## [1.1.0] - 2020-07-26
 

@@ -45,18 +45,18 @@ instance Souffle.Program BadPath where
 spec :: Spec
 spec = describe "Souffle API" $ parallel $ do
   describe "init" $ parallel $ do
-    it "returns nothing if it cannot load a souffle program" $ do
-      prog <- Souffle.runSouffle (Souffle.init BadPath)
+    it "returns nothing in case it cannot load a souffle program" $ do
+      prog <- Souffle.runSouffle BadPath pure
       isJust prog `shouldBe` False
 
-    it "returns just the program if it can load a souffle program" $ do
-      prog <- Souffle.runSouffle (Souffle.init Path)
+    it "returns just the program in case it can load a souffle program" $ do
+      prog <- Souffle.runSouffle Path pure
       isJust prog `shouldBe` True
 
   describe "getFacts" $ parallel $ do
     it "can retrieve facts as a list" $ do
-      (edges, reachables) <- Souffle.runSouffle $ do
-        prog <- fromJust <$> Souffle.init Path
+      (edges, reachables) <- Souffle.runSouffle Path $ \handle -> do
+        let prog = fromJust handle
         Souffle.run prog
         es <- Souffle.getFacts prog
         rs <- Souffle.getFacts prog
@@ -65,8 +65,8 @@ spec = describe "Souffle API" $ parallel $ do
       reachables `shouldBe` [Reachable "b" "c", Reachable "a" "c", Reachable "a" "b"]
 
     it "can retrieve facts as a vector" $ do
-      (edges, reachables) <- Souffle.runSouffle $ do
-        prog <- fromJust <$> Souffle.init Path
+      (edges, reachables) <- Souffle.runSouffle Path $ \handle -> do
+        let prog = fromJust handle
         Souffle.run prog
         es <- Souffle.getFacts prog
         rs <- Souffle.getFacts prog
@@ -75,8 +75,8 @@ spec = describe "Souffle API" $ parallel $ do
       reachables `shouldBe` V.fromList [Reachable "a" "b", Reachable "a" "c", Reachable "b" "c"]
 
     it "can retrieve facts as an array" $ do
-      (edges, reachables) <- Souffle.runSouffle $ do
-        prog <- fromJust <$> Souffle.init Path
+      (edges, reachables) <- Souffle.runSouffle Path $ \handle -> do
+        let prog = fromJust handle
         Souffle.run prog
         es <- Souffle.getFacts prog
         rs <- Souffle.getFacts prog
@@ -84,16 +84,16 @@ spec = describe "Souffle API" $ parallel $ do
       edges `shouldBe` A.listArray (0 :: Int, 1) [Edge "a" "b", Edge "b" "c"]
       reachables `shouldBe` A.listArray (0 :: Int, 2) [Reachable "a" "b", Reachable "a" "c", Reachable "b" "c"]
 
-    it "returns no facts if program hasn't run yet" $ do
-      edges <- Souffle.runSouffle $ do
-        prog <- fromJust <$> Souffle.init Path
+    it "returns no facts in case program hasn't run yet" $ do
+      edges <- Souffle.runSouffle Path $ \handle -> do
+        let prog = fromJust handle
         Souffle.getFacts prog
       edges `shouldBe` ([] :: [Edge])
 
   describe "addFact" $ parallel $
     it "adds a fact" $ do
-      (edgesBefore, edgesAfter) <- Souffle.runSouffle $ do
-        prog <- fromJust <$> Souffle.init Path
+      (edgesBefore, edgesAfter) <- Souffle.runSouffle Path $ \handle -> do
+        let prog = fromJust handle
         Souffle.run prog
         es1 <- Souffle.getFacts prog
         Souffle.addFact prog $ Edge "e" "f"
@@ -105,8 +105,8 @@ spec = describe "Souffle API" $ parallel $ do
 
   describe "addFacts" $ parallel $
     it "can add multiple facts at once" $ do
-      (edgesBefore, edgesAfter) <- Souffle.runSouffle $ do
-        prog <- fromJust <$> Souffle.init Path
+      (edgesBefore, edgesAfter) <- Souffle.runSouffle Path $ \handle -> do
+        let prog = fromJust handle
         Souffle.run prog
         es1 <- Souffle.getFacts prog
         Souffle.addFacts prog [Edge "e" "f", Edge "f" "g"]
@@ -118,16 +118,16 @@ spec = describe "Souffle API" $ parallel $ do
 
   describe "run" $ parallel $ do
     it "is OK to run a program multiple times" $ do
-      edges <- Souffle.runSouffle $ do
-        prog <- fromJust <$> Souffle.init Path
+      edges <- Souffle.runSouffle Path $ \handle -> do
+        let prog = fromJust handle
         Souffle.run prog
         Souffle.run prog
         Souffle.getFacts prog
       edges `shouldBe` [Edge "b" "c", Edge "a" "b"]
 
     it "discovers new facts after running with new facts" $ do
-      (reachablesBefore, reachablesAfter) <- Souffle.runSouffle $ do
-        prog <- fromJust <$> Souffle.init Path
+      (reachablesBefore, reachablesAfter) <- Souffle.runSouffle Path $ \handle -> do
+        let prog = fromJust handle
         Souffle.run prog
         rs1 <- Souffle.getFacts prog
         Souffle.addFacts prog [Edge "e" "f", Edge "f" "g"]
@@ -140,8 +140,8 @@ spec = describe "Souffle API" $ parallel $ do
 
   describe "configuring number of cores" $ parallel $
     it "is possible to configure number of cores" $ do
-      results <- Souffle.runSouffle $ do
-        prog <- fromJust <$> Souffle.init Path
+      results <- Souffle.runSouffle Path $ \handle -> do
+        let prog = fromJust handle
         numCpus1 <- Souffle.getNumThreads prog
         Souffle.setNumThreads prog 4
         numCpus2 <- Souffle.getNumThreads prog
@@ -151,9 +151,9 @@ spec = describe "Souffle API" $ parallel $ do
       results `shouldBe` (1, 4, 2)
 
   describe "findFact" $ parallel $ do
-    it "returns Nothing if no matching fact was found" $ do
-      (edge, reachable) <- Souffle.runSouffle $ do
-        prog <- fromJust <$> Souffle.init Path
+    it "returns Nothing in case no matching fact was found" $ do
+      (edge, reachable) <- Souffle.runSouffle Path $ \handle -> do
+        let prog = fromJust handle
         Souffle.run prog
         e <- Souffle.findFact prog $ Edge "c" "d"
         r <- Souffle.findFact prog $ Reachable "d" "e"
@@ -161,9 +161,9 @@ spec = describe "Souffle API" $ parallel $ do
       edge `shouldBe` Nothing
       reachable `shouldBe` Nothing
 
-    it "returns Just the fact if matching fact was found" $ do
-      (edge, reachable) <- Souffle.runSouffle $ do
-        prog <- fromJust <$> Souffle.init Path
+    it "returns Just the fact in case matching fact was found" $ do
+      (edge, reachable) <- Souffle.runSouffle Path $ \handle -> do
+        let prog = fromJust handle
         Souffle.run prog
         e <- Souffle.findFact prog $ Edge "a" "b"
         r <- Souffle.findFact prog $ Reachable "a" "c"

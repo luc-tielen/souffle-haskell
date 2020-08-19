@@ -49,10 +49,25 @@ import Language.Souffle.Marshal
 newtype Handle prog = Handle (ForeignPtr Internal.Souffle)
 
 -- | A monad for executing Souffle-related actions in.
-newtype SouffleM a
-  = SouffleM
-  { runSouffle :: IO a  -- ^ Returns the underlying IO action.
-  } deriving ( Functor, Applicative, Monad, MonadIO ) via IO
+newtype SouffleM a = SouffleM (IO a)
+  deriving ( Functor, Applicative, Monad, MonadIO ) via IO
+
+{- | Initializes and runs a Souffle program.
+
+     The 2nd argument is passed in a handle after initialization of the
+     Souffle program. The handle will contain 'Nothing' if it failed to
+     load the Souffle C++ program. In the successful case it will contain
+     a handle that can be used for performing Souffle related actions
+     using the other functions in this module.
+-}
+runSouffle :: forall prog a. Program prog
+           => prog -> (Maybe (Handle prog) -> SouffleM a) -> IO a
+runSouffle prog action =
+  let progName = programName prog
+      (SouffleM result) = do
+        handle <- fmap Handle <$> liftIO (Internal.init progName)
+        action handle
+   in result
 
 type Tuple = Ptr Internal.Tuple
 
@@ -157,13 +172,14 @@ instance MonadSouffle SouffleM where
   type Handler SouffleM = Handle
   type CollectFacts SouffleM c = Collect c
 
+{-
   init :: forall prog. Program prog
        => prog -> SouffleM (Maybe (Handle prog))
   init _ =
     let progName = programName (Proxy :: Proxy prog)
     in SouffleM $ fmap Handle <$> Internal.init progName
   {-# INLINABLE init #-}
-
+-}
   run (Handle prog) = SouffleM $ Internal.run prog
   {-# INLINABLE run #-}
 
