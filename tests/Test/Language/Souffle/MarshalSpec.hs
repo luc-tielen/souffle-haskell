@@ -191,17 +191,15 @@ spec = describe "Marshalling" $ parallel $ do
             (abs (x' - x) < epsilon) === True
 
     describe "interpreted mode" $ parallel $
-      roundTripTests $ \fact -> liftIO $ Interpreted.runSouffle $ do
-        handle <- fromJust <$> Interpreted.init RoundTrip
-        Interpreted.addFact handle fact
-        Interpreted.run handle
-        fact' <- Prelude.head <$> Interpreted.getFacts handle
-        Interpreted.cleanup handle
-        pure fact'
+      roundTripTests $ \fact -> liftIO $ Interpreted.runSouffle RoundTrip $ \handle -> do
+        let prog = fromJust handle
+        Interpreted.addFact prog fact
+        Interpreted.run prog
+        Prelude.head <$> Interpreted.getFacts prog
 
     describe "compiled mode" $ parallel $
-      roundTripTests $ \fact -> liftIO $ Compiled.runSouffle $ do
-        handle <- fromJust <$> Compiled.init RoundTrip
-        Compiled.addFact handle fact
-        Compiled.run handle
-        Prelude.head <$> Compiled.getFacts handle
+      roundTripTests $ \fact -> liftIO $ Compiled.runSouffle RoundTrip $ \handle -> do
+        let prog = fromJust handle
+        Compiled.addFact prog fact
+        Compiled.run prog
+        Prelude.head <$> Compiled.getFacts prog
