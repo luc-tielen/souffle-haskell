@@ -898,13 +898,11 @@ spec = describe "Souffle DSL" $ parallel $ do
             reachable(a, b) |- do
               edge(a, c)
               reachable(c, b)
-          action = do
-            prog <- fromJust <$> I.init DSLProgram
+          action = \handle -> do
+            let prog = fromJust handle
             I.addFacts prog [Edge "a" "b", Edge "b" "c"]
             I.run prog
-            rs <- I.getFacts prog
-            I.cleanup prog
-            pure rs
+            I.getFacts prog
       rs <- runSouffleInterpreted DSLProgram ast action
       rs `shouldBe` [Reachable "a" "b", Reachable "a" "c", Reachable "b" "c"]
 
@@ -923,12 +921,10 @@ spec = describe "Souffle DSL" $ parallel $ do
             reachable(a, b) |- do
               edge(a, c)
               reachable(c, b)
-          action = do
-            prog <- fromJust <$> I.init DSLProgram
+          action = \handle -> do
+            let prog = fromJust handle
             I.addFacts prog [Edge "a" "b", Edge "b" "c"]
             I.run prog
-            rs <- I.getFacts prog
-            I.cleanup prog
-            pure rs
+            I.getFacts prog
       rs <- runSouffleInterpretedWith config DSLProgram ast action
       rs `shouldBe` [Reachable "a" "b", Reachable "a" "c", Reachable "b" "c"]

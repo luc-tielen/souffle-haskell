@@ -91,8 +91,7 @@ instance Souffle.Marshal Reachable
 
 
 main :: IO ()
-main = Souffle.runSouffle $ do
-  maybeProgram <- Souffle.init Path  -- Initializes the Souffle program.
+main = Souffle.runSouffle Path $ \maybeProgram -> do  -- Initializes the Souffle program.
   case maybeProgram of
     Nothing -> liftIO $ putStrLn "Failed to load program."
     Just prog -> do
@@ -184,12 +183,8 @@ offers quick development iterations (no compiling of C++ code each time you
 change your Datalog code). However because the Souffle code is interpreted,
 it can't offer the same speed as in compiled mode.
 
-The main differences with compiled mode are the following:
-
-1. You need to import `Language.Souffle.Interpreted`
-2. You need to call `Souffle.cleanup` after you no longer need the Souffle
-   functionality. This will clean up the generated CSV fact files located in
-   a temporary directory.
+If you want to use interpreted Souffle, you need to import the
+`Language.Souffle.Interpreted` module.
 
 #### Interpreter configuration
 
@@ -220,8 +215,7 @@ Datalog algorithm each time it changes.
 The main differences with interpreted mode are the following:
 
 1. Compile the Datalog code with `souffle -g`.
-2. Remove `Souffle.cleanup` if it is present in your code, compiled mode
-   leaves no CSV artifacts.
+2. Import `Language.Souffle.Compiled`
 
 The [motivating example](#motivating-example) is a complete example for the compiled mode.
 

@@ -84,12 +84,12 @@ newtype DSL prog ctx a = DSL (StateT VarMap (Writer [AST]) a)
   via (StateT VarMap (Writer [AST]))
 
 runSouffleInterpreted
-  :: forall a m prog. (MonadIO m, Program prog)
+  :: (MonadIO m, Program prog)
   => prog
-  -> (DSL prog) 'Definition ()
-  -> I.SouffleM a
+  -> DSL prog 'Definition ()
+  -> (Maybe (I.Handle prog) -> I.SouffleM a)
   -> m a
-runSouffleInterpreted program dsl m = liftIO $ do
+runSouffleInterpreted program dsl f = liftIO $ do
   tmpDir <- getCanonicalTemporaryDirectory
   souffleHsDir <- createTempDirectory tmpDir "souffle-haskell"
   defaultCfg <- I.defaultConfig
@@ -97,20 +97,20 @@ runSouffleInterpreted program dsl m = liftIO $ do
                        , I.cfgFactDir = Just souffleHsDir
                        , I.cfgOutputDir = Just souffleHsDir
                        }
-  runSouffleInterpretedWith cfg program dsl m
+  runSouffleInterpretedWith cfg program dsl f
 
 runSouffleInterpretedWith
-  :: forall a m prog. (MonadIO m, Program prog)
+  :: (MonadIO m, Program prog)
   => I.Config
   -> prog
-  -> (DSL prog) 'Definition ()
-  -> I.SouffleM a
+  -> DSL prog 'Definition ()
+  -> (Maybe (I.Handle prog) -> I.SouffleM a)
   -> m a
-runSouffleInterpretedWith config program dsl m = liftIO $ do
-  let progName = programName (Proxy :: Proxy prog)
+runSouffleInterpretedWith config program dsl f = liftIO $ do
+  let progName = programName program
       datalogFile = I.cfgDatalogDir config </> progName <.> "dl"
   renderIO datalogFile $ runDSL program dsl
-  I.runSouffleWith config m
+  I.runSouffleWith config program f
 
 runDSL :: Program prog => prog -> DSL prog 'Definition a -> DL
 runDSL _ (DSL a) = Statements $ mapMaybe simplify $ execWriter (evalStateT a mempty) where
