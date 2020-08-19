@@ -49,11 +49,17 @@ import Language.Souffle.Marshal
 newtype Handle prog = Handle (ForeignPtr Internal.Souffle)
 
 -- | A monad for executing Souffle-related actions in.
-newtype SouffleM a
-  = SouffleM (IO a)
+newtype SouffleM a = SouffleM (IO a)
   deriving ( Functor, Applicative, Monad, MonadIO ) via IO
 
--- TODO docs
+{- | Initializes and runs a Souffle program.
+
+     The 2nd argument is passed in a handle after initialization of the
+     Souffle program. The handle will contain 'Nothing' if it failed to
+     load the Souffle C++ program. In the successful case it will contain
+     a handle that can be used for performing Souffle related actions
+     using the other functions in this module.
+-}
 runSouffle :: forall prog a. Program prog
            => prog -> (Maybe (Handle prog) -> SouffleM a) -> IO a
 runSouffle prog action =

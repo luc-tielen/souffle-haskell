@@ -102,16 +102,28 @@ defaultConfig = liftIO $ do
   pure $ Config (fromMaybe "." dlDir) souffleBin Nothing Nothing
 {-# INLINABLE defaultConfig #-}
 
--- | Returns an IO action that will run the Souffle interpreter with
---   default settings (see `defaultConfig`).
+{- | Initializes and runs a Souffle program with default settings.
+
+     The 2nd argument is passed in a handle after initialization of the
+     Souffle program. The handle will contain 'Nothing' if it failed to
+     locate the souffle interpreter executable. In the successful case
+     it will contain a handle that can be used for performing
+     Souffle related actions using the other functions in this module.
+-}
 runSouffle :: Program prog => prog -> (Maybe (Handle prog) -> SouffleM a) -> IO a
 runSouffle program m = do
   cfg <- defaultConfig
   runSouffleWith cfg program m
 {-# INLINABLE runSouffle #-}
 
--- | Returns an IO action that will run the Souffle interpreter with
---   the given interpreter settings. TODO update docs
+{- | Initializes and runs a Souffle program with the given interpreter settings.
+
+     The 3nd argument is passed in a handle after initialization of the
+     Souffle program. The handle will contain 'Nothing' if it failed to
+     locate the souffle interpreter executable. In the successful case
+     it will contain a handle that can be used for performing
+     Souffle related actions using the other functions in this module.
+-}
 runSouffleWith :: forall prog a. Program prog
                => Config -> prog -> (Maybe (Handle prog) -> SouffleM a) -> IO a
 runSouffleWith cfg program f = bracket initialize maybeCleanup $ \handle -> do
