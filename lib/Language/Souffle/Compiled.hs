@@ -172,14 +172,6 @@ instance MonadSouffle SouffleM where
   type Handler SouffleM = Handle
   type CollectFacts SouffleM c = Collect c
 
-{-
-  init :: forall prog. Program prog
-       => prog -> SouffleM (Maybe (Handle prog))
-  init _ =
-    let progName = programName (Proxy :: Proxy prog)
-    in SouffleM $ fmap Handle <$> Internal.init progName
-  {-# INLINABLE init #-}
--}
   run (Handle prog) = SouffleM $ Internal.run prog
   {-# INLINABLE run #-}
 
