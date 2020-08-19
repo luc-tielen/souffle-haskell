@@ -1,21 +1,24 @@
 
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass, TypeApplications, QuasiQuotes, TypeOperators #-}
-{-# LANGUAGE DataKinds, TypeFamilies #-}
+{-# LANGUAGE DataKinds, TypeFamilies, TemplateHaskell #-}
 
 module Test.Language.Souffle.ExperimentalSpec
   ( module Test.Language.Souffle.ExperimentalSpec
   ) where
 
 import Test.Hspec
+import qualified Test.Language.Souffle.Experimental.Fixtures as F
 import GHC.Generics
 import Data.Int
 import Data.Word
+import Data.Maybe (fromJust)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import System.IO.Temp
 import Language.Souffle.Experimental
 import Language.Souffle.Class
 import Language.Souffle.Interpreted as I
+import Language.Souffle.Compiled as C
 import NeatInterpolation
 
 
@@ -91,16 +94,28 @@ instance Fact Reachable where
   factName = const "reachable"
 
 
+$(embedProgram F.CompiledProgram $ do
+  Predicate edge <- predicateFor @F.Edge
+  Predicate reachable <- predicateFor @F.Reachable
+  a <- var "a"
+  b <- var "b"
+  c <- var "c"
+  reachable(a, b) |- edge(a, b)
+  reachable(a, b) |- do
+    edge(a, c)
+    reachable(c, b)
+ )
+
 spec :: Spec
 spec = describe "Souffle DSL" $ parallel $ do
   describe "code generation" $ parallel $ do
     let prog ==> txt =
-          let rendered = T.strip $ render (runDSL DSLProgram prog)
+          let rendered = T.strip $ render DSLProgram prog
               expected = T.strip txt
           in rendered `shouldBe` expected
 
     it "can render an empty program" $
-      render (runDSL DSLProgram $ pure ()) `shouldBe` ""
+      render DSLProgram (pure ()) `shouldBe` ""
 
     it "can render a program with an input type definition" $ do
       let prog = do
@@ -897,7 +912,8 @@ spec = describe "Souffle DSL" $ parallel $ do
             reachable(a, b) |- do
               edge(a, c)
               reachable(c, b)
-          action = \prog -> do
+          action = \handle -> do
+            let prog = fromJust handle
             I.addFacts prog [Edge "a" "b", Edge "b" "c"]
             I.run prog
             I.getFacts prog
@@ -919,9 +935,19 @@ spec = describe "Souffle DSL" $ parallel $ do
             reachable(a, b) |- do
               edge(a, c)
               reachable(c, b)
-          action = \prog -> do
+          action = \handle -> do
+            let prog = fromJust handle
             I.addFacts prog [Edge "a" "b", Edge "b" "c"]
             I.run prog
             I.getFacts prog
       rs <- runSouffleInterpretedWith config DSLProgram ast action
       rs `shouldBe` [Reachable "a" "b", Reachable "a" "c", Reachable "b" "c"]
+
+    it "can run DSL in compiled mode" $ do
+      rs <- C.runSouffle F.CompiledProgram $ \handle -> do
+        let prog = fromJust handle
+        C.addFacts prog [F.Edge "a" "b", F.Edge "b" "c"]
+        C.run prog
+        C.getFacts prog
+      rs `shouldBe` [F.Reachable "b" "c", F.Reachable "a" "c", F.Reachable "a" "b"]
+

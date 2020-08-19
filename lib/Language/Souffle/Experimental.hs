@@ -1,8 +1,6 @@
-
-{-# LANGUAGE GADTs, RankNTypes, TypeFamilies, DataKinds #-}
-{-# LANGUAGE TypeOperators, UndecidableInstances, FlexibleContexts #-}
-{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, DerivingVia #-}
-{-# LANGUAGE ScopedTypeVariables, PolyKinds, ConstraintKinds #-}
+{-# LANGUAGE GADTs, RankNTypes, TypeFamilies, DataKinds, TypeOperators, ConstraintKinds #-}
+{-# LANGUAGE UndecidableInstances, FlexibleContexts, MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances, DerivingVia, ScopedTypeVariables, PolyKinds #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 module Language.Souffle.Experimental
@@ -13,13 +11,13 @@ module Language.Souffle.Experimental
   , Direction(..)
   , runSouffleInterpretedWith
   , runSouffleInterpreted
-  , runDSL
-  , var
+  , embedProgram
   , predicateFor
+  , var
+  , __
+  , underscore
   , (|-)
   , (\/)
-  , underscore
-  , __
   , not'
   , (.<)
   , (.<=)
@@ -48,6 +46,7 @@ module Language.Souffle.Experimental
   -- TODO: check if export list is complete
   ) where
 
+import Language.Haskell.TH.Syntax (qRunIO, qAddForeignFilePath, Q, Dec, ForeignSrcLang(..))
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Writer
@@ -56,7 +55,7 @@ import Data.Kind
 import Data.List.NonEmpty (NonEmpty(..), toList)
 import Data.Map ( Map )
 import qualified Data.Map as Map
-import Data.Maybe (fromMaybe, catMaybes, mapMaybe, fromJust)
+import Data.Maybe (fromMaybe, catMaybes, mapMaybe)
 import Data.Word
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
@@ -71,6 +70,8 @@ import Language.Souffle.Internal.Constraints (SimpleProduct)
 import Language.Souffle.Class (Program(..), Fact(..), ContainsFact, Direction(..))
 import Type.Errors.Pretty
 import System.IO.Temp
+import System.Process
+import System.Directory
 import System.FilePath
 
 
@@ -87,7 +88,7 @@ runSouffleInterpreted
   :: (MonadIO m, Program prog)
   => prog
   -> DSL prog 'Definition ()
-  -> (I.Handle prog -> I.SouffleM a)
+  -> (Maybe (I.Handle prog) -> I.SouffleM a)
   -> m a
 runSouffleInterpreted program dsl f = liftIO $ do
   tmpDir <- getCanonicalTemporaryDirectory
@@ -97,20 +98,34 @@ runSouffleInterpreted program dsl f = liftIO $ do
                        , I.cfgFactDir = Just souffleHsDir
                        , I.cfgOutputDir = Just souffleHsDir
                        }
-  runSouffleInterpretedWith cfg program dsl f
+  runSouffleInterpretedWith cfg program dsl f <* removeDirectoryRecursive souffleHsDir
 
 runSouffleInterpretedWith
   :: (MonadIO m, Program prog)
   => I.Config
   -> prog
   -> DSL prog 'Definition ()
-  -> (I.Handle prog -> I.SouffleM a)
+  -> (Maybe (I.Handle prog) -> I.SouffleM a)
   -> m a
 runSouffleInterpretedWith config program dsl f = liftIO $ do
   let progName = programName program
       datalogFile = I.cfgDatalogDir config </> progName <.> "dl"
-  renderIO datalogFile $ runDSL program dsl
-  I.runSouffleWith config program (f . fromJust)
+  renderIO program datalogFile dsl
+  I.runSouffleWith config program f
+
+embedProgram :: Program prog => prog -> DSL prog 'Definition () -> Q [Dec]
+embedProgram program dsl = do
+  cppFile <- qRunIO $ do
+    tmpDir <- getCanonicalTemporaryDirectory
+    souffleHsDir <- createTempDirectory tmpDir "souffle-haskell"
+    let progName = programName program
+        datalogFile = souffleHsDir </> progName <.> "dl"
+        cppFile = souffleHsDir </> progName <.> "cpp"
+    renderIO program datalogFile dsl
+    callCommand $ printf "souffle -g %s %s" cppFile datalogFile
+    pure cppFile
+  qAddForeignFilePath LangCxx cppFile
+  pure []
 
 runDSL :: Program prog => prog -> DSL prog 'Definition a -> DL
 runDSL _ (DSL a) = Statements $ mapMaybe simplify $ execWriter (evalStateT a mempty) where
@@ -223,11 +238,11 @@ instance Fragment (DSL prog) 'Definition where
 
 data RenderMode = Nested | TopLevel
 
-renderIO :: FilePath -> DL -> IO ()
-renderIO path = TIO.writeFile path . render
+renderIO :: Program prog => prog -> FilePath -> DSL prog 'Definition () -> IO ()
+renderIO prog path = TIO.writeFile path . render prog
 
-render :: DL -> T.Text
-render = flip runReader TopLevel . f where
+render :: Program prog => prog -> DSL prog 'Definition () -> T.Text
+render prog = flip runReader TopLevel . f . runDSL prog where
   f = \case
     Statements stmts ->
       T.unlines <$> traverse f stmts
@@ -423,7 +438,6 @@ instance IsString (Term ctx String) where fromString = StringTerm
 instance IsString (Term ctx T.Text) where fromString = StringTerm . T.pack
 instance IsString (Term ctx TL.Text) where fromString = StringTerm . TL.pack
 
--- TODO: better name
 class Num ty => SupportsArithmetic ty where
   fromInteger' :: Integer -> Term ctx ty
 

@@ -106,9 +106,10 @@ defaultConfig = liftIO $ do
 
      The 2nd argument is passed in a handle after initialization of the
      Souffle program. The handle will contain 'Nothing' if it failed to
-     locate the souffle interpreter executable. In the successful case
-     it will contain a handle that can be used for performing
-     Souffle related actions using the other functions in this module.
+     locate the souffle interpreter executable or if it failed to find the
+     souffle program file. In the successful case it will contain a handle
+     that can be used for performing Souffle related actions using the other
+     functions in this module.
 -}
 runSouffle :: Program prog => prog -> (Maybe (Handle prog) -> SouffleM a) -> IO a
 runSouffle program m = do
@@ -120,9 +121,10 @@ runSouffle program m = do
 
      The 3nd argument is passed in a handle after initialization of the
      Souffle program. The handle will contain 'Nothing' if it failed to
-     locate the souffle interpreter executable. In the successful case
-     it will contain a handle that can be used for performing
-     Souffle related actions using the other functions in this module.
+     locate the souffle interpreter executable or if it failed to find the
+     souffle program file. In the successful case it will contain a handle
+     that can be used for performing Souffle related actions using the other
+     functions in this module.
 
      If the config settings do not specify a fact or output dir,
      temporary directories will be created for storing files in. These
