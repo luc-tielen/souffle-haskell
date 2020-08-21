@@ -81,6 +81,10 @@ module Language.Souffle.Experimental
   , UsageContext(..)
   , Direction(..)
   , ToPredicate
+  , FactMetadata(..)
+  , Metadata(..)
+  , StructureOpt(..)
+  , InlineOpt(..)
   -- ** Basic building blocks
   , predicateFor
   , var
@@ -145,8 +149,7 @@ import Data.Word
 import GHC.Generics
 import GHC.TypeLits
 import Language.Haskell.TH.Syntax (qRunIO, qAddForeignFilePath, Q, Dec, ForeignSrcLang(..))
-import Language.Souffle.Class ( Program(..), Fact(..), ContainsFact
-                              , Direction(..), FactOpts(..), StructureOpt(..), InlineOpt(..) )
+import Language.Souffle.Class ( Program(..), Fact(..), ContainsFact, Direction(..) )
 import Language.Souffle.Internal.Constraints (SimpleProduct)
 import qualified Language.Souffle.Interpreted as I
 import System.Directory
@@ -311,7 +314,7 @@ data Head ctx unused
 --   - The "ctx" type variable is the context in which this type is used.
 --     For this type, this will always be 'Relation'. The variable is there to
 --     perform some compile-time checks.
---   - The 'a' type variable is the value contained inside
+--   - The "a" type variable is the value contained inside
 --     (just like other monads).
 --
 --   See also '|-'.
@@ -345,6 +348,7 @@ data TypeInfo (a :: k) (ts :: [Type]) = TypeInfo
 --   are not met.
 type ToPredicate prog a =
   ( Fact a
+  , FactMetadata a
   , ContainsFact prog a
   , SimpleProduct a
   , Assert (Length (Structure a) <=? 10) BigTupleError
@@ -353,6 +357,48 @@ type ToPredicate prog a =
   , KnownSymbols (AccessorNames a)
   , ToTerms (Structure a)
   )
+
+-- | A typeclass for optionally configuring extra settings
+--   (for performance reasons).
+class FactMetadata a where
+  -- | An optional function for configuring fact metadata.
+  --
+  --   By default no extra options are configured.
+  --   For more information, see the 'Metadata' type.
+  factOpts :: TypeInfo a ts -> Maybe (Metadata a (FactDirection a))
+  factOpts = const Nothing
+
+-- | A data type that allows for finetuning of fact settings.
+data Metadata (a :: Type) (d :: Direction)
+  = Metadata (StructureOpt a) (InlineOpt d)
+
+-- | Datatype describing the way a fact is stored inside Datalog.
+--   A different choice of storage type can lead to an improvement in
+--   performance (potentially).
+--
+--   For more information, see the Souffle
+--   <https://souffle-lang.github.io/tuning#datastructure documentation>.
+data StructureOpt (a :: Type) where
+  -- | The default datastructure for most relations in Souffle. This is storage
+  --   type that is used by default.
+  BTree :: StructureOpt a
+  -- | Can improve performance in some cases, and is more memory efficient for
+  --   particularly large relations.
+  Brie :: StructureOpt a
+  -- | A high performance datastructure optimised specifically for equivalence
+  --   relations. This is only valid for binary facts with 2 fields of the
+  --   same type.
+  EqRel :: ( Assert (Length (Structure a) == 2)
+             ("Equivalence relations are only allowed with binary relations" <> ".")
+           , Structure a ~ '[t, t]
+           ) => StructureOpt a
+
+-- | Datatype indicating if we should inline a fact or not.
+data InlineOpt (d :: Direction) where
+  -- | Inlines the fact, only possible for internal facts.
+  Inline :: InlineOpt 'Internal
+  -- | Does not inline the fact.
+  NoInline :: InlineOpt d
 
 -- | Generates a function for a type that implements 'Fact' and is a
 --   'SimpleProduct'. The predicate function takes the same amount of arguments
@@ -368,7 +414,7 @@ predicateFor = do
       p = Proxy :: Proxy a
       name = T.pack $ factName p
       accNames = fromMaybe genericNames $ accessorNames p
-      opts = toMetadata <$> factOpts p
+      opts = toSimpleMetadata <$> factOpts typeInfo
       genericNames = map (("t" <>) . T.pack . show) [1..]
       tys = getTypes (Proxy :: Proxy (Structure a))
       direction = getDirection (Proxy :: Proxy (FactDirection a))
@@ -377,10 +423,16 @@ predicateFor = do
   addDefinition definition
   pure $ Predicate $ toFragment typeInfo name
 
-toMetadata :: FactOpts d -> Metadata
-toMetadata (FactOpts struct inline) = Metadata struct $ case inline of
-  Inline -> DoInline
-  NoInline -> DoNotInline
+toSimpleMetadata :: Metadata ts d -> SimpleMetadata
+toSimpleMetadata (Metadata struct inline) =
+  let structOpt = case struct of
+        BTree -> BTreeLayout
+        Brie -> BrieLayout
+        EqRel -> EqRelLayout
+      inlineOpt = case inline of
+        Inline -> DoInline
+        NoInline -> DoNotInline
+  in SimpleMetadata structOpt inlineOpt
 
 class KnownDirection a where
   getDirection :: Proxy a -> Direction
@@ -507,12 +559,12 @@ renderField (FieldData ty accName) =
         DLString -> ": symbol"
    in accName <> txt
 
-renderMetadata :: Metadata -> T.Text
-renderMetadata (Metadata struct inline) =
+renderMetadata :: SimpleMetadata -> T.Text
+renderMetadata (SimpleMetadata struct inline) =
   let structTxt = case struct of
-        BTree -> "btree"
-        Brie -> "brie"
-        EqRel -> "eqrel"
+        BTreeLayout -> "btree"
+        BrieLayout -> "brie"
+        EqRelLayout -> "eqrel"
       inlineTxt = case inline of
         DoInline -> " inline"
         DoNotInline -> ""
@@ -831,12 +883,19 @@ data SimpleTerm
   | UnaryOp' Op1 SimpleTerm
   | Func' FuncName (NonEmpty SimpleTerm)
 
-data Metadata = Metadata StructureOpt InlineOption
+data SimpleMetadata = SimpleMetadata StructureOption InlineOption
 
-data InlineOption = DoInline | DoNotInline
+data StructureOption
+  = BTreeLayout
+  | BrieLayout
+  | EqRelLayout
+
+data InlineOption
+  = DoInline
+  | DoNotInline
 
 data AST
-  = Declare' VarName Direction [FieldData] (Maybe Metadata)
+  = Declare' VarName Direction [FieldData] (Maybe SimpleMetadata)
   | Rule' Name (NonEmpty SimpleTerm) AST
   | Atom' Name (NonEmpty SimpleTerm)
   | And' [AST]
@@ -846,7 +905,7 @@ data AST
 
 data DL
   = Statements [DL]
-  | Declare VarName Direction [FieldData] (Maybe Metadata)
+  | Declare VarName Direction [FieldData] (Maybe SimpleMetadata)
   | Rule Name (NonEmpty SimpleTerm) DL
   | Atom Name (NonEmpty SimpleTerm)
   | And DL DL

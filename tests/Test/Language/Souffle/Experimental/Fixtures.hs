@@ -7,6 +7,7 @@ module Test.Language.Souffle.Experimental.Fixtures
 
 import GHC.Generics
 import Language.Souffle.Class
+import Language.Souffle.Experimental
 
 data CompiledProgram = CompiledProgram
 
@@ -15,10 +16,10 @@ instance Program CompiledProgram where
   programName = const "compiledprogram"
 
 data Edge = Edge String String
-  deriving (Generic, Marshal)
+  deriving (Generic, Marshal, FactMetadata)
 
 data Reachable = Reachable String String
-  deriving (Eq, Show, Generic, Marshal)
+  deriving (Eq, Show, Generic, Marshal, FactMetadata)
 
 instance Fact Edge where
   type FactDirection Edge = 'Input

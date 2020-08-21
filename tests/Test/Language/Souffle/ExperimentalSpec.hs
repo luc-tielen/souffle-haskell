@@ -23,36 +23,38 @@ import NeatInterpolation
 
 
 data Point = Point { x :: Int32, y :: Int32 }
-  deriving (Generic, Marshal)
+  deriving (Generic, Marshal, FactMetadata)
 
 newtype IntFact = IntFact Int32
-  deriving (Generic, Marshal)
+  deriving (Generic, Marshal, FactMetadata)
 
 newtype UnsignedFact = UnsignedFact Word32
-  deriving (Generic, Marshal)
+  deriving (Generic, Marshal, FactMetadata)
 
 newtype FloatFact = FloatFact Float
-  deriving (Generic, Marshal)
+  deriving (Generic, Marshal, FactMetadata)
 
 data TextFact = TextFact T.Text TL.Text
-  deriving (Generic, Marshal)
+  deriving (Generic, Marshal, FactMetadata)
 
 data Triple = Triple String Int32 String
-  deriving (Generic, Marshal)
+  deriving (Generic, Marshal, FactMetadata)
 
 newtype Vertex = Vertex String
-  deriving (Generic, Marshal)
+  deriving (Generic, Marshal, FactMetadata)
 
 data Edge = Edge String String
-  deriving (Generic, Marshal)
+  deriving (Generic, Marshal, FactMetadata)
 
 data Reachable = Reachable String String
-  deriving (Eq, Show, Generic, Marshal)
+  deriving (Eq, Show, Generic, Marshal, FactMetadata)
 
 data BTreeFact = BTreeFact Int32
   deriving (Generic, Marshal)
+
 data BrieFact = BrieFact Int32
   deriving (Generic, Marshal)
+
 data EqRelFact = EqRelFact Int32 Int32
   deriving (Generic, Marshal)
 
@@ -105,15 +107,18 @@ instance Fact Reachable where
 instance Fact BTreeFact where
   type FactDirection BTreeFact = 'Internal
   factName = const "btreefact"
-  factOpts = const $ Just $ FactOpts BTree NoInline
 instance Fact BrieFact where
   type FactDirection BrieFact = 'Internal
   factName = const "briefact"
-  factOpts = const $ Just $ FactOpts Brie Inline
 instance Fact EqRelFact where
   type FactDirection EqRelFact = 'Input
   factName = const "eqrelfact"
-  factOpts = const $ Just $ FactOpts EqRel NoInline
+instance FactMetadata BTreeFact where
+  factOpts = const $ Just $ Metadata BTree NoInline
+instance FactMetadata BrieFact where
+  factOpts = const $ Just $ Metadata Brie Inline
+instance FactMetadata EqRelFact where
+  factOpts = const $ Just $ Metadata EqRel NoInline
 
 spec :: Spec
 spec = describe "Souffle DSL" $ parallel $ do

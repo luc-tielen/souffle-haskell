@@ -1,5 +1,5 @@
 {-# LANGUAGE DataKinds, UndecidableInstances, FlexibleContexts #-}
-{-# LANGUAGE GADTs, TypeFamilies, TypeOperators #-}
+{-# LANGUAGE TypeFamilies, TypeOperators #-}
 
 -- | This module provides the top level API for Souffle related operations.
 --   It makes use of Haskell's powerful typesystem to make certain invalid states
@@ -18,9 +18,6 @@ module Language.Souffle.Class
   , Fact(..)
   , Marshal.Marshal(..)
   , Direction(..)
-  , FactOpts(..)
-  , StructureOpt(..)
-  , InlineOpt(..)
   , ContainsInputFact
   , ContainsOutputFact
   , ContainsFact
@@ -139,13 +136,6 @@ class Marshal.Marshal a => Fact a where
   -- It uses a 'Proxy' to select the correct instance.
   factName :: Proxy a -> String
 
-  -- | An optional function for configuring fact metadata.
-  --
-  --   By default no extra options are configured.
-  --   For more information, see the 'FactOpts' type.
-  factOpts :: Proxy a -> Maybe (FactOpts (FactDirection a))
-  factOpts = const Nothing
-
 -- | A datatype describing which operations a certain fact supports.
 --   The direction is from the datalog perspective, so that it
 --   aligns with ".decl" statements in Souffle.
@@ -159,45 +149,6 @@ data Direction
   | Internal
   -- ^ Supports neither reading from / writing to Datalog. This is used for
   --   facts that are only visible inside Datalog itself.
-
--- | A data type that allows for finetuning of fact settings.
---
---   Note: These settings are only taken into account when Datalog code is
---   generated from Haskell (using functions from the
---   'Language.Souffle.Experimental' module). Otherwise the Datalog code
---   itself should contain these fact options.
-data FactOpts (d :: Direction)
-  = FactOpts StructureOpt (InlineOpt d)
-
--- | Datatype describing the way a fact is stored inside Datalog.
---   A different choice of storage type can lead to an improvement in
---   performance (potentially).
---
---   Note: This is only applicable for when the Datalog code is generated via
---   the DSL. Otherwise, the Datalog file itself should contain the storage type.
---
---   For more information, see the Souffle
---   <https://souffle-lang.github.io/tuning#datastructure documentation>.
-data StructureOpt
-  = BTree
-  -- ^ The default datastructure for most relations in Souffle. This is storage
-  --   type that is used by default.
-  | Brie
-  -- ^ Can improve performance in some cases, and is more memory efficient for
-  --   particularly large relations.
-  | EqRel
-  -- ^ A high performance datastructure optimised specifically for equivalence
-  --   relations. This is only valid for binary facts with 2 fields of the
-  --   same type.
-
--- | Datatype indicating if we should inline a fact or not.
---   Inlining is only possible for internal facts.
---
---   Note: This is only applicable for when the Datalog code is generated via
---   the DSL. Otherwise, the Datalog file itself should contain the storage type.
-data InlineOpt d where
-  Inline :: InlineOpt 'Internal
-  NoInline :: InlineOpt d
 
 -- | A mtl-style typeclass for Souffle-related actions.
 class Monad m => MonadSouffle m where
