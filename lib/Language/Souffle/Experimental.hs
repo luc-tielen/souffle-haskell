@@ -490,7 +490,7 @@ render prog = flip runReader TopLevel . f . runDSL prog where
       T.unlines <$> traverse f stmts
     Declare name dir fields mFactOpts ->
       let fieldPairs = map renderField fields
-          renderedOpts = fromMaybe "" $ (" " <>) . renderMetadata <$> mFactOpts
+          renderedOpts = maybe "" ((" " <>) . renderMetadata) mFactOpts
        in pure $ T.intercalate "\n" $ catMaybes
         [ Just $ ".decl " <> name <> "(" <> T.intercalate ", " fieldPairs <> ")" <> renderedOpts
         , renderDir name dir

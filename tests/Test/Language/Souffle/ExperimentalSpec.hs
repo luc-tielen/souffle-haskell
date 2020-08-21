@@ -49,10 +49,10 @@ data Edge = Edge String String
 data Reachable = Reachable String String
   deriving (Eq, Show, Generic, Marshal, FactMetadata)
 
-data BTreeFact = BTreeFact Int32
+newtype BTreeFact = BTreeFact Int32
   deriving (Generic, Marshal)
 
-data BrieFact = BrieFact Int32
+newtype BrieFact = BrieFact Int32
   deriving (Generic, Marshal)
 
 data EqRelFact = EqRelFact Int32 Int32
