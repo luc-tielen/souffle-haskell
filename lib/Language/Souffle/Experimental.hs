@@ -365,12 +365,12 @@ class FactMetadata a where
   --
   --   By default no extra options are configured.
   --   For more information, see the 'Metadata' type.
-  factOpts :: TypeInfo a ts -> Maybe (Metadata a (FactDirection a))
+  factOpts :: TypeInfo a ts -> Maybe (Metadata a)
   factOpts = const Nothing
 
 -- | A data type that allows for finetuning of fact settings.
-data Metadata (a :: Type) (d :: Direction)
-  = Metadata (StructureOpt a) (InlineOpt d)
+data Metadata a
+  = Metadata (StructureOpt a) (InlineOpt (FactDirection a))
 
 -- | Datatype describing the way a fact is stored inside Datalog.
 --   A different choice of storage type can lead to an improvement in
@@ -423,7 +423,7 @@ predicateFor = do
   addDefinition definition
   pure $ Predicate $ toFragment typeInfo name
 
-toSimpleMetadata :: Metadata ts d -> SimpleMetadata
+toSimpleMetadata :: Metadata a -> SimpleMetadata
 toSimpleMetadata (Metadata struct inline) =
   let structOpt = case struct of
         BTree -> BTreeLayout
