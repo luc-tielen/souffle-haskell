@@ -12,7 +12,7 @@
 
     The functions and operators provided by this module follow a naming scheme:
 
-    - If there is no clash with something imported via 'Prelude', the
+    - If there is no clash with something imported via Prelude, the
       function or operator is named exactly the same as in Souffle.
     - If there is a clash for functions, an apostrophe is appended
       (e.g. "max" in Datalog is 'max'' in Haskell).
@@ -106,6 +106,14 @@ module Language.Souffle.Experimental
   -- ** Souffle functions
   , max'
   , min'
+  , cat
+  , contains
+  , match
+  , ord
+  , strlen
+  , substr
+  , to_number
+  , to_string
   -- * Functions for running a Datalog DSL fragment / AST directly.
   , runSouffleInterpretedWith
   , runSouffleInterpreted
@@ -176,7 +184,7 @@ type VarMap = Map VarName Int
 --     'Program' typeclass.
 --   - The "ctx" type variable is the context in which a DSL fragment is used.
 --     For more information, see 'UsageContext'.
---   - The 'a' type variable is the value contained inside
+--   - The "a" type variable is the value contained inside
 --     (just like other monads).
 newtype DSL prog ctx a = DSL (StateT VarMap (Writer [AST]) a)
   deriving (Functor, Applicative, Monad, MonadWriter [AST], MonadState VarMap)
@@ -511,6 +519,14 @@ renderTerm = \case
     renderFunc = \case
       Max -> "max"
       Min -> "min"
+      Cat -> "cat"
+      Contains -> "contains"
+      Match -> "match"
+      Ord -> "ord"
+      StrLen -> "strlen"
+      Substr -> "substr"
+      ToNumber -> "to_number"
+      ToString -> "to_string"
     renderBinOp = \case
       Plus -> "+"
       Mul -> "*"
@@ -587,7 +603,7 @@ data Term ctx ty where
 
   UnaryOp :: Num ty => Op1 -> Term ctx ty -> Term ctx ty
   BinOp :: Num ty => Op2 -> Term ctx ty -> Term ctx ty -> Term ctx ty
-  Func :: FuncName -> NonEmpty (Term ctx ty) -> Term ctx ty
+  Func :: FuncName -> NonEmpty SimpleTerm -> Term ctx ty2
 
 data Op2
   = Plus
@@ -613,6 +629,14 @@ data Op1 = Negate
 data FuncName
   = Max
   | Min
+  | Cat
+  | Contains
+  | Match
+  | Ord
+  | StrLen
+  | Substr
+  | ToNumber
+  | ToString
 
 
 -- | Term representing a wildcard ("_") in Datalog.
@@ -692,13 +716,13 @@ infix 1 .>=
 
 -- | Creates a constraint that 2 terms should be equal to each other (a = b),
 --   for use in the body of a relation.
-(.=) :: Num ty => Term ctx ty -> Term ctx ty -> Body ctx ()
+(.=) :: Term ctx ty -> Term ctx ty -> Body ctx ()
 (.=) = addConstraint IsEqual
 infix 1 .=
 
 -- | Creates a constraint that 2 terms should not be equal to each other
 --   (a != b), for use in the body of a relation.
-(.!=) :: Num ty => Term ctx ty -> Term ctx ty -> Body ctx ()
+(.!=) :: Term ctx ty -> Term ctx ty -> Body ctx ()
 (.!=) = addConstraint IsNotEqual
 infix 1 .!=
 
@@ -727,16 +751,55 @@ land = BinOp LogicalAnd
 lor :: (Num ty, Integral ty) => Term ctx ty -> Term ctx ty -> Term ctx ty
 lor = BinOp LogicalOr
 
--- | Max function.
+-- | "max" function.
 max' :: Num ty => Term ctx ty -> Term ctx ty -> Term ctx ty
 max' = func2 Max
 
--- | Min function.
+-- | "min" function.
 min' :: Num ty => Term ctx ty -> Term ctx ty -> Term ctx ty
 min' = func2 Min
 
-func2 :: FuncName -> Term ctx ty -> Term ctx ty -> Term ctx ty
-func2 name a b = Func name $ a :| [b]
+-- | "cat" function (string concatenation).
+cat :: ToString ty => Term ctx ty -> Term ctx ty -> Term ctx ty
+cat = func2 Cat
+
+-- | "contains" predicate, checks if 2nd string contains the first.
+contains :: ToString ty => Term ctx ty -> Term ctx ty -> Body ctx ()
+contains a b =
+  let expr = toTerm $ func2 Contains a b
+   in tell [Constrain' expr]
+
+-- | "match" predicate, checks if a wildcard string matches a given string.
+match :: ToString ty => Term ctx ty -> Term ctx ty -> Body ctx ()
+match p s =
+  let expr = toTerm $ func2 Match p s
+  in tell [Constrain' expr]
+
+-- | "ord" function.
+ord :: ToString ty => Term ctx ty -> Term ctx Int32
+ord = func1 Ord
+
+-- | "strlen" function.
+strlen :: ToString ty => Term ctx ty -> Term ctx Int32
+strlen = func1 StrLen
+
+-- | "substr" function.
+substr :: ToString ty => Term ctx ty -> Term ctx Int32 -> Term ctx Int32 -> Term ctx ty
+substr a b c = Func Substr $ toTerm a :| [toTerm b, toTerm c]
+
+-- | "to_number" function.
+to_number :: ToString ty => Term ctx ty -> Term ctx Int32
+to_number = func1 ToNumber
+
+-- | "to_string" function.
+to_string :: ToString ty => Term ctx Int32 -> Term ctx ty
+to_string = func1 ToString
+
+func1 :: FuncName -> Term ctx ty -> Term ctx ty2
+func1 name a = Func name $ toTerm a :| []
+
+func2 :: FuncName -> Term ctx ty -> Term ctx ty -> Term ctx ty2
+func2 name a b = Func name $ toTerm a :| [toTerm b]
 
 data SimpleTerm
   = V VarName
@@ -876,7 +939,7 @@ toTerm = \case
 
   BinOp op t1 t2 -> BinOp' op (toTerm t1) (toTerm t2)
   UnaryOp op t1 -> UnaryOp' op (toTerm t1)
-  Func name ts -> Func' name $ fmap toTerm ts
+  Func name ts -> Func' name ts
 
 
 -- Helper functions / type families / ...

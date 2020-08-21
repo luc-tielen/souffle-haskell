@@ -684,7 +684,7 @@ spec = describe "Souffle DSL" $ parallel $ do
             unsignedfact(10 lor 32).
             |]
 
-      describe "comparisons and equality operators" $ parallel $ do
+      describe "comparisons and equality, inequality" $ parallel $ do
         -- NOTE: the following generated programs are not correct
         -- since vars are not grounded (but is done to keep tests succinct)
         it "supports <" $ do
@@ -796,12 +796,15 @@ spec = describe "Souffle DSL" $ parallel $ do
                 Predicate int <- predicateFor @IntFact
                 Predicate unsigned <- predicateFor @UnsignedFact
                 Predicate float <- predicateFor @FloatFact
+                Predicate vertex <- predicateFor @Vertex
                 a <- var "a"
                 b <- var "b"
                 c <- var "c"
+                d <- var "d"
                 int(a) |- a .= 10
                 unsigned(b) |- b .= 10
                 float(c) |- c .= 10.1
+                vertex(d) |- d .= "abc"
           prog ==> [text|
             .decl intfact(t1: number)
             .input intfact
@@ -809,12 +812,16 @@ spec = describe "Souffle DSL" $ parallel $ do
             .input unsignedfact
             .decl floatfact(t1: float)
             .input floatfact
+            .decl vertex(t1: symbol)
+            .output vertex
             intfact(a) :-
               a = 10.
             unsignedfact(b) :-
               b = 10.
             floatfact(c) :-
               c = 10.1.
+            vertex(d) :-
+              d = "abc".
             |]
 
         it "supports !=" $ do
@@ -822,12 +829,15 @@ spec = describe "Souffle DSL" $ parallel $ do
                 Predicate int <- predicateFor @IntFact
                 Predicate unsigned <- predicateFor @UnsignedFact
                 Predicate float <- predicateFor @FloatFact
+                Predicate vertex <- predicateFor @Vertex
                 a <- var "a"
                 b <- var "b"
                 c <- var "c"
+                d <- var "d"
                 int(a) |- a .!= 10
                 unsigned(b) |- b .!= 10
                 float(c) |- c .!= 10.1
+                vertex(d) |- d .!= "abc"
           prog ==> [text|
             .decl intfact(t1: number)
             .input intfact
@@ -835,12 +845,16 @@ spec = describe "Souffle DSL" $ parallel $ do
             .input unsignedfact
             .decl floatfact(t1: float)
             .input floatfact
+            .decl vertex(t1: symbol)
+            .output vertex
             intfact(a) :-
               a != 10.
             unsignedfact(b) :-
               b != 10.
             floatfact(c) :-
               c != 10.1.
+            vertex(d) :-
+              d != "abc".
             |]
 
     describe "functors" $ parallel $ do
@@ -886,6 +900,135 @@ spec = describe "Souffle DSL" $ parallel $ do
           intfact(min(min(10, 80), 10)).
           unsignedfact(min(10, 32)).
           floatfact(min(42.42, 2.0)).
+          |]
+
+      it "supports cat" $ do
+        let prog = do
+              Predicate vertex <- predicateFor @Vertex
+              vertex(cat "abc" "def")
+              vertex(cat "abc" $ cat "def" "ghi")
+        prog ==> [text|
+          .decl vertex(t1: symbol)
+          .output vertex
+          vertex(cat("abc", "def")).
+          vertex(cat("abc", cat("def", "ghi"))).
+          |]
+
+      it "supports contains" $ do
+        let prog = do
+              Predicate vertex <- predicateFor @Vertex
+              Predicate int <- predicateFor @IntFact
+              a <- var "a"
+              b <- var "b"
+              int(0) |- do
+                vertex(a)
+                vertex(b)
+                contains a b
+        prog ==> [text|
+          .decl vertex(t1: symbol)
+          .output vertex
+          .decl intfact(t1: number)
+          .input intfact
+          intfact(0) :-
+            vertex(a),
+            vertex(b),
+            contains(a, b).
+          |]
+
+      it "supports match" $ do
+        let prog = do
+              Predicate vertex <- predicateFor @Vertex
+              Predicate int <- predicateFor @IntFact
+              a <- var "a"
+              int(0) |- do
+                vertex(a)
+                match "*.a" a
+        prog ==> [text|
+          .decl vertex(t1: symbol)
+          .output vertex
+          .decl intfact(t1: number)
+          .input intfact
+          intfact(0) :-
+            vertex(a),
+            match("*.a", a).
+          |]
+
+      it "supports ord" $ do
+        let prog = do
+              Predicate vertex <- predicateFor @Vertex
+              Predicate int <- predicateFor @IntFact
+              a <- var "a"
+              int(ord a) |-
+                vertex(a)
+        prog ==> [text|
+          .decl vertex(t1: symbol)
+          .output vertex
+          .decl intfact(t1: number)
+          .input intfact
+          intfact(ord(a)) :-
+            vertex(a).
+          |]
+
+      it "supports strlen" $ do
+        let prog = do
+              Predicate vertex <- predicateFor @Vertex
+              Predicate int <- predicateFor @IntFact
+              a <- var "a"
+              int(strlen a) |-
+                vertex(a)
+        prog ==> [text|
+          .decl vertex(t1: symbol)
+          .output vertex
+          .decl intfact(t1: number)
+          .input intfact
+          intfact(strlen(a)) :-
+            vertex(a).
+          |]
+
+      it "supports substr" $ do
+        let prog = do
+              Predicate vertex <- predicateFor @Vertex
+              a <- var "a"
+              vertex(a) |-
+                a .= substr "Hello" 1 3
+        prog ==> [text|
+          .decl vertex(t1: symbol)
+          .output vertex
+          vertex(a) :-
+            a = substr("Hello", 1, 3).
+          |]
+
+
+      it "supports to_number" $ do
+        let prog = do
+              Predicate vertex <- predicateFor @Vertex
+              Predicate int <- predicateFor @IntFact
+              a <- var "a"
+              int(to_number a) |-
+                vertex(a)
+        prog ==> [text|
+          .decl vertex(t1: symbol)
+          .output vertex
+          .decl intfact(t1: number)
+          .input intfact
+          intfact(to_number(a)) :-
+            vertex(a).
+          |]
+
+      it "supports to_string" $ do
+        let prog = do
+              Predicate vertex <- predicateFor @Vertex
+              Predicate int <- predicateFor @IntFact
+              a <- var "a"
+              vertex(to_string a) |-
+                int(a)
+        prog ==> [text|
+          .decl vertex(t1: symbol)
+          .output vertex
+          .decl intfact(t1: number)
+          .input intfact
+          vertex(to_string(a)) :-
+            intfact(a).
           |]
 
   describe "running DSL code directly " $ parallel $ do
