@@ -49,6 +49,13 @@ data Edge = Edge String String
 data Reachable = Reachable String String
   deriving (Eq, Show, Generic, Marshal)
 
+data BTreeFact = BTreeFact Int32
+  deriving (Generic, Marshal)
+data BrieFact = BrieFact Int32
+  deriving (Generic, Marshal)
+data EqRelFact = EqRelFact Int32 Int32
+  deriving (Generic, Marshal)
+
 data DSLProgram = DSLProgram
 
 instance Program DSLProgram where
@@ -58,6 +65,9 @@ instance Program DSLProgram where
     , FloatFact
     , UnsignedFact
     , TextFact
+    , BTreeFact
+    , BrieFact
+    , EqRelFact
     , Triple
     , Vertex
     , Edge
@@ -92,7 +102,18 @@ instance Fact Edge where
 instance Fact Reachable where
   type FactDirection Reachable = 'Output
   factName = const "reachable"
-
+instance Fact BTreeFact where
+  type FactDirection BTreeFact = 'Input
+  factName = const "btreefact"
+  factOpts = const $ Just $ FactOpts BTree
+instance Fact BrieFact where
+  type FactDirection BrieFact = 'Input
+  factName = const "briefact"
+  factOpts = const $ Just $ FactOpts Brie
+instance Fact EqRelFact where
+  type FactDirection EqRelFact = 'Input
+  factName = const "eqrelfact"
+  factOpts = const $ Just $ FactOpts EqRel
 
 spec :: Spec
 spec = describe "Souffle DSL" $ parallel $ do
@@ -147,6 +168,9 @@ spec = describe "Souffle DSL" $ parallel $ do
             Predicate _ <- predicateFor @UnsignedFact
             Predicate _ <- predicateFor @FloatFact
             Predicate _ <- predicateFor @Triple
+            Predicate _ <- predicateFor @BTreeFact
+            Predicate _ <- predicateFor @BrieFact
+            Predicate _ <- predicateFor @EqRelFact
             pure ()
       prog ==> [text|
         .decl intfact(t1: number)
@@ -156,6 +180,12 @@ spec = describe "Souffle DSL" $ parallel $ do
         .decl floatfact(t1: float)
         .input floatfact
         .decl triple(t1: symbol, t2: number, t3: symbol)
+        .decl btreefact(t1: number) btree
+        .input btreefact
+        .decl briefact(t1: number) brie
+        .input briefact
+        .decl eqrelfact(t1: number, t2: number) eqrel
+        .input eqrelfact
         |]
 
     it "uses record accessors as attribute names in type declaration if provided" $ do

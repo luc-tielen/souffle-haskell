@@ -18,6 +18,8 @@ module Language.Souffle.Class
   , Fact(..)
   , Marshal.Marshal(..)
   , Direction(..)
+  , FactOpts(..)
+  , StorageOpt(..)
   , ContainsInputFact
   , ContainsOutputFact
   , ContainsFact
@@ -136,6 +138,13 @@ class Marshal.Marshal a => Fact a where
   -- It uses a 'Proxy' to select the correct instance.
   factName :: Proxy a -> String
 
+  -- | An optional function for configuring fact metadata.
+  --
+  --   By default no extra options are configured.
+  --   For more information, see the 'FactOpts' type.
+  factOpts :: Proxy a -> Maybe FactOpts
+  factOpts = const Nothing
+
 -- | A datatype describing which operations a certain fact supports.
 --   The direction is from the datalog perspective, so that it
 --   aligns with ".decl" statements in Souffle.
@@ -149,6 +158,35 @@ data Direction
   | Internal
   -- ^ Supports neither reading from / writing to Datalog. This is used for
   --   facts that are only visible inside Datalog itself.
+
+-- | A data type that allows for finetuning of fact settings.
+--
+--   Note: These settings are only taken into account when Datalog code is
+--   generated from Haskell (using functions from the
+--   'Language.Souffle.Experimental' module). Otherwise the Datalog code
+--   itself should contain these fact options.
+data FactOpts = FactOpts StorageOpt
+
+-- | Datatype describing the way a fact is stored inside Datalog.
+--   A different choice of storage type can lead to an improvement in
+--   performance (potentially).
+--
+--   Note: This is only applicable for when the Datalog code is generated via
+--   the DSL. Otherwise, the Datalog file itself should contain the storage type.
+--
+--   For more information, see the Souffle
+--   <https://souffle-lang.github.io/tuning#datastructure documentation>.
+data StorageOpt
+  = BTree
+  -- ^ The default datastructure for most relations in Souffle. This is storage
+  --   type that is used by default.
+  | Brie
+  -- ^ Can improve performance in some cases, and is more memory efficient for
+  --   particularly large relations.
+  | EqRel
+  -- ^ A high performance datastructure optimised specifically for equivalence
+  --   relations. See the Souffle < documentation>
+  --   for more information.
 
 
 -- | A mtl-style typeclass for Souffle-related actions.
