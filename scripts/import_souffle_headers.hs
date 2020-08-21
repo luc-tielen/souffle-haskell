@@ -1,4 +1,4 @@
-{-# LANGUAGE DataKinds, TypeFamilies, DeriveGeneric, DeriveAnyClass #-}
+{-# LANGUAGE DataKinds, TypeFamilies, DeriveGeneric, DeriveAnyClass, TypeApplications #-}
 
 module Main ( main ) where
 
@@ -20,9 +20,13 @@ import GHC.Generics
 import qualified Text.Megaparsec as P
 import qualified Text.Megaparsec.Char as P
 import qualified Language.Souffle.Interpreted as Souffle
+import Language.Souffle.Experimental
 
 
 data Includes = Includes FilePath FilePath
+  deriving (Eq, Show, Generic, Souffle.Marshal)
+
+data TransitivelyIncludes = TransitivelyIncludes FilePath FilePath
   deriving (Eq, Show, Generic, Souffle.Marshal)
 
 newtype TopLevelInclude = TopLevelInclude FilePath
@@ -34,17 +38,52 @@ newtype RequiredInclude = RequiredInclude FilePath
 data Handle = Handle
 
 instance Souffle.Program Handle where
-  type ProgramFacts Handle = [TopLevelInclude, Includes, RequiredInclude]
+  type ProgramFacts Handle =
+    [ TopLevelInclude
+    , Includes
+    , TransitivelyIncludes
+    , RequiredInclude
+    ]
   programName = const "required_include"
 
 instance Souffle.Fact Includes where
+  type FactDirection Includes = 'Souffle.Input
   factName = const "includes"
 
+instance Souffle.Fact TransitivelyIncludes where
+  type FactDirection TransitivelyIncludes = 'Souffle.Internal
+  factName = const "transitively_includes"
+
 instance Souffle.Fact TopLevelInclude where
+  type FactDirection TopLevelInclude = 'Souffle.Input
   factName = const "top_level_include"
 
 instance Souffle.Fact RequiredInclude where
+  type FactDirection RequiredInclude = 'Souffle.Output
   factName = const "required_include"
+
+dlProgram :: DSL Handle 'Definition ()
+dlProgram = do
+  Predicate includes <- predicateFor @Includes
+  Predicate transitivelyIncludes <- predicateFor @TransitivelyIncludes
+  Predicate topLevelInclude <- predicateFor @TopLevelInclude
+  Predicate requiredInclude <- predicateFor @RequiredInclude
+
+  file1 <- var "file1"
+  file2 <- var "file2"
+  file3 <- var "file3"
+
+  requiredInclude(file1) |-
+    topLevelInclude(file1)
+  requiredInclude(file1) |- do
+    topLevelInclude(file2)
+    transitivelyIncludes(file2, file1)
+
+  transitivelyIncludes(file1, file2) |-
+    includes(file1, file2)
+  transitivelyIncludes(file1, file2) |- do
+    includes(file1, file3)
+    transitivelyIncludes(file3, file2)
 
 
 run :: String -> IO ()
@@ -114,18 +153,15 @@ copyHeaders = do
 
 computeRequiredIncludes :: [Includes] -> IO [FilePath]
 computeRequiredIncludes includes = do
-  cfg <- Souffle.defaultConfig
-  let config = cfg { Souffle.cfgDatalogDir = "./scripts" }
-  requiredIncludes <- Souffle.runSouffleWith config $
-    Souffle.init Handle >>= \case
-      Nothing -> error "Failed to load Souffle program. Aborting."
-      Just prog -> do
-        Souffle.addFacts prog [ TopLevelInclude "souffle/src/SouffleInterface.h"
-                              , TopLevelInclude "souffle/src/CompiledSouffle.h"
-                              ]
-        Souffle.addFacts prog includes
-        Souffle.run prog
-        Souffle.getFacts prog
+  requiredIncludes <- runSouffleInterpreted Handle dlProgram $ \case
+    Nothing -> error "Failed to load Souffle program. Aborting."
+    Just prog -> do
+      Souffle.addFacts prog [ TopLevelInclude "souffle/src/SouffleInterface.h"
+                            , TopLevelInclude "souffle/src/CompiledSouffle.h"
+                            ]
+      Souffle.addFacts prog includes
+      Souffle.run prog
+      Souffle.getFacts prog
   pure $ map (\(RequiredInclude include) -> include) requiredIncludes
 
 copyHeader :: FilePath -> IO FilePath
