@@ -16,9 +16,11 @@
 module Language.Souffle.Class
   ( Program(..)
   , Fact(..)
+  , Marshal.Marshal(..)
   , Direction(..)
   , ContainsInputFact
   , ContainsOutputFact
+  , ContainsFact
   , MonadSouffle(..)
   , MonadSouffleFileIO(..)
   ) where
@@ -74,6 +76,9 @@ type family FormatDirection (dir :: Direction) where
   FormatDirection 'Input = "input"
   FormatDirection 'Internal = "internal"
 
+-- | A helper type family for checking if a specific Souffle `Program` contains
+--   a certain `Fact`. This constraint will generate a user-friendly type error
+--   if this is not the case.
 type family ContainsFact prog fact :: Constraint where
   ContainsFact prog fact =
     CheckContains prog (ProgramFacts prog) fact
@@ -111,6 +116,14 @@ class Program a where
   programName :: a -> String
 
 -- | A typeclass for data types representing a fact in datalog.
+--
+-- Example usage:
+--
+-- @
+-- instance Fact Edge where
+--   type FactDirection Edge = 'Input
+--   factName = const "edge"
+-- @
 class Marshal.Marshal a => Fact a where
   -- | The direction or "mode" a fact can be used in.
   --   This is used to perform compile-time checks that a fact is only used
@@ -121,14 +134,6 @@ class Marshal.Marshal a => Fact a where
   --   (has to be the same as described in the Datalog program).
   --
   -- It uses a 'Proxy' to select the correct instance.
-  --
-  -- Example usage:
-  --
-  -- @
-  -- instance Fact Edge where
-  --   type FactDirection Edge = 'Input
-  --   factName = const "edge"
-  -- @
   factName :: Proxy a -> String
 
 -- | A datatype describing which operations a certain fact supports.

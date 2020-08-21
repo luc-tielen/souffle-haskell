@@ -77,10 +77,10 @@ class Marshal a where
   pop :: MonadPop m => m a
 
   default push
-    :: (Generic a, C.SimpleProduct a (Rep a), GMarshal (Rep a), MonadPush m)
+    :: (Generic a, C.SimpleProduct a, GMarshal (Rep a), MonadPush m)
     => a -> m ()
   default pop
-    :: (Generic a, C.SimpleProduct a (Rep a), GMarshal (Rep a), MonadPop m)
+    :: (Generic a, C.SimpleProduct a, GMarshal (Rep a), MonadPop m)
     => m a
   push a = gpush (from a)
   {-# INLINABLE push #-}

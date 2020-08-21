@@ -21,13 +21,11 @@ import qualified Data.Text.Lazy as TL
 --   the 'Language.Souffle.Marshal.Marshal' typeclass.
 --
 --   The __a__ type parameter is the original type, used when displaying the type error.
---   The __f__ type parameter should be equal to 'Rep a', used for analyzing the
---   structure of the data type.
 --
 --   A type error is returned if the passed in type is not a simple product type
---   consisting of only simple types like Int32, String and Text.
-type family SimpleProduct (a :: Type) (f :: Type -> Type) :: Constraint where
-  SimpleProduct a f = (ProductLike a f, OnlySimpleFields a f)
+--   consisting of only 'simple' types like Int32, Word32, Float, String and Text.
+type family SimpleProduct (a :: Type) :: Constraint where
+  SimpleProduct a = (ProductLike a (Rep a), OnlySimpleFields a (Rep a))
 
 type family ProductLike (t :: Type) (f :: Type -> Type) :: Constraint where
   ProductLike t (_ :*: b) = ProductLike t b

@@ -22,6 +22,7 @@ dependencies:
   - template-haskell >= 2 && < 3
   - type-errors-pretty >= 0.0.1.0 && < 1
   - text >= 1.0 && < 2
+  - containers >= 0.6.2.1 && < 1
   - vector <= 1.0
   - array <= 1.0
   - deepseq >= 1.4.4 && < 2
@@ -52,6 +53,9 @@ ghc-options:
   - -fhide-source-paths
   - -fno-show-valid-hole-fits
   - -fno-sort-valid-hole-fits
+
+cpp-options:
+  - -std=c++17
 
 cxx-options:
   - -std=c++17
@@ -126,8 +130,11 @@ tests:
       - hspec >= 2.6.1 && < 3.0.0
       - hspec-hedgehog == 0.*
       - hedgehog == 1.*
+      - neat-interpolation == 0.*
       - souffle-haskell
     cxx-options:
+      - -D__EMBEDDED_SOUFFLE__
+    cpp-options:
       - -D__EMBEDDED_SOUFFLE__
 
 # NOTE: only used when having to update the souffle C headers

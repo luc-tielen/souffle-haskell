@@ -71,7 +71,7 @@ newtype SouffleM a
 --   - __cfgFactDir__: The directory where the initial input fact file(s) can be found
 --   if present. If Nothing, then a temporary directory will be used, during the
 --   souffle session.
---   - __cfgOutputDir__: The directory where the output facts file(s) are created.
+--   - __cfgOutputDir__: The directory where the output fact file(s) are created.
 --   If Nothing, it will be part of the temporary directory.
 data Config
   = Config
@@ -106,9 +106,10 @@ defaultConfig = liftIO $ do
 
      The 2nd argument is passed in a handle after initialization of the
      Souffle program. The handle will contain 'Nothing' if it failed to
-     locate the souffle interpreter executable. In the successful case
-     it will contain a handle that can be used for performing
-     Souffle related actions using the other functions in this module.
+     locate the souffle interpreter executable or if it failed to find the
+     souffle program file. In the successful case it will contain a handle
+     that can be used for performing Souffle related actions using the other
+     functions in this module.
 -}
 runSouffle :: Program prog => prog -> (Maybe (Handle prog) -> SouffleM a) -> IO a
 runSouffle program m = do
@@ -118,14 +119,20 @@ runSouffle program m = do
 
 {- | Initializes and runs a Souffle program with the given interpreter settings.
 
-     The 3nd argument is passed in a handle after initialization of the
+     The 3rd argument is passed in a handle after initialization of the
      Souffle program. The handle will contain 'Nothing' if it failed to
-     locate the souffle interpreter executable. In the successful case
-     it will contain a handle that can be used for performing
-     Souffle related actions using the other functions in this module.
+     locate the souffle interpreter executable or if it failed to find the
+     souffle program file. In the successful case it will contain a handle
+     that can be used for performing Souffle related actions using the other
+     functions in this module.
+
+     If the config settings do not specify a fact or output dir,
+     temporary directories will be created for storing files in. These
+     directories will also be automatically cleaned up at the end of
+     this function.
 -}
-runSouffleWith :: forall prog a. Program prog
-               => Config -> prog -> (Maybe (Handle prog) -> SouffleM a) -> IO a
+runSouffleWith
+  :: Program prog => Config -> prog -> (Maybe (Handle prog) -> SouffleM a) -> IO a
 runSouffleWith cfg program f = bracket initialize maybeCleanup $ \handle -> do
   let (SouffleM action) = f handle
   runReaderT action cfg
