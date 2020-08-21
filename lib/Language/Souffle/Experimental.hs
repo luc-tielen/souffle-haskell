@@ -146,7 +146,7 @@ import GHC.Generics
 import GHC.TypeLits
 import Language.Haskell.TH.Syntax (qRunIO, qAddForeignFilePath, Q, Dec, ForeignSrcLang(..))
 import Language.Souffle.Class ( Program(..), Fact(..), ContainsFact
-                              , Direction(..), FactOpts(..), StorageOpt(..) )
+                              , Direction(..), FactOpts(..), StructureOpt(..), InlineOpt(..) )
 import Language.Souffle.Internal.Constraints (SimpleProduct)
 import qualified Language.Souffle.Interpreted as I
 import System.Directory
@@ -368,7 +368,7 @@ predicateFor = do
       p = Proxy :: Proxy a
       name = T.pack $ factName p
       accNames = fromMaybe genericNames $ accessorNames p
-      opts = factOpts p
+      opts = toMetadata <$> factOpts p
       genericNames = map (("t" <>) . T.pack . show) [1..]
       tys = getTypes (Proxy :: Proxy (Structure a))
       direction = getDirection (Proxy :: Proxy (FactDirection a))
@@ -377,6 +377,10 @@ predicateFor = do
   addDefinition definition
   pure $ Predicate $ toFragment typeInfo name
 
+toMetadata :: FactOpts d -> Metadata
+toMetadata (FactOpts struct inline) = Metadata struct $ case inline of
+  Inline -> DoInline
+  NoInline -> DoNotInline
 
 class KnownDirection a where
   getDirection :: Proxy a -> Direction
@@ -434,7 +438,7 @@ render prog = flip runReader TopLevel . f . runDSL prog where
       T.unlines <$> traverse f stmts
     Declare name dir fields mFactOpts ->
       let fieldPairs = map renderField fields
-          renderedOpts = fromMaybe "" $ (" " <>) . renderOpts <$> mFactOpts
+          renderedOpts = fromMaybe "" $ (" " <>) . renderMetadata <$> mFactOpts
        in pure $ T.intercalate "\n" $ catMaybes
         [ Just $ ".decl " <> name <> "(" <> T.intercalate ", " fieldPairs <> ")" <> renderedOpts
         , renderDir name dir
@@ -503,11 +507,16 @@ renderField (FieldData ty accName) =
         DLString -> ": symbol"
    in accName <> txt
 
-renderOpts :: FactOpts -> T.Text
-renderOpts (FactOpts storageType) = case storageType of
-  BTree -> "btree"
-  Brie -> "brie"
-  EqRel -> "eqrel"
+renderMetadata :: Metadata -> T.Text
+renderMetadata (Metadata struct inline) =
+  let structTxt = case struct of
+        BTree -> "btree"
+        Brie -> "brie"
+        EqRel -> "eqrel"
+      inlineTxt = case inline of
+        DoInline -> " inline"
+        DoNotInline -> ""
+  in structTxt <> inlineTxt
 
 renderTerms :: [SimpleTerm] -> T.Text
 renderTerms = T.intercalate ", " . map renderTerm
@@ -822,8 +831,12 @@ data SimpleTerm
   | UnaryOp' Op1 SimpleTerm
   | Func' FuncName (NonEmpty SimpleTerm)
 
+data Metadata = Metadata StructureOpt InlineOption
+
+data InlineOption = DoInline | DoNotInline
+
 data AST
-  = Declare' VarName Direction [FieldData] (Maybe FactOpts)
+  = Declare' VarName Direction [FieldData] (Maybe Metadata)
   | Rule' Name (NonEmpty SimpleTerm) AST
   | Atom' Name (NonEmpty SimpleTerm)
   | And' [AST]
@@ -833,7 +846,7 @@ data AST
 
 data DL
   = Statements [DL]
-  | Declare VarName Direction [FieldData] (Maybe FactOpts)
+  | Declare VarName Direction [FieldData] (Maybe Metadata)
   | Rule Name (NonEmpty SimpleTerm) DL
   | Atom Name (NonEmpty SimpleTerm)
   | And DL DL

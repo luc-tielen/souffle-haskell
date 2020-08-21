@@ -1,5 +1,5 @@
 {-# LANGUAGE DataKinds, UndecidableInstances, FlexibleContexts #-}
-{-# LANGUAGE TypeFamilies, TypeOperators #-}
+{-# LANGUAGE GADTs, TypeFamilies, TypeOperators #-}
 
 -- | This module provides the top level API for Souffle related operations.
 --   It makes use of Haskell's powerful typesystem to make certain invalid states
@@ -19,7 +19,8 @@ module Language.Souffle.Class
   , Marshal.Marshal(..)
   , Direction(..)
   , FactOpts(..)
-  , StorageOpt(..)
+  , StructureOpt(..)
+  , InlineOpt(..)
   , ContainsInputFact
   , ContainsOutputFact
   , ContainsFact
@@ -142,7 +143,7 @@ class Marshal.Marshal a => Fact a where
   --
   --   By default no extra options are configured.
   --   For more information, see the 'FactOpts' type.
-  factOpts :: Proxy a -> Maybe FactOpts
+  factOpts :: Proxy a -> Maybe (FactOpts (FactDirection a))
   factOpts = const Nothing
 
 -- | A datatype describing which operations a certain fact supports.
@@ -165,7 +166,8 @@ data Direction
 --   generated from Haskell (using functions from the
 --   'Language.Souffle.Experimental' module). Otherwise the Datalog code
 --   itself should contain these fact options.
-data FactOpts = FactOpts StorageOpt
+data FactOpts (d :: Direction)
+  = FactOpts StructureOpt (InlineOpt d)
 
 -- | Datatype describing the way a fact is stored inside Datalog.
 --   A different choice of storage type can lead to an improvement in
@@ -176,7 +178,7 @@ data FactOpts = FactOpts StorageOpt
 --
 --   For more information, see the Souffle
 --   <https://souffle-lang.github.io/tuning#datastructure documentation>.
-data StorageOpt
+data StructureOpt
   = BTree
   -- ^ The default datastructure for most relations in Souffle. This is storage
   --   type that is used by default.
@@ -185,9 +187,17 @@ data StorageOpt
   --   particularly large relations.
   | EqRel
   -- ^ A high performance datastructure optimised specifically for equivalence
-  --   relations. See the Souffle < documentation>
-  --   for more information.
+  --   relations. This is only valid for binary facts with 2 fields of the
+  --   same type.
 
+-- | Datatype indicating if we should inline a fact or not.
+--   Inlining is only possible for internal facts.
+--
+--   Note: This is only applicable for when the Datalog code is generated via
+--   the DSL. Otherwise, the Datalog file itself should contain the storage type.
+data InlineOpt d where
+  Inline :: InlineOpt 'Internal
+  NoInline :: InlineOpt d
 
 -- | A mtl-style typeclass for Souffle-related actions.
 class Monad m => MonadSouffle m where

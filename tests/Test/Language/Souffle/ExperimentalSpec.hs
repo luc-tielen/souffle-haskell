@@ -103,17 +103,17 @@ instance Fact Reachable where
   type FactDirection Reachable = 'Output
   factName = const "reachable"
 instance Fact BTreeFact where
-  type FactDirection BTreeFact = 'Input
+  type FactDirection BTreeFact = 'Internal
   factName = const "btreefact"
-  factOpts = const $ Just $ FactOpts BTree
+  factOpts = const $ Just $ FactOpts BTree NoInline
 instance Fact BrieFact where
-  type FactDirection BrieFact = 'Input
+  type FactDirection BrieFact = 'Internal
   factName = const "briefact"
-  factOpts = const $ Just $ FactOpts Brie
+  factOpts = const $ Just $ FactOpts Brie Inline
 instance Fact EqRelFact where
   type FactDirection EqRelFact = 'Input
   factName = const "eqrelfact"
-  factOpts = const $ Just $ FactOpts EqRel
+  factOpts = const $ Just $ FactOpts EqRel NoInline
 
 spec :: Spec
 spec = describe "Souffle DSL" $ parallel $ do
@@ -181,9 +181,7 @@ spec = describe "Souffle DSL" $ parallel $ do
         .input floatfact
         .decl triple(t1: symbol, t2: number, t3: symbol)
         .decl btreefact(t1: number) btree
-        .input btreefact
-        .decl briefact(t1: number) brie
-        .input briefact
+        .decl briefact(t1: number) brie inline
         .decl eqrelfact(t1: number, t2: number) eqrel
         .input eqrelfact
         |]
