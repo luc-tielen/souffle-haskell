@@ -10,6 +10,8 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
 - The `Fact` typeclass now also requires you to specify the `FactDirection`.
   This prevents inconsistent and buggy behavior when trying to use a fact in
   an invalid way (e.g. trying to add an output-only fact).
+- DSL for creating Soufflé programs directly from Haskell.
+  See the docs of `Language.Souffle.Experimental` for more information.
 
 ### Changed
 
