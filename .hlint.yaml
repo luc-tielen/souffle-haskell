@@ -61,6 +61,11 @@
     name: Redundant bracket
     within:
       - Test.Language.Souffle.ExperimentalSpec
+      - Main
+- ignore:
+    name: Use camelCase
+    within:
+      - Language.Souffle.Experimental
 
 
 # Define some custom infix operators

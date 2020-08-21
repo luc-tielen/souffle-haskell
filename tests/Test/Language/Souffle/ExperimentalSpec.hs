@@ -1043,7 +1043,7 @@ spec = describe "Souffle DSL" $ parallel $ do
             reachable(a, b) |- do
               edge(a, c)
               reachable(c, b)
-          action = \handle -> do
+          action handle = do
             let prog = fromJust handle
             I.addFacts prog [Edge "a" "b", Edge "b" "c"]
             I.run prog
@@ -1066,7 +1066,7 @@ spec = describe "Souffle DSL" $ parallel $ do
             reachable(a, b) |- do
               edge(a, c)
               reachable(c, b)
-          action = \handle -> do
+          action handle = do
             let prog = fromJust handle
             I.addFacts prog [Edge "a" "b", Edge "b" "c"]
             I.run prog

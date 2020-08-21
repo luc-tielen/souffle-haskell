@@ -116,6 +116,14 @@ class Program a where
   programName :: a -> String
 
 -- | A typeclass for data types representing a fact in datalog.
+--
+-- Example usage:
+--
+-- @
+-- instance Fact Edge where
+--   type FactDirection Edge = 'Input
+--   factName = const "edge"
+-- @
 class Marshal.Marshal a => Fact a where
   -- | The direction or "mode" a fact can be used in.
   --   This is used to perform compile-time checks that a fact is only used
@@ -126,14 +134,6 @@ class Marshal.Marshal a => Fact a where
   --   (has to be the same as described in the Datalog program).
   --
   -- It uses a 'Proxy' to select the correct instance.
-  --
-  -- Example usage:
-  --
-  -- @
-  -- instance Fact Edge where
-  --   type FactDirection Edge = 'Input
-  --   factName = const "edge"
-  -- @
   factName :: Proxy a -> String
 
 -- | A datatype describing which operations a certain fact supports.
