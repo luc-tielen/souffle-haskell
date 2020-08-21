@@ -119,7 +119,7 @@ runSouffle program m = do
 
 {- | Initializes and runs a Souffle program with the given interpreter settings.
 
-     The 3nd argument is passed in a handle after initialization of the
+     The 3rd argument is passed in a handle after initialization of the
      Souffle program. The handle will contain 'Nothing' if it failed to
      locate the souffle interpreter executable or if it failed to find the
      souffle program file. In the successful case it will contain a handle

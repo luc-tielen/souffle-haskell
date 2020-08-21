@@ -3,15 +3,85 @@
 {-# LANGUAGE FlexibleInstances, DerivingVia, ScopedTypeVariables, PolyKinds #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
+{-| This module provides an experimental DSL for generating Souffle Datalog code,
+    directly from Haskell.
+
+    The module is meant to be imported unqualified, unlike the rest of this
+    library. This allows for a syntax that is very close to the corresponding
+    Datalog syntax you would normally write.
+
+    The functions and operators provided by this module follow a naming scheme:
+
+    - If there is no clash with something imported via 'Prelude', the
+      function or operator is named exactly the same as in Souffle.
+    - If there is a clash for functions, an apostrophe is appended
+      (e.g. "max" in Datalog is 'max'' in Haskell).
+    - Most operators (besides those from the Num typeclass) start with a "."
+      (e.g. '.^' is the "^"  operator in Datalog)
+
+    The DSL makes heavy use of Haskell's typesystem to avoid
+    many kinds of errors. This being said, not everything can be checked at
+    compile-time (for example performing comparisons on ungrounded variables
+    can't be checked). For this reason you should regularly write the
+    Datalog code to a file while prototyping your algorithm and check it using
+    the Souffle executable for errors.
+
+    A large subset of the Souffle language is covered, with some exceptions
+    such as "$", aggregates, ... There are no special functions for supporting
+    components either, but this is automatically possible by making use of
+    polymorphism in Haskell.
+
+    Here's an example snippet of Haskell code that can generate Datalog code:
+
+    @
+    -- Assuming we have 2 types of facts named Edge and Reachable:
+    data Edge = Edge String String
+    data Reachable = Reachable String String
+
+    program = do
+      Predicate edge <- predicateFor \@Edge
+      Predicate reachable <- predicateFor \@Reachable
+      a <- var "a"
+      b <- var "b"
+      c <- var "c"
+      reachable(a, b) |- edge(a, b)
+      reachable(a, b) |- do
+        edge(a, c)
+        reachable(c, b)
+    @
+
+    When rendered to a file (using 'renderIO'), this generates the following
+    Souffle code:
+
+    @
+    .decl edge(t1: symbol, t2: symbol)
+    .input edge
+    .decl reachable(t1: symbol, t2: symbol)
+    .output reachable
+    reachable(a, b) :-
+      edge(a, b)
+    reachable(a, b) :- do
+      edge(a, c)
+      reachable(c, b)
+    @
+
+    For more examples, take a look at the <https://github.com/luc-tielen/souffle-haskell/blob/2c24e1e169da269c45fc192ab5efd4ff2196114b/tests/Test/Language/Souffle/ExperimentalSpec.hs tests>.
+-}
 module Language.Souffle.Experimental
-  ( Predicate(..)
+  ( -- * DSL-related types and functions
+    -- ** Types
+    Predicate(..)
+  , Fragment
+  , Tuple
   , DSL
-  , DL
+  , Head
+  , Body
   , Term
+  , VarName
+  , UsageContext(..)
   , Direction(..)
-  , runSouffleInterpretedWith
-  , runSouffleInterpreted
-  , embedProgram
+  , ToPredicate
+  -- ** Basic building blocks
   , predicateFor
   , var
   , __
@@ -19,6 +89,7 @@ module Language.Souffle.Experimental
   , (|-)
   , (\/)
   , not'
+  -- ** Souffle operators
   , (.<)
   , (.<=)
   , (.>)
@@ -32,21 +103,22 @@ module Language.Souffle.Experimental
   , bxor
   , lor
   , land
+  -- ** Souffle functions
   , max'
   , min'
+  -- * Functions for running a Datalog DSL fragment / AST directly.
+  , runSouffleInterpretedWith
+  , runSouffleInterpreted
+  , embedProgram
+  -- * Rendering functions
   , render
   , renderIO
-  , UsageContext(..)
-  , Head
-  , Body
+  -- * Helper type families useful in some situations
   , Structure
-  , Fragment
-  , ToPredicate
   , NoVarsInAtom
-  -- TODO: check if export list is complete
+  , SupportsArithmetic
   ) where
 
-import Language.Haskell.TH.Syntax (qRunIO, qAddForeignFilePath, Q, Dec, ForeignSrcLang(..))
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Writer
@@ -56,34 +128,71 @@ import Data.List.NonEmpty (NonEmpty(..), toList)
 import Data.Map ( Map )
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe, catMaybes, mapMaybe)
-import Data.Word
+import Data.Proxy
+import Data.String
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import qualified Data.Text.Lazy as TL
-import Text.Printf (printf)
-import Data.Proxy
-import Data.String
+import Data.Word
 import GHC.Generics
 import GHC.TypeLits
-import qualified Language.Souffle.Interpreted as I
-import Language.Souffle.Internal.Constraints (SimpleProduct)
+import Language.Haskell.TH.Syntax (qRunIO, qAddForeignFilePath, Q, Dec, ForeignSrcLang(..))
 import Language.Souffle.Class (Program(..), Fact(..), ContainsFact, Direction(..))
-import Type.Errors.Pretty
-import System.IO.Temp
-import System.Process
+import Language.Souffle.Internal.Constraints (SimpleProduct)
+import qualified Language.Souffle.Interpreted as I
 import System.Directory
 import System.FilePath
+import System.IO.Temp
+import System.Process
+import Text.Printf (printf)
+import Type.Errors.Pretty
 
 
-newtype Predicate p
-  = Predicate (forall f ctx. Fragment f ctx => Tuple ctx (Structure p) -> f ctx ())
+-- | A datatype that contains a function for generating Datalog AST fragments
+--   that can be glued together using other functions in this module.
+--
+--   The rank-N type allows using the inner function in multiple places to
+--   generate different parts of the AST. This is one of the key things
+--   that allows writing Haskell code in a very smilar way to the Datalog code.
+--
+--   The inner function uses the 'Structure' of a type to compute what the
+--   shape of the input tuple for the predicate should be. For example, if a
+--   fact has a data constructor containing a Float and a String,
+--   the resulting tuple will be of type ('Term' ctx Float, 'Term' ctx String).
+--
+--   Currently, only facts with up to 10 fields are supported. If you need more
+--   fields, please file an issue on
+--   <https://github.com/luc-tielen/souffle-haskell/issues Github>.
+newtype Predicate a
+  = Predicate (forall f ctx. Fragment f ctx => Tuple ctx (Structure a) -> f ctx ())
 
 type VarMap = Map VarName Int
 
+-- | The main monad in which Datalog AST fragments are combined together
+--   using other functions in this module.
+--
+--   - The "prog" type variable is used for performing many compile time checks.
+--     This variable is filled (automatically) with a type that implements the
+--     'Program' typeclass.
+--   - The "ctx" type variable is the context in which a DSL fragment is used.
+--     For more information, see 'UsageContext'.
+--   - The 'a' type variable is the value contained inside
+--     (just like other monads).
 newtype DSL prog ctx a = DSL (StateT VarMap (Writer [AST]) a)
   deriving (Functor, Applicative, Monad, MonadWriter [AST], MonadState VarMap)
   via (StateT VarMap (Writer [AST]))
 
+addDefinition :: AST -> DSL prog 'Definition ()
+addDefinition dl = tell [dl]
+
+-- | This function runs the DSL fragment directly using the souffle interpreter
+--   executable.
+--
+--   It does this by saving the fragment to a temporary file right before
+--   running the souffle interpreter. All created files are automatically
+--   cleaned up after the souffle related actions have been executed. If this is
+--   not your intended behavior, see 'runSouffleInterpretedWith' which allows
+--   passing in different interpreter settings.
 runSouffleInterpreted
   :: (MonadIO m, Program prog)
   => prog
@@ -100,6 +209,14 @@ runSouffleInterpreted program dsl f = liftIO $ do
                        }
   runSouffleInterpretedWith cfg program dsl f <* removeDirectoryRecursive souffleHsDir
 
+-- | This function runs the DSL fragment directly using the souffle interpreter
+--   executable.
+--
+--   It does this by saving the fragment to a file in the directory specified by
+--   the 'I.cfgDatalogDir' field in the interpreter settings. Depending on the
+--   chosen settings, the fact and output files may not be automatically cleaned
+--   up after running the souffle interpreter. See 'I.runSouffleWith' for more
+--   information on automatic cleanup.
 runSouffleInterpretedWith
   :: (MonadIO m, Program prog)
   => I.Config
@@ -113,6 +230,11 @@ runSouffleInterpretedWith config program dsl f = liftIO $ do
   renderIO program datalogFile dsl
   I.runSouffleWith config program f
 
+-- | Embeds a Datalog program from a DSL fragment directly in a Haskell file.
+--
+--   Note that due to TemplateHaskell staging restrictions, this function must
+--   be used in a different module than the module where 'Program' and 'Fact'
+--   instances are defined.
 embedProgram :: Program prog => prog -> DSL prog 'Definition () -> Q [Dec]
 embedProgram program dsl = do
   cppFile <- qRunIO $ do
@@ -142,6 +264,15 @@ runDSL _ (DSL a) = Statements $ mapMaybe simplify $ execWriter (evalStateT a mem
     Not' expr -> Not <$> simplify expr
     Constrain' e -> pure $ Constrain e
 
+-- | Generates a unique variable, using the name argument as a hint.
+--
+--   The type of the variable is determined the first predicate it is used in.
+--   The 'NoVarsInAtom' constraint generates a user-friendly type error if the
+--   generated variable is used inside a relation (which is not valid in
+--   Datalog).
+--
+--   Note: If a variable is created but not used using this function, you will
+--   get a compile-time error because it can't deduce the constraint.
 var :: NoVarsInAtom ctx => VarName -> DSL prog ctx' (Term ctx ty)
 var name = do
   count <- fromMaybe 0 <$> gets (Map.lookup name)
@@ -149,22 +280,47 @@ var name = do
   let varName = if count == 0 then name else name <> "_" <> T.pack (show count)
   pure $ VarTerm varName
 
-addDefinition :: AST -> DSL prog 'Definition ()
-addDefinition dl = tell [dl]
-
+-- | Data type representing the head of a relation
+--   (the part before ":-" in a Datalog relation).
+--
+--   - The "ctx" type variable is the context in which this type is used.
+--     For this type, this will always be 'Relation'. The variable is there to
+--     perform some compile-time checks.
+--   - The "unused" type variable is unused and only there so the type has the
+--     same kind as 'Body' and 'DSL'.
+--
+--   See also '|-'.
 data Head ctx unused
   = Head Name (NonEmpty SimpleTerm)
 
+-- | Data type representing the body of a relation
+--   (what follows after ":-" in a Datalog relation).
+--
+--   By being a monad, it supports do-notation which allows for a syntax
+--   that is quite close to Datalog.
+--
+--   - The "ctx" type variable is the context in which this type is used.
+--     For this type, this will always be 'Relation'. The variable is there to
+--     perform some compile-time checks.
+--   - The 'a' type variable is the value contained inside
+--     (just like other monads).
+--
+--   See also '|-'.
 newtype Body ctx a = Body (Writer [AST] a)
   deriving (Functor, Applicative, Monad, MonadWriter [AST])
   via (Writer [AST])
 
+-- | Creates a fragment that is the logical disjunction (OR) of 2 sub-fragments.
+--   This corresponds with ";" in Datalog.
 (\/) :: Body ctx () -> Body ctx () -> Body ctx ()
 body1 \/ body2 = do
   let rules1 = And' $ runBody body1
       rules2 = And' $ runBody body2
   tell [Or' [rules1, rules2]]
 
+-- | Creates a fragment that is the logical negation of a sub-fragment.
+--   This is equivalent to "!" in Datalog. (But this operator can't be used
+--   in Haskell since it only allows unary negation as a prefix operator.)
 not' :: Body ctx a -> Body ctx ()
 not' body = do
   let rules = And' $ runBody body
@@ -173,9 +329,11 @@ not' body = do
 runBody :: Body ctx a -> [AST]
 runBody (Body m) = execWriter m
 
-data TypeInfo (a :: k) (ts :: [Type])
-  = TypeInfo
+data TypeInfo (a :: k) (ts :: [Type]) = TypeInfo
 
+-- | Constraint that makes sure a type can be converted to a predicate function.
+--   It gives a user-friendly error in case any of the sub-constraints
+--   are not met.
 type ToPredicate prog a =
   ( Fact a
   , ContainsFact prog a
@@ -187,6 +345,14 @@ type ToPredicate prog a =
   , ToTerms (Structure a)
   )
 
+-- | Generates a function for a type that implements 'Fact' and is a
+--   'SimpleProduct'. The predicate function takes the same amount of arguments
+--   as the original fact type. Calling the function with a tuple of arguments,
+--   creates fragments of datalog code that can be glued together using other
+--   functions in this module.
+--
+--   Note: You need to specify for which fact you want to return a predicate
+--   for using TypeApplications.
 predicateFor :: forall a prog. ToPredicate prog a => DSL prog 'Definition (Predicate a)
 predicateFor = do
   let typeInfo = TypeInfo :: TypeInfo a (Structure a)
@@ -209,6 +375,10 @@ instance KnownDirection 'Output where getDirection = const Output
 instance KnownDirection 'InputOutput where getDirection = const InputOutput
 instance KnownDirection 'Internal where getDirection = const Internal
 
+-- | Turnstile operator from Datalog, used in relations.
+--
+--   This is used for creating a DSL fragment that contains a relation.
+--   NOTE: |- is used instead of :- due to limitations of the Haskell syntax.
 (|-) :: Head 'Relation a -> Body 'Relation () -> DSL prog 'Definition ()
 Head name terms |- body =
   let rules = runBody body
@@ -217,6 +387,9 @@ Head name terms |- body =
 
 infixl 0 |-
 
+-- | A typeclass used for generating AST fragments of Datalog code.
+--   The generated fragments can be further glued together using the
+--   various functions in this module.
 class Fragment f ctx where
   toFragment :: ToTerms ts => TypeInfo a ts -> Name -> Tuple ctx ts -> f ctx ()
 
@@ -225,9 +398,9 @@ instance Fragment Head 'Relation where
     let terms' = toTerms (Proxy :: Proxy 'Relation) typeInfo terms
      in Head name terms'
 
-instance Fragment Body ctx where
+instance Fragment Body 'Relation where
   toFragment typeInfo name terms =
-    let terms' = toTerms (Proxy :: Proxy ctx) typeInfo terms
+    let terms' = toTerms (Proxy :: Proxy 'Relation) typeInfo terms
     in tell [Atom' name terms']
 
 instance Fragment (DSL prog) 'Definition where
@@ -238,9 +411,12 @@ instance Fragment (DSL prog) 'Definition where
 
 data RenderMode = Nested | TopLevel
 
+-- | Renders a DSL fragment to the corresponding Datalog code and writes it to
+--   a file.
 renderIO :: Program prog => prog -> FilePath -> DSL prog 'Definition () -> IO ()
 renderIO prog path = TIO.writeFile path . render prog
 
+-- | Renders a DSL fragment to the corresponding Datalog code.
 render :: Program prog => prog -> DSL prog 'Definition () -> T.Text
 render prog = flip runReader TopLevel . f . runDSL prog where
   f = \case
@@ -357,7 +533,10 @@ renderTerm = \case
 
 
 type Name = T.Text
+
+-- | Type representing a variable name in Datalog.
 type VarName = T.Text
+
 type AccessorName = T.Text
 
 data DLType
@@ -368,10 +547,18 @@ data DLType
 
 data FieldData = FieldData DLType AccessorName
 
+-- | A type level tag describing in which context a DSL fragment is used.
+--   This is only used on the type level and helps catch some semantic errors
+--   at compile time.
 data UsageContext
   = Definition
+  -- ^ A DSL fragment is used in a top level definition.
   | Relation
+  -- ^ A DSL fragment is used inside a relation (either head or body of a relation).
 
+-- | A type family used for generating a user-friendly type error in case
+--   you use a variable in a DSL fragment where it is not allowed
+--   (outside of relations).
 type family NoVarsInAtom (ctx :: UsageContext) :: Constraint where
   NoVarsInAtom ctx = Assert (ctx == 'Relation) NoVarsInAtomError
 
@@ -382,8 +569,14 @@ type NoVarsInAtomError =
   % "  - Replace the variable in the fact with a string, number, unsigned or float constant."
   )
 
+-- | Data type for representing Datalog terms.
+--
+--   All constructors are hidden, but with the `Num`, 'Fractional' and
+--   `IsString` instances it is possible to create terms using Haskell syntax
+--   for literals. For non-literal values, smart constructors are provided.
+--   (See for example 'underscore' / '__'.)
 data Term ctx ty where
-  -- NOTE: type family is used here instead of "Atom 'Relation ty";
+  -- NOTE: type family is used here instead of "Term 'Relation ty";
   -- this allows giving a better type error in some situations.
   VarTerm :: NoVarsInAtom ctx => VarName -> Term ctx ty
   UnderscoreTerm :: Term ctx ty
@@ -422,9 +615,13 @@ data FuncName
   | Min
 
 
-underscore, __ :: Term ctx ty
+-- | Term representing a wildcard ("_") in Datalog.
+underscore :: Term ctx ty
 underscore = UnderscoreTerm
 
+-- | Term representing a wildcard ("_") in Datalog. Note that in the DSL this
+--   is with 2 underscores. (Single underscore is reserved for typed holes!)
+__ :: Term ctx ty
 __ = underscore
 
 class ToString a where
@@ -438,6 +635,8 @@ instance IsString (Term ctx String) where fromString = StringTerm
 instance IsString (Term ctx T.Text) where fromString = StringTerm . T.pack
 instance IsString (Term ctx TL.Text) where fromString = StringTerm . TL.pack
 
+-- | A helper typeclass, mainly used for avoiding a lot of boilerplate
+--   in the 'Num' instance for 'Term'.
 class Num ty => SupportsArithmetic ty where
   fromInteger' :: Integer -> Term ctx ty
 
@@ -461,44 +660,79 @@ instance Fractional (Term ctx Float) where
   fromRational = FloatTerm . fromRational
   (/) = BinOp Div
 
+-- | Exponentiation operator ("^" in Datalog).
 (.^) :: Num ty => Term ctx ty -> Term ctx ty -> Term ctx ty
 (.^) = BinOp Pow
 
+-- | Remainder operator ("%" in Datalog).
 (.%) :: (Num ty, Integral ty) => Term ctx ty -> Term ctx ty -> Term ctx ty
 (.%) = BinOp Rem
 
-type Comparison ctx ty = Num ty => Term ctx ty -> Term ctx ty -> Body ctx ()
-
-(.<), (.<=), (.>), (.>=), (.=), (.!=) :: Comparison ctx ty
+-- | Creates a less than constraint (a < b), for use in the body of a relation.
+(.<) :: Num ty => Term ctx ty -> Term ctx ty -> Body ctx ()
 (.<) = addConstraint LessThan
-(.<=) = addConstraint LessThanOrEqual
-(.>) = addConstraint GreaterThan
-(.>=) = addConstraint GreaterThanOrEqual
-(.=) = addConstraint IsEqual
-(.!=) = addConstraint IsNotEqual
 infix 1 .<
+
+-- | Creates a less than or equal constraint (a <= b), for use in the body of
+--   a relation.
+(.<=) :: Num ty => Term ctx ty -> Term ctx ty -> Body ctx ()
+(.<=) = addConstraint LessThanOrEqual
 infix 1 .<=
+
+-- | Creates a greater than constraint (a > b), for use in the body of a relation.
+(.>) :: Num ty => Term ctx ty -> Term ctx ty -> Body ctx ()
+(.>) = addConstraint GreaterThan
 infix 1 .>
+
+-- | Creates a greater than or equal constraint (a >= b), for use in the body of
+--   a relation.
+(.>=) :: Num ty => Term ctx ty -> Term ctx ty -> Body ctx ()
+(.>=) = addConstraint GreaterThanOrEqual
 infix 1 .>=
+
+-- | Creates a constraint that 2 terms should be equal to each other (a = b),
+--   for use in the body of a relation.
+(.=) :: Num ty => Term ctx ty -> Term ctx ty -> Body ctx ()
+(.=) = addConstraint IsEqual
 infix 1 .=
+
+-- | Creates a constraint that 2 terms should not be equal to each other
+--   (a != b), for use in the body of a relation.
+(.!=) :: Num ty => Term ctx ty -> Term ctx ty -> Body ctx ()
+(.!=) = addConstraint IsNotEqual
 infix 1 .!=
 
-addConstraint :: Op2 -> Comparison ctx ty
+addConstraint :: Op2 -> Term ctx ty -> Term ctx ty -> Body ctx ()
 addConstraint op e1 e2 =
   let expr = BinOp' op (toTerm e1) (toTerm e2)
    in tell [Constrain' expr]
 
-band, bor, bxor, land, lor
-  :: (Num ty, Integral ty)
-  => Term ctx ty -> Term ctx ty -> Term ctx ty
+-- | Binary AND operator.
+band :: (Num ty, Integral ty) => Term ctx ty -> Term ctx ty -> Term ctx ty
 band = BinOp BinaryAnd
+
+-- | Binary OR operator.
+bor :: (Num ty, Integral ty) => Term ctx ty -> Term ctx ty -> Term ctx ty
 bor = BinOp BinaryOr
+
+-- | Binary XOR operator.
+bxor :: (Num ty, Integral ty) => Term ctx ty -> Term ctx ty -> Term ctx ty
 bxor = BinOp BinaryXor
+
+-- | Logical AND operator.
+land :: (Num ty, Integral ty) => Term ctx ty -> Term ctx ty -> Term ctx ty
 land = BinOp LogicalAnd
+
+-- | Logical OR operator.
+lor :: (Num ty, Integral ty) => Term ctx ty -> Term ctx ty -> Term ctx ty
 lor = BinOp LogicalOr
 
-max', min' :: Num ty => Term ctx ty -> Term ctx ty -> Term ctx ty
+-- | Max function.
+max' :: Num ty => Term ctx ty -> Term ctx ty -> Term ctx ty
 max' = func2 Max
+
+-- | Min function.
+min' :: Num ty => Term ctx ty -> Term ctx ty -> Term ctx ty
 min' = func2 Min
 
 func2 :: FuncName -> Term ctx ty -> Term ctx ty -> Term ctx ty
@@ -582,6 +816,8 @@ accessorNames _ = case toStrings (Proxy :: Proxy (AccessorNames a)) of
   [] -> Nothing
   names -> Just $ T.pack <$> names
 
+-- | A type synonym for a tuple consisting of Datalog 'Term's.
+--   Only tuples containing up to 10 elements are currently supported.
 type Tuple ctx ts = TupleOf (MapType (Term ctx) ts)
 
 class ToTerms (ts :: [Type]) where
@@ -661,11 +897,8 @@ type family Length (xs :: [Type]) :: Nat where
   Length '[] = 0
   Length (_ ': xs) = 1 + Length xs
 
-type family a ++ b = c where
-  '[] ++ b = b
-  a ++ '[] = a
-  (a ': b) ++ c = a ': (b ++ c)
-
+-- | A helper type family for computing the list of types used in a data type.
+--   (The type family assumes a data type with a single data constructor.)
 type family Structure a :: [Type] where
   Structure a = Collect (Rep a)
 
@@ -673,6 +906,11 @@ type family Collect (a :: Type -> Type) where
   Collect (a :*: b) = Collect a ++ Collect b
   Collect (M1 _ _ a) = Collect a
   Collect (K1 _ ty) = '[ty]
+
+type family a ++ b = c where
+  '[] ++ b = b
+  a ++ '[] = a
+  (a ': b) ++ c = a ': (b ++ c)
 
 type family TupleOf (ts :: [Type]) = t where
   TupleOf '[t] = t

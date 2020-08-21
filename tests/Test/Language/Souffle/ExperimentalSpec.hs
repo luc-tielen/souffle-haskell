@@ -1,13 +1,13 @@
 
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass, TypeApplications, QuasiQuotes, TypeOperators #-}
-{-# LANGUAGE DataKinds, TypeFamilies, TemplateHaskell #-}
+{-# LANGUAGE DataKinds, TypeFamilies #-}
 
 module Test.Language.Souffle.ExperimentalSpec
   ( module Test.Language.Souffle.ExperimentalSpec
   ) where
 
-import Test.Hspec
 import qualified Test.Language.Souffle.Experimental.Fixtures as F
+import Test.Hspec
 import GHC.Generics
 import Data.Int
 import Data.Word
@@ -93,18 +93,6 @@ instance Fact Reachable where
   type FactDirection Reachable = 'Output
   factName = const "reachable"
 
-
-$(embedProgram F.CompiledProgram $ do
-  Predicate edge <- predicateFor @F.Edge
-  Predicate reachable <- predicateFor @F.Reachable
-  a <- var "a"
-  b <- var "b"
-  c <- var "c"
-  reachable(a, b) |- edge(a, b)
-  reachable(a, b) |- do
-    edge(a, c)
-    reachable(c, b)
- )
 
 spec :: Spec
 spec = describe "Souffle DSL" $ parallel $ do
