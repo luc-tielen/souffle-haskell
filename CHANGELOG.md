@@ -3,7 +3,7 @@
 All notable changes to this project (as seen by library users) will be documented in this file.
 The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-haskell.git/CHANGELOG.md).
 
-## [???] - Unreleased
+## [2.0.0] - 2020-08-23
 
 ### Added
 
