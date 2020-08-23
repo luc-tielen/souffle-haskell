@@ -15,6 +15,7 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
 
 ### Changed
 
+- souffle-haskell now supports Soufflé version 2.0.1.
 - `getFacts`, `findFact`, `addFact` and `addFacts` now have stricter
   constraints in their type signatures to prevent invalid usage of facts.
 - `runSouffle` for both compiled and interpreted mode and `runSouffleWith`
