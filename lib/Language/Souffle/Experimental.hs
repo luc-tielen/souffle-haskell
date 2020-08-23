@@ -1,6 +1,7 @@
 {-# LANGUAGE GADTs, RankNTypes, TypeFamilies, DataKinds, TypeOperators, ConstraintKinds #-}
-{-# LANGUAGE UndecidableInstances, FlexibleContexts, MultiParamTypeClasses #-}
-{-# LANGUAGE FlexibleInstances, DerivingVia, ScopedTypeVariables, PolyKinds #-}
+{-# LANGUAGE UndecidableInstances, UndecidableSuperClasses, FlexibleContexts #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, DerivingVia, ScopedTypeVariables #-}
+{-# LANGUAGE PolyKinds #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 {-| This module provides an experimental DSL for generating Souffle Datalog code,
@@ -360,13 +361,21 @@ type ToPredicate prog a =
 
 -- | A typeclass for optionally configuring extra settings
 --   (for performance reasons).
-class FactMetadata a where
+
+--   Since it contains no required functions, it is possible to derive this
+--   typeclass automatically (this gives you the default behavior):
+--
+--   @
+--   data Edge = Edge String String
+--     deriving (Generic, Marshal, FactMetadata)
+--   @
+class (Fact a, SimpleProduct a) => FactMetadata a where
   -- | An optional function for configuring fact metadata.
   --
   --   By default no extra options are configured.
   --   For more information, see the 'Metadata' type.
-  factOpts :: TypeInfo a ts -> Maybe (Metadata a)
-  factOpts = const Nothing
+  factOpts :: Proxy a -> Metadata a
+  factOpts = const $ Metadata Automatic NoInline
 
 -- | A data type that allows for finetuning of fact settings.
 data Metadata a
@@ -376,14 +385,20 @@ data Metadata a
 --   A different choice of storage type can lead to an improvement in
 --   performance (potentially).
 --
---   For more information, see the Souffle
---   <https://souffle-lang.github.io/tuning#datastructure documentation>.
+--   For more information, see this
+--   <https://souffle-lang.github.io/tuning#datastructure link> and this
+--   <https://souffle-lang.github.io/relations link>.
 data StructureOpt (a :: Type) where
-  -- | The default datastructure for most relations in Souffle. This is storage
-  --   type that is used by default.
+  -- | Automatically choose the underlying storage for a relation.
+  --   This is the storage type that is used by default.
+  --
+  --   For Souffle, it will choose a direct btree for facts with arity <= 6.
+  --   For larger facts, it will use an indirect btree.
+  Automatic :: StructureOpt a
+  -- | Uses a direct btree structure.
   BTree :: StructureOpt a
-  -- | Can improve performance in some cases, and is more memory efficient for
-  --   particularly large relations.
+  -- | Uses a brie structure. This can improve performance in some cases and is
+  --   more memory efficient for particularly large relations.
   Brie :: StructureOpt a
   -- | A high performance datastructure optimised specifically for equivalence
   --   relations. This is only valid for binary facts with 2 fields of the
@@ -414,7 +429,7 @@ predicateFor = do
       p = Proxy :: Proxy a
       name = T.pack $ factName p
       accNames = fromMaybe genericNames $ accessorNames p
-      opts = toSimpleMetadata <$> factOpts typeInfo
+      opts = toSimpleMetadata $ factOpts p
       genericNames = map (("t" <>) . T.pack . show) [1..]
       tys = getTypes (Proxy :: Proxy (Structure a))
       direction = getDirection (Proxy :: Proxy (FactDirection a))
@@ -426,6 +441,7 @@ predicateFor = do
 toSimpleMetadata :: Metadata a -> SimpleMetadata
 toSimpleMetadata (Metadata struct inline) =
   let structOpt = case struct of
+        Automatic -> AutomaticLayout
         BTree -> BTreeLayout
         Brie -> BrieLayout
         EqRel -> EqRelLayout
@@ -488,9 +504,10 @@ render prog = flip runReader TopLevel . f . runDSL prog where
   f = \case
     Statements stmts ->
       T.unlines <$> traverse f stmts
-    Declare name dir fields mFactOpts ->
+    Declare name dir fields metadata ->
       let fieldPairs = map renderField fields
-          renderedOpts = maybe "" ((" " <>) . renderMetadata) mFactOpts
+          renderedFactOpts = renderMetadata metadata
+          renderedOpts = if T.null renderedFactOpts then "" else " " <> renderedFactOpts
        in pure $ T.intercalate "\n" $ catMaybes
         [ Just $ ".decl " <> name <> "(" <> T.intercalate ", " fieldPairs <> ")" <> renderedOpts
         , renderDir name dir
@@ -562,13 +579,14 @@ renderField (FieldData ty accName) =
 renderMetadata :: SimpleMetadata -> T.Text
 renderMetadata (SimpleMetadata struct inline) =
   let structTxt = case struct of
-        BTreeLayout -> "btree"
-        BrieLayout -> "brie"
-        EqRelLayout -> "eqrel"
+        AutomaticLayout -> Nothing
+        BTreeLayout -> Just "btree"
+        BrieLayout -> Just "brie"
+        EqRelLayout -> Just "eqrel"
       inlineTxt = case inline of
-        DoInline -> " inline"
-        DoNotInline -> ""
-  in structTxt <> inlineTxt
+        DoInline -> Just "inline"
+        DoNotInline -> Nothing
+  in T.intercalate " " $ catMaybes [structTxt, inlineTxt]
 
 renderTerms :: [SimpleTerm] -> T.Text
 renderTerms = T.intercalate ", " . map renderTerm
@@ -886,7 +904,8 @@ data SimpleTerm
 data SimpleMetadata = SimpleMetadata StructureOption InlineOption
 
 data StructureOption
-  = BTreeLayout
+  = AutomaticLayout
+  | BTreeLayout
   | BrieLayout
   | EqRelLayout
 
@@ -895,7 +914,7 @@ data InlineOption
   | DoNotInline
 
 data AST
-  = Declare' VarName Direction [FieldData] (Maybe SimpleMetadata)
+  = Declare' VarName Direction [FieldData] SimpleMetadata
   | Rule' Name (NonEmpty SimpleTerm) AST
   | Atom' Name (NonEmpty SimpleTerm)
   | And' [AST]
@@ -905,7 +924,7 @@ data AST
 
 data DL
   = Statements [DL]
-  | Declare VarName Direction [FieldData] (Maybe SimpleMetadata)
+  | Declare VarName Direction [FieldData] SimpleMetadata
   | Rule Name (NonEmpty SimpleTerm) DL
   | Atom Name (NonEmpty SimpleTerm)
   | And DL DL

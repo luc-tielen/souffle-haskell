@@ -114,11 +114,11 @@ instance Fact EqRelFact where
   type FactDirection EqRelFact = 'Input
   factName = const "eqrelfact"
 instance FactMetadata BTreeFact where
-  factOpts = const $ Just $ Metadata BTree NoInline
+  factOpts = const $ Metadata BTree NoInline
 instance FactMetadata BrieFact where
-  factOpts = const $ Just $ Metadata Brie Inline
+  factOpts = const $ Metadata Brie Inline
 instance FactMetadata EqRelFact where
-  factOpts = const $ Just $ Metadata EqRel NoInline
+  factOpts = const $ Metadata EqRel NoInline
 
 spec :: Spec
 spec = describe "Souffle DSL" $ parallel $ do
