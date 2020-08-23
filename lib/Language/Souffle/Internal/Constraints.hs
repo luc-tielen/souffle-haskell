@@ -23,7 +23,7 @@ import qualified Data.Text.Lazy as TL
 --   The __a__ type parameter is the original type, used when displaying the type error.
 --
 --   A type error is returned if the passed in type is not a simple product type
---   consisting of only 'simple' types like Int32, Word32, Float, String and Text.
+--   consisting of only "simple" types like Int32, Word32, Float, String and Text.
 type family SimpleProduct (a :: Type) :: Constraint where
   SimpleProduct a = (ProductLike a (Rep a), OnlySimpleFields a (Rep a))
 

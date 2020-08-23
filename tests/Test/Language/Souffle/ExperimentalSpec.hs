@@ -23,31 +23,40 @@ import NeatInterpolation
 
 
 data Point = Point { x :: Int32, y :: Int32 }
-  deriving (Generic, Marshal)
+  deriving (Generic, Marshal, FactMetadata)
 
 newtype IntFact = IntFact Int32
-  deriving (Generic, Marshal)
+  deriving (Generic, Marshal, FactMetadata)
 
 newtype UnsignedFact = UnsignedFact Word32
-  deriving (Generic, Marshal)
+  deriving (Generic, Marshal, FactMetadata)
 
 newtype FloatFact = FloatFact Float
-  deriving (Generic, Marshal)
+  deriving (Generic, Marshal, FactMetadata)
 
 data TextFact = TextFact T.Text TL.Text
-  deriving (Generic, Marshal)
+  deriving (Generic, Marshal, FactMetadata)
 
 data Triple = Triple String Int32 String
-  deriving (Generic, Marshal)
+  deriving (Generic, Marshal, FactMetadata)
 
 newtype Vertex = Vertex String
-  deriving (Generic, Marshal)
+  deriving (Generic, Marshal, FactMetadata)
 
 data Edge = Edge String String
-  deriving (Generic, Marshal)
+  deriving (Generic, Marshal, FactMetadata)
 
 data Reachable = Reachable String String
-  deriving (Eq, Show, Generic, Marshal)
+  deriving (Eq, Show, Generic, Marshal, FactMetadata)
+
+newtype BTreeFact = BTreeFact Int32
+  deriving (Generic, Marshal)
+
+newtype BrieFact = BrieFact Int32
+  deriving (Generic, Marshal)
+
+data EqRelFact = EqRelFact Int32 Int32
+  deriving (Generic, Marshal)
 
 data DSLProgram = DSLProgram
 
@@ -58,6 +67,9 @@ instance Program DSLProgram where
     , FloatFact
     , UnsignedFact
     , TextFact
+    , BTreeFact
+    , BrieFact
+    , EqRelFact
     , Triple
     , Vertex
     , Edge
@@ -92,7 +104,21 @@ instance Fact Edge where
 instance Fact Reachable where
   type FactDirection Reachable = 'Output
   factName = const "reachable"
-
+instance Fact BTreeFact where
+  type FactDirection BTreeFact = 'Internal
+  factName = const "btreefact"
+instance Fact BrieFact where
+  type FactDirection BrieFact = 'Internal
+  factName = const "briefact"
+instance Fact EqRelFact where
+  type FactDirection EqRelFact = 'Input
+  factName = const "eqrelfact"
+instance FactMetadata BTreeFact where
+  factOpts = const $ Metadata BTree NoInline
+instance FactMetadata BrieFact where
+  factOpts = const $ Metadata Brie Inline
+instance FactMetadata EqRelFact where
+  factOpts = const $ Metadata EqRel NoInline
 
 spec :: Spec
 spec = describe "Souffle DSL" $ parallel $ do
@@ -147,6 +173,9 @@ spec = describe "Souffle DSL" $ parallel $ do
             Predicate _ <- predicateFor @UnsignedFact
             Predicate _ <- predicateFor @FloatFact
             Predicate _ <- predicateFor @Triple
+            Predicate _ <- predicateFor @BTreeFact
+            Predicate _ <- predicateFor @BrieFact
+            Predicate _ <- predicateFor @EqRelFact
             pure ()
       prog ==> [text|
         .decl intfact(t1: number)
@@ -156,6 +185,10 @@ spec = describe "Souffle DSL" $ parallel $ do
         .decl floatfact(t1: float)
         .input floatfact
         .decl triple(t1: symbol, t2: number, t3: symbol)
+        .decl btreefact(t1: number) btree
+        .decl briefact(t1: number) brie inline
+        .decl eqrelfact(t1: number, t2: number) eqrel
+        .input eqrelfact
         |]
 
     it "uses record accessors as attribute names in type declaration if provided" $ do

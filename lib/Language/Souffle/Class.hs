@@ -150,7 +150,6 @@ data Direction
   -- ^ Supports neither reading from / writing to Datalog. This is used for
   --   facts that are only visible inside Datalog itself.
 
-
 -- | A mtl-style typeclass for Souffle-related actions.
 class Monad m => MonadSouffle m where
   -- | Represents a handle for interacting with a Souffle program.

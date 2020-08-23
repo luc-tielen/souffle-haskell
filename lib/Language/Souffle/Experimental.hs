@@ -1,6 +1,7 @@
 {-# LANGUAGE GADTs, RankNTypes, TypeFamilies, DataKinds, TypeOperators, ConstraintKinds #-}
-{-# LANGUAGE UndecidableInstances, FlexibleContexts, MultiParamTypeClasses #-}
-{-# LANGUAGE FlexibleInstances, DerivingVia, ScopedTypeVariables, PolyKinds #-}
+{-# LANGUAGE UndecidableInstances, UndecidableSuperClasses, FlexibleContexts #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, DerivingVia, ScopedTypeVariables #-}
+{-# LANGUAGE PolyKinds #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 {-| This module provides an experimental DSL for generating Souffle Datalog code,
@@ -81,6 +82,10 @@ module Language.Souffle.Experimental
   , UsageContext(..)
   , Direction(..)
   , ToPredicate
+  , FactMetadata(..)
+  , Metadata(..)
+  , StructureOpt(..)
+  , InlineOpt(..)
   -- ** Basic building blocks
   , predicateFor
   , var
@@ -145,7 +150,7 @@ import Data.Word
 import GHC.Generics
 import GHC.TypeLits
 import Language.Haskell.TH.Syntax (qRunIO, qAddForeignFilePath, Q, Dec, ForeignSrcLang(..))
-import Language.Souffle.Class (Program(..), Fact(..), ContainsFact, Direction(..))
+import Language.Souffle.Class ( Program(..), Fact(..), ContainsFact, Direction(..) )
 import Language.Souffle.Internal.Constraints (SimpleProduct)
 import qualified Language.Souffle.Interpreted as I
 import System.Directory
@@ -260,7 +265,7 @@ embedProgram program dsl = do
 runDSL :: Program prog => prog -> DSL prog 'Definition a -> DL
 runDSL _ (DSL a) = Statements $ mapMaybe simplify $ execWriter (evalStateT a mempty) where
   simplify = \case
-    Declare' name dir fields -> pure $ Declare name dir fields
+    Declare' name dir fields opts -> pure $ Declare name dir fields opts
     Rule' name terms body -> Rule name terms <$> simplify body
     Atom' name terms -> pure $ Atom name terms
     And' exprs -> case mapMaybe simplify exprs of
@@ -310,7 +315,7 @@ data Head ctx unused
 --   - The "ctx" type variable is the context in which this type is used.
 --     For this type, this will always be 'Relation'. The variable is there to
 --     perform some compile-time checks.
---   - The 'a' type variable is the value contained inside
+--   - The "a" type variable is the value contained inside
 --     (just like other monads).
 --
 --   See also '|-'.
@@ -344,6 +349,7 @@ data TypeInfo (a :: k) (ts :: [Type]) = TypeInfo
 --   are not met.
 type ToPredicate prog a =
   ( Fact a
+  , FactMetadata a
   , ContainsFact prog a
   , SimpleProduct a
   , Assert (Length (Structure a) <=? 10) BigTupleError
@@ -352,6 +358,62 @@ type ToPredicate prog a =
   , KnownSymbols (AccessorNames a)
   , ToTerms (Structure a)
   )
+
+-- | A typeclass for optionally configuring extra settings
+--   (for performance reasons).
+
+--   Since it contains no required functions, it is possible to derive this
+--   typeclass automatically (this gives you the default behavior):
+--
+--   @
+--   data Edge = Edge String String
+--     deriving (Generic, Marshal, FactMetadata)
+--   @
+class (Fact a, SimpleProduct a) => FactMetadata a where
+  -- | An optional function for configuring fact metadata.
+  --
+  --   By default no extra options are configured.
+  --   For more information, see the 'Metadata' type.
+  factOpts :: Proxy a -> Metadata a
+  factOpts = const $ Metadata Automatic NoInline
+
+-- | A data type that allows for finetuning of fact settings.
+data Metadata a
+  = Metadata (StructureOpt a) (InlineOpt (FactDirection a))
+
+-- | Datatype describing the way a fact is stored inside Datalog.
+--   A different choice of storage type can lead to an improvement in
+--   performance (potentially).
+--
+--   For more information, see this
+--   <https://souffle-lang.github.io/tuning#datastructure link> and this
+--   <https://souffle-lang.github.io/relations link>.
+data StructureOpt (a :: Type) where
+  -- | Automatically choose the underlying storage for a relation.
+  --   This is the storage type that is used by default.
+  --
+  --   For Souffle, it will choose a direct btree for facts with arity <= 6.
+  --   For larger facts, it will use an indirect btree.
+  Automatic :: StructureOpt a
+  -- | Uses a direct btree structure.
+  BTree :: StructureOpt a
+  -- | Uses a brie structure. This can improve performance in some cases and is
+  --   more memory efficient for particularly large relations.
+  Brie :: StructureOpt a
+  -- | A high performance datastructure optimised specifically for equivalence
+  --   relations. This is only valid for binary facts with 2 fields of the
+  --   same type.
+  EqRel :: ( Assert (Length (Structure a) == 2)
+             ("Equivalence relations are only allowed with binary relations" <> ".")
+           , Structure a ~ '[t, t]
+           ) => StructureOpt a
+
+-- | Datatype indicating if we should inline a fact or not.
+data InlineOpt (d :: Direction) where
+  -- | Inlines the fact, only possible for internal facts.
+  Inline :: InlineOpt 'Internal
+  -- | Does not inline the fact.
+  NoInline :: InlineOpt d
 
 -- | Generates a function for a type that implements 'Fact' and is a
 --   'SimpleProduct'. The predicate function takes the same amount of arguments
@@ -367,14 +429,26 @@ predicateFor = do
       p = Proxy :: Proxy a
       name = T.pack $ factName p
       accNames = fromMaybe genericNames $ accessorNames p
+      opts = toSimpleMetadata $ factOpts p
       genericNames = map (("t" <>) . T.pack . show) [1..]
       tys = getTypes (Proxy :: Proxy (Structure a))
       direction = getDirection (Proxy :: Proxy (FactDirection a))
       fields = zipWith FieldData tys accNames
-      definition = Declare' name direction fields
+      definition = Declare' name direction fields opts
   addDefinition definition
   pure $ Predicate $ toFragment typeInfo name
 
+toSimpleMetadata :: Metadata a -> SimpleMetadata
+toSimpleMetadata (Metadata struct inline) =
+  let structOpt = case struct of
+        Automatic -> AutomaticLayout
+        BTree -> BTreeLayout
+        Brie -> BrieLayout
+        EqRel -> EqRelLayout
+      inlineOpt = case inline of
+        Inline -> DoInline
+        NoInline -> DoNotInline
+  in SimpleMetadata structOpt inlineOpt
 
 class KnownDirection a where
   getDirection :: Proxy a -> Direction
@@ -430,10 +504,12 @@ render prog = flip runReader TopLevel . f . runDSL prog where
   f = \case
     Statements stmts ->
       T.unlines <$> traverse f stmts
-    Declare name dir fields ->
+    Declare name dir fields metadata ->
       let fieldPairs = map renderField fields
+          renderedFactOpts = renderMetadata metadata
+          renderedOpts = if T.null renderedFactOpts then "" else " " <> renderedFactOpts
        in pure $ T.intercalate "\n" $ catMaybes
-        [ Just $ ".decl " <> name <> "(" <> T.intercalate ", " fieldPairs <> ")"
+        [ Just $ ".decl " <> name <> "(" <> T.intercalate ", " fieldPairs <> ")" <> renderedOpts
         , renderDir name dir
         ]
     Atom name terms -> do
@@ -499,6 +575,18 @@ renderField (FieldData ty accName) =
         DLFloat -> ": float"
         DLString -> ": symbol"
    in accName <> txt
+
+renderMetadata :: SimpleMetadata -> T.Text
+renderMetadata (SimpleMetadata struct inline) =
+  let structTxt = case struct of
+        AutomaticLayout -> Nothing
+        BTreeLayout -> Just "btree"
+        BrieLayout -> Just "brie"
+        EqRelLayout -> Just "eqrel"
+      inlineTxt = case inline of
+        DoInline -> Just "inline"
+        DoNotInline -> Nothing
+  in T.intercalate " " $ catMaybes [structTxt, inlineTxt]
 
 renderTerms :: [SimpleTerm] -> T.Text
 renderTerms = T.intercalate ", " . map renderTerm
@@ -813,8 +901,20 @@ data SimpleTerm
   | UnaryOp' Op1 SimpleTerm
   | Func' FuncName (NonEmpty SimpleTerm)
 
+data SimpleMetadata = SimpleMetadata StructureOption InlineOption
+
+data StructureOption
+  = AutomaticLayout
+  | BTreeLayout
+  | BrieLayout
+  | EqRelLayout
+
+data InlineOption
+  = DoInline
+  | DoNotInline
+
 data AST
-  = Declare' VarName Direction [FieldData]
+  = Declare' VarName Direction [FieldData] SimpleMetadata
   | Rule' Name (NonEmpty SimpleTerm) AST
   | Atom' Name (NonEmpty SimpleTerm)
   | And' [AST]
@@ -824,7 +924,7 @@ data AST
 
 data DL
   = Statements [DL]
-  | Declare VarName Direction [FieldData]
+  | Declare VarName Direction [FieldData] SimpleMetadata
   | Rule Name (NonEmpty SimpleTerm) DL
   | Atom Name (NonEmpty SimpleTerm)
   | And DL DL

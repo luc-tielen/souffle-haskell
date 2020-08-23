@@ -24,16 +24,16 @@ import Language.Souffle.Experimental
 
 
 data Includes = Includes FilePath FilePath
-  deriving (Eq, Show, Generic, Souffle.Marshal)
+  deriving (Eq, Show, Generic, Souffle.Marshal, FactMetadata)
 
 data TransitivelyIncludes = TransitivelyIncludes FilePath FilePath
-  deriving (Eq, Show, Generic, Souffle.Marshal)
+  deriving (Eq, Show, Generic, Souffle.Marshal, FactMetadata)
 
 newtype TopLevelInclude = TopLevelInclude FilePath
-  deriving (Eq, Show, Generic, Souffle.Marshal)
+  deriving (Eq, Show, Generic, Souffle.Marshal, FactMetadata)
 
 newtype RequiredInclude = RequiredInclude FilePath
-  deriving (Eq, Show, Generic, Souffle.Marshal)
+  deriving (Eq, Show, Generic, Souffle.Marshal, FactMetadata)
 
 data Handle = Handle
 
