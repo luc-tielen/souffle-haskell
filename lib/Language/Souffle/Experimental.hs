@@ -377,7 +377,8 @@ class (Fact a, SimpleProduct a) => FactMetadata a where
   factOpts :: Proxy a -> Metadata a
   factOpts = const $ Metadata Automatic NoInline
 
--- | A data type that allows for finetuning of fact settings.
+-- | A data type that allows for finetuning of fact settings
+--   (for performance reasons).
 data Metadata a
   = Metadata (StructureOpt a) (InlineOpt (FactDirection a))
 
@@ -403,10 +404,11 @@ data StructureOpt (a :: Type) where
   -- | A high performance datastructure optimised specifically for equivalence
   --   relations. This is only valid for binary facts with 2 fields of the
   --   same type.
-  EqRel :: ( Assert (Length (Structure a) == 2)
-             ("Equivalence relations are only allowed with binary relations" <> ".")
-           , Structure a ~ '[t, t]
-           ) => StructureOpt a
+  EqRel :: (IsBinaryRelation a, Structure a ~ '[t, t]) => StructureOpt a
+
+type IsBinaryRelation a =
+  Assert (Length (Structure a) == 2)
+         ("Equivalence relations are only allowed with binary relations" <> ".")
 
 -- | Datatype indicating if we should inline a fact or not.
 data InlineOpt (d :: Direction) where
