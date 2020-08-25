@@ -54,9 +54,6 @@ ghc-options:
   - -fno-show-valid-hole-fits
   - -fno-sort-valid-hole-fits
 
-cpp-options:
-  - -std=c++17
-
 cxx-options:
   - -std=c++17
 
@@ -132,9 +129,10 @@ tests:
       - hedgehog == 1.*
       - neat-interpolation == 0.*
       - souffle-haskell
-    cxx-options:
-      - -D__EMBEDDED_SOUFFLE__
     cpp-options:
+      - -std=c++17
+      - -D__EMBEDDED_SOUFFLE__
+    cxx-options:
       - -D__EMBEDDED_SOUFFLE__
 
 # NOTE: only used when having to update the souffle C headers
