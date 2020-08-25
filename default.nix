@@ -1,11 +1,11 @@
-{ compiler ? "ghc881", pkgs ? import ./nix/packages.nix { } }:
+{ compiler ? "ghc8102", pkgs ? import ./nix/packages.nix { } }:
 
 with pkgs;
 
 let
   inherit (haskell.lib) dontCheck doJailbreak;
-  haskellPackages = haskell.packages.${compiler};
   souffle-master = callPackage ./nix/souffle.nix {};
+  haskellPackages = haskell.packages.${compiler};
   haskellPkgs = haskellPackages.override {
     overrides = self: super: {
       neat-interpolation = dontCheck super.neat-interpolation;

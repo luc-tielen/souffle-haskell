@@ -1072,12 +1072,12 @@ type family Collect (a :: Type -> Type) where
   Collect (M1 _ _ a) = Collect a
   Collect (K1 _ ty) = '[ty]
 
-type family a ++ b = c where
+type family a ++ b where
   '[] ++ b = b
   a ++ '[] = a
   (a ': b) ++ c = a ': (b ++ c)
 
-type family TupleOf (ts :: [Type]) = t where
+type family TupleOf (ts :: [Type]) where
   TupleOf '[t] = t
   TupleOf '[t1, t2] = (t1, t2)
   TupleOf '[t1, t2, t3] = (t1, t2, t3)

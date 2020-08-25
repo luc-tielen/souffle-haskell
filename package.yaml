@@ -49,6 +49,7 @@ ghc-options:
   - -Wno-missing-local-signatures
   - -Wno-monomorphism-restriction
   - -Wno-missing-deriving-strategies
+  - -Wno-prepositive-qualified-module
   - -optP-Wno-nonportable-include-path
   - -fhide-source-paths
   - -fno-show-valid-hole-fits
@@ -129,9 +130,10 @@ tests:
       - hedgehog == 1.*
       - neat-interpolation == 0.*
       - souffle-haskell
-    cpp-options:
-      - -std=c++17
-      - -D__EMBEDDED_SOUFFLE__
+    ghc-options:
+      - -optc-xc++
+      - -optcxx-std=c++17
+      - -optc-D__EMBEDDED_SOUFFLE__
     cxx-options:
       - -D__EMBEDDED_SOUFFLE__
 

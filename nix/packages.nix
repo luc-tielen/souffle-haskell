@@ -1,9 +1,9 @@
 let
-  commit = "ef955ecb1ea10aaa95d7221048e1f30180929116";
+  commit = "1177216e45d82399c2ba4cefecbf9e5cb318406c";
   nixpkgs = builtins.fetchTarball {
-    name = "nixpkgs-20.03";
+    name = "haskell-updates";
     url = "https://github.com/nixos/nixpkgs/archive/${commit}.tar.gz";
-    sha256 = "07xgr7kj3gnwbvnmx6jwwp2p7a0hjnxcrx99j3k4bcj6ki8x2rk3";
+    sha256 = "1yy26p1amvs4qkrps3fx20i9d3c6nz5bzbanvxx1zqg6y5pqm764";
   };
   pkgs = import nixpkgs;
 in
