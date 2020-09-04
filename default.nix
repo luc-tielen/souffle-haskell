@@ -18,9 +18,7 @@ let
   };
   source = nix-gitignore.gitignoreSource [ ] ./.;
   souffle-haskell = haskellPkgs.callCabal2nix "souffle-haskell" source {};
-  # TODO: remove "dontCheck", figure out why tests fail during nix-build
-  # but not in nix-shell
-  drv = dontCheck (addBuildTools souffle-haskell [souffle pkgs.which]);
+  drv = addBuildTools souffle-haskell [souffle pkgs.which];
 in {
   souffle-haskell = drv;
   souffle-shell = haskellPkgs.shellFor {
