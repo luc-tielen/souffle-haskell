@@ -248,6 +248,12 @@ runSouffleInterpretedWith config program dsl f = liftIO $ do
 --   Note that due to TemplateHaskell staging restrictions, this function must
 --   be used in a different module than the module where 'Program' and 'Fact'
 --   instances are defined.
+--
+--   In order to use this function correctly, you have to add the following
+--   line to the top of the module where 'embedProgram' is used in order
+--   for the embedded C++ code to be compiled correctly:
+--
+--   > {-# OPTIONS_GHC -optc-std=c++17 -D__EMBEDDED_SOUFFLE__ #-}
 embedProgram :: Program prog => prog -> DSL prog 'Definition () -> Q [Dec]
 embedProgram program dsl = do
   cppFile <- qRunIO $ do
