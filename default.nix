@@ -3,9 +3,9 @@
 with pkgs;
 
 let
-  inherit (haskell.lib) dontCheck doJailbreak;
+  inherit (haskell.lib) dontCheck doJailbreak addBuildTools;
   haskellPackages = haskell.packages.${compiler};
-  souffle-master = callPackage ./nix/souffle.nix {};
+  souffle = callPackage ./nix/souffle.nix {};
   haskellPkgs = haskellPackages.override {
     overrides = self: super: {
       neat-interpolation = dontCheck super.neat-interpolation;
@@ -17,14 +17,13 @@ let
     };
   };
   source = nix-gitignore.gitignoreSource [ ] ./.;
-  drv = haskellPkgs.callCabal2nix "souffle-haskell" source { };
+  souffle-haskell = haskellPkgs.callCabal2nix "souffle-haskell" source {};
+  drv = addBuildTools souffle-haskell [souffle pkgs.which];
 in {
   souffle-haskell = drv;
   souffle-shell = haskellPkgs.shellFor {
     packages = p: [ drv ];
     buildInputs = with haskellPkgs; [
-      pkgs.which
-      souffle-master
       cabal-install
       hpack
       hlint
@@ -32,5 +31,4 @@ in {
     ];
     withHoogle = true;
   };
-  souffle = souffle-master;
 }

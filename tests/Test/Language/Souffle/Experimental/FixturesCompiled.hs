@@ -1,4 +1,5 @@
 
+{-# OPTIONS_GHC -optc-std=c++17 -D__EMBEDDED_SOUFFLE__ #-}
 {-# LANGUAGE TypeApplications, TemplateHaskell #-}
 module Test.Language.Souffle.Experimental.FixturesCompiled () where
 
