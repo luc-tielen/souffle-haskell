@@ -42,9 +42,9 @@ This typeclass is only used internally and subject to change.
 See also: 'MonadPush', 'Marshal'.
 -}
 class Monad m => MonadPop m where
-  -- | Unmarshals a signed 32 bir integer from the datalog side.
+  -- | Unmarshals a signed 32 bit integer from the datalog side.
   popInt32 :: m Int32
-  -- | Unmarshals an unsigned 32 bir integer from the datalog side.
+  -- | Unmarshals an unsigned 32 bit integer from the datalog side.
   popUInt32 :: m Word32
   -- | Unmarshals a float from the datalog side.
   popFloat :: m Float
