@@ -1,7 +1,8 @@
 #pragma once
 
-#include "json11.h"
-#include "utility/MiscUtil.h"
+#include "souffle/utility/ContainerUtil.h"
+#include "souffle/utility/MiscUtil.h"
+#include "souffle/utility/json11.h"
 #include <cassert>
 #include <chrono>
 #include <cstddef>
@@ -74,7 +75,7 @@ public:
  */
 class DirectoryEntry : public Entry {
 private:
-    std::map<std::string, std::unique_ptr<Entry>> entries;
+    std::map<std::string, Own<Entry>> entries;
     mutable std::mutex lock;
 
 public:
@@ -91,21 +92,21 @@ public:
     }
 
     // write entry
-    Entry* writeEntry(std::unique_ptr<Entry> entry) {
+    Entry* writeEntry(Own<Entry> entry) {
         assert(entry != nullptr && "null entry");
         std::lock_guard<std::mutex> guard(lock);
-        const std::string& key = entry->getKey();
+        const std::string& keyToWrite = entry->getKey();
         // Don't rewrite an existing entry
-        if (entries.count(key) == 0) {
-            entries[key] = std::move(entry);
+        if (entries.count(keyToWrite) == 0) {
+            entries[keyToWrite] = std::move(entry);
         }
-        return entries[key].get();
+        return entries[keyToWrite].get();
     }
 
     // read entry
-    Entry* readEntry(const std::string& key) const {
+    Entry* readEntry(const std::string& keyToRead) const {
         std::lock_guard<std::mutex> guard(lock);
-        auto it = entries.find(key);
+        auto it = entries.find(keyToRead);
         if (it != entries.end()) {
             return (*it).second.get();
         } else {
@@ -114,8 +115,8 @@ public:
     }
 
     // read directory
-    DirectoryEntry* readDirectoryEntry(const std::string& key) const {
-        return dynamic_cast<DirectoryEntry*>(readEntry(key));
+    DirectoryEntry* readDirectoryEntry(const std::string& keyToRead) const {
+        return dynamic_cast<DirectoryEntry*>(readEntry(keyToRead));
     }
 
     // accept visitor
@@ -293,7 +294,7 @@ public:
  */
 class ProfileDatabase {
 private:
-    std::unique_ptr<DirectoryEntry> root;
+    Own<DirectoryEntry> root;
 
 protected:
     /**
@@ -305,8 +306,7 @@ protected:
             assert(!key.empty() && "Key is empty!");
             DirectoryEntry* newDir = dir->readDirectoryEntry(key);
             if (newDir == nullptr) {
-                newDir =
-                        dynamic_cast<DirectoryEntry*>(dir->writeEntry(std::make_unique<DirectoryEntry>(key)));
+                newDir = dynamic_cast<DirectoryEntry*>(dir->writeEntry(mk<DirectoryEntry>(key)));
             }
             assert(newDir != nullptr && "Attempting to overwrite an existing entry");
             dir = newDir;
@@ -314,7 +314,7 @@ protected:
         return dir;
     }
 
-    void parseJson(const json11::Json& json, std::unique_ptr<DirectoryEntry>& node) {
+    void parseJson(const json11::Json& json, Own<DirectoryEntry>& node) {
         for (auto& cur : json.object_items()) {
             if (cur.second.is_object()) {
                 std::string err;
@@ -323,19 +323,19 @@ protected:
                             {{"start", json11::Json::NUMBER}, {"end", json11::Json::NUMBER}}, err)) {
                     auto start = std::chrono::microseconds(cur.second["start"].long_value());
                     auto end = std::chrono::microseconds(cur.second["end"].long_value());
-                    node->writeEntry(std::make_unique<DurationEntry>(cur.first, start, end));
+                    node->writeEntry(mk<DurationEntry>(cur.first, start, end));
                 } else if (cur.second.has_shape({{"time", json11::Json::NUMBER}}, err)) {
                     auto time = std::chrono::microseconds(cur.second["time"].long_value());
-                    node->writeEntry(std::make_unique<TimeEntry>(cur.first, time));
+                    node->writeEntry(mk<TimeEntry>(cur.first, time));
                 } else {
-                    auto dir = std::make_unique<DirectoryEntry>(cur.first);
+                    auto dir = mk<DirectoryEntry>(cur.first);
                     parseJson(cur.second, dir);
                     node->writeEntry(std::move(dir));
                 }
             } else if (cur.second.is_string()) {
-                node->writeEntry(std::make_unique<TextEntry>(cur.first, cur.second.string_value()));
+                node->writeEntry(mk<TextEntry>(cur.first, cur.second.string_value()));
             } else if (cur.second.is_number()) {
-                node->writeEntry(std::make_unique<SizeEntry>(cur.first, cur.second.long_value()));
+                node->writeEntry(mk<SizeEntry>(cur.first, cur.second.long_value()));
             } else {
                 std::string err;
                 cur.second.dump(err);
@@ -345,9 +345,9 @@ protected:
     }
 
 public:
-    ProfileDatabase() : root(std::make_unique<DirectoryEntry>("root")) {}
+    ProfileDatabase() : root(mk<DirectoryEntry>("root")) {}
 
-    ProfileDatabase(const std::string& filename) : root(std::make_unique<DirectoryEntry>("root")) {
+    ProfileDatabase(const std::string& filename) : root(mk<DirectoryEntry>("root")) {
         std::ifstream file(filename);
         if (!file.is_open()) {
             throw std::runtime_error("Log file could not be opened.");
@@ -368,7 +368,7 @@ public:
         DirectoryEntry* dir = lookupPath(path);
 
         const std::string& key = qualifier.back();
-        std::unique_ptr<SizeEntry> entry = std::make_unique<SizeEntry>(key, size);
+        Own<SizeEntry> entry = mk<SizeEntry>(key, size);
         dir->writeEntry(std::move(entry));
     }
 
@@ -379,7 +379,7 @@ public:
         DirectoryEntry* dir = lookupPath(path);
 
         const std::string& key = qualifier.back();
-        std::unique_ptr<TextEntry> entry = std::make_unique<TextEntry>(key, text);
+        Own<TextEntry> entry = std::make_unique<TextEntry>(key, text);
         dir->writeEntry(std::move(entry));
     }
 
@@ -390,7 +390,7 @@ public:
         DirectoryEntry* dir = lookupPath(path);
 
         const std::string& key = qualifier.back();
-        std::unique_ptr<DurationEntry> entry = std::make_unique<DurationEntry>(key, start, end);
+        Own<DurationEntry> entry = std::make_unique<DurationEntry>(key, start, end);
         dir->writeEntry(std::move(entry));
     }
 
@@ -401,7 +401,7 @@ public:
         DirectoryEntry* dir = lookupPath(path);
 
         const std::string& key = qualifier.back();
-        std::unique_ptr<TimeEntry> entry = std::make_unique<TimeEntry>(key, time);
+        Own<TimeEntry> entry = std::make_unique<TimeEntry>(key, time);
         dir->writeEntry(std::move(entry));
     }
 

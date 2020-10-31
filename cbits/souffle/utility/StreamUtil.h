@@ -25,6 +25,8 @@
 #include <utility>
 #include <vector>
 
+#include "souffle/utility/ContainerUtil.h"
+
 // -------------------------------------------------------------------------------
 //                           General Print Utilities
 // -------------------------------------------------------------------------------
@@ -34,7 +36,7 @@ namespace souffle {
 template <typename A>
 struct IsPtrLike : std::is_pointer<A> {};
 template <typename A>
-struct IsPtrLike<std::unique_ptr<A>> : std::true_type {};
+struct IsPtrLike<Own<A>> : std::true_type {};
 template <typename A>
 struct IsPtrLike<std::shared_ptr<A>> : std::true_type {};
 template <typename A>
@@ -226,6 +228,15 @@ ostream& operator<<(ostream& out, const vector<T, A>& v) {
  */
 template <typename K, typename C, typename A>
 ostream& operator<<(ostream& out, const set<K, C, A>& s) {
+    return out << "{" << souffle::join(s) << "}";
+}
+
+/**
+ * Enables the generic printing of multisets assuming their element types
+ * are printable.
+ */
+template <typename K, typename C, typename A>
+ostream& operator<<(ostream& out, const multiset<K, C, A>& s) {
     return out << "{" << souffle::join(s) << "}";
 }
 

@@ -17,13 +17,12 @@
 
 #pragma once
 
-#include "ProfileEvent.h"
-#include "utility/MiscUtil.h"
+#include "souffle/profile/ProfileEvent.h"
+#include "souffle/utility/MiscUtil.h"
 #include <cstddef>
 #include <functional>
 #include <string>
 #include <utility>
-#include <sys/resource.h>
 
 namespace souffle {
 
@@ -41,17 +40,31 @@ public:
 
     Logger(std::string label, size_t iteration, std::function<size_t()> size)
             : label(std::move(label)), start(now()), iteration(iteration), size(size), preSize(size()) {
+#ifdef WIN32
+        HANDLE hProcess = GetCurrentProcess();
+        PROCESS_MEMORY_COUNTERS processMemoryCounters;
+        GetProcessMemoryInfo(hProcess, &processMemoryCounters, sizeof(processMemoryCounters));
+        startMaxRSS = processMemoryCounters.PeakWorkingSetSize / 1000;
+#else
         struct rusage ru {};
         getrusage(RUSAGE_SELF, &ru);
         startMaxRSS = ru.ru_maxrss;
+#endif  // WIN32
         // Assume that if we are logging the progress of an event then we care about usage during that time.
         ProfileEventSingleton::instance().resetTimerInterval();
     }
 
     ~Logger() {
+#ifdef WIN32
+        HANDLE hProcess = GetCurrentProcess();
+        PROCESS_MEMORY_COUNTERS processMemoryCounters;
+        GetProcessMemoryInfo(hProcess, &processMemoryCounters, sizeof(processMemoryCounters));
+        size_t endMaxRSS = processMemoryCounters.PeakWorkingSetSize / 1000;
+#else
         struct rusage ru {};
         getrusage(RUSAGE_SELF, &ru);
         size_t endMaxRSS = ru.ru_maxrss;
+#endif  // WIN32
         ProfileEventSingleton::instance().makeTimingEvent(
                 label, start, now(), startMaxRSS, endMaxRSS, size() - preSize, iteration);
     }

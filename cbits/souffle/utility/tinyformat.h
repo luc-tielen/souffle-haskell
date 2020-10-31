@@ -179,6 +179,10 @@ namespace tfm = tinyformat;
 #   define TINYFORMAT_HIDDEN
 #endif
 
+#ifdef _MSC_VER
+#pragma warning(disable : 4127)
+#endif  // _MSC_VER
+
 namespace tinyformat {
 
 //------------------------------------------------------------------------------
@@ -1141,6 +1145,10 @@ TINYFORMAT_FOREACH_ARGNUM(TINYFORMAT_MAKE_FORMAT_FUNCS)
 
 
 } // namespace tinyformat
+
+#ifdef _MSC_VER
+#pragma warning(default : 4127)
+#endif  // _MSC_VER
 
 #endif // TINYFORMAT_H_INCLUDED
 

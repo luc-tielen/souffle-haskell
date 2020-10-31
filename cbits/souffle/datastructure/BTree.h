@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "utility/CacheUtil.h"
-#include "utility/ContainerUtil.h"
-#include "utility/ParallelUtil.h"
+#include "souffle/utility/CacheUtil.h"
+#include "souffle/utility/ContainerUtil.h"
+#include "souffle/utility/ParallelUtil.h"
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
@@ -532,7 +532,7 @@ protected:
          * and a better node-filling rate.
          */
         int getSplitPoint(int /*unused*/) {
-            return std::min(3 * maxKeys / 4, maxKeys - 2);
+            return static_cast<int>(std::min(3 * maxKeys / 4, maxKeys - 2));
         }
 
         /**
@@ -579,7 +579,7 @@ protected:
                 for (unsigned i = split_point + 1, j = 0; i <= maxKeys; ++i, ++j) {
                     other->children[j] = getChildren()[i];
                     other->children[j]->parent = other;
-                    other->children[j]->position = j;
+                    other->children[j]->position = static_cast<field_index_type>(j);
                 }
             }
 
@@ -640,7 +640,8 @@ protected:
 
                 // compute number of elements to be movable to left
                 //    space available in left vs. insertion index
-                size_type num = std::min<int>(maxKeys - left->numElements, idx);
+                size_type num = static_cast<size_type>(
+                        std::min<int>(static_cast<int>(maxKeys - left->numElements), idx));
 
                 // if there are elements to move ..
                 if (num > 0) {
@@ -664,14 +665,15 @@ protected:
                         auto* iright = static_cast<inner_node*>(this);
 
                         // move children
-                        for (size_type i = 0; i < num; ++i) {
+                        for (field_index_type i = 0; i < num; ++i) {
                             ileft->children[left->numElements + i + 1] = iright->children[i];
                         }
 
                         // update moved children
                         for (size_type i = 0; i < num; ++i) {
                             iright->children[i]->parent = ileft;
-                            iright->children[i]->position = left->numElements + i + 1;
+                            iright->children[i]->position =
+                                    static_cast<field_index_type>(left->numElements + i) + 1;
                         }
 
                         // shift child-pointer to the left
@@ -681,7 +683,7 @@ protected:
 
                         // update position of children
                         for (size_type i = 0; i < this->numElements - num + 1; ++i) {
-                            iright->children[i]->position = i;
+                            iright->children[i]->position = static_cast<field_index_type>(i);
                         }
                     }
 
@@ -694,7 +696,7 @@ protected:
 #endif
 
                     // done
-                    return num;
+                    return static_cast<int>(num);
                 }
 
 #ifdef IS_PARALLEL
@@ -800,7 +802,7 @@ protected:
                 // complete insertion within new sibling if necessary
                 if (pos > this->numElements) {
                     // correct position
-                    pos = pos - this->numElements - 1;
+                    pos = pos - static_cast<unsigned int>(this->numElements) - 1;
 
                     // get new sibling
                     auto other = this->parent->getChild(this->position + 1);
@@ -828,7 +830,7 @@ protected:
             }
 
             // move bigger keys one forward
-            for (int i = this->numElements - 1; i >= (int)pos; --i) {
+            for (int i = static_cast<int>(this->numElements) - 1; i >= (int)pos; --i) {
                 keys[i + 1] = keys[i];
                 getChildren()[i + 2] = getChildren()[i + 1];
                 ++getChildren()[i + 2]->position;
@@ -841,7 +843,7 @@ protected:
             keys[pos] = key;
             getChildren()[pos + 1] = newNode;
             newNode->parent = this;
-            newNode->position = pos + 1;
+            newNode->position = static_cast<field_index_type>(pos) + 1;
             ++this->numElements;
         }
 
@@ -936,15 +938,16 @@ protected:
                 size_type i = 0;
 
                 // the first chunk starts at the begin
-                res.push_back(chunk(begin, iterator(this, step - 1)));
+                res.push_back(chunk(begin, iterator(this, static_cast<field_index_type>(step) - 1)));
 
                 // split up the main part
                 for (i = step - 1; i < this->numElements - step; i += step) {
-                    res.push_back(chunk(iterator(this, i), iterator(this, i + step)));
+                    res.push_back(chunk(iterator(this, static_cast<field_index_type>(i)),
+                            iterator(this, static_cast<field_index_type>(i + step))));
                 }
 
                 // the last chunk runs to the end
-                res.push_back(chunk(iterator(this, i), end));
+                res.push_back(chunk(iterator(this, static_cast<field_index_type>(i)), end));
 
                 // done
                 return res;
@@ -956,11 +959,12 @@ protected:
             assert(part > 0);
             getChild(0)->collectChunks(res, part, begin, iterator(this, 0));
             for (size_type i = 1; i < this->numElements; i++) {
-                getChild(i)->collectChunks(res, part, iterator(this, i - 1), iterator(this, i));
+                getChild(i)->collectChunks(res, part, iterator(this, static_cast<field_index_type>(i - 1)),
+                        iterator(this, static_cast<field_index_type>(i)));
             }
             getChild(this->numElements)
                     ->collectChunks(res, num - (part * this->numElements),
-                            iterator(this, this->numElements - 1), end);
+                            iterator(this, static_cast<field_index_type>(this->numElements) - 1), end);
 
             // done
             return res;
@@ -1093,7 +1097,7 @@ public:
     /**
      * The iterator type to be utilized for scanning through btree instances.
      */
-    class iterator : public std::iterator<std::forward_iterator_tag, Key> {
+    class iterator {
         // a pointer to the node currently referred to
         node const* cur;
 
@@ -1101,6 +1105,12 @@ public:
         field_index_type pos = 0;
 
     public:
+        typedef std::forward_iterator_tag iterator_category;
+        typedef Key value_type;
+        typedef ptrdiff_t difference_type;
+        typedef value_type* pointer;
+        typedef value_type& reference;
+
         // default constructor -- creating an end-iterator
         iterator() : cur(nullptr) {}
 
@@ -1653,7 +1663,7 @@ public:
 
             if (cur->numElements >= node::maxKeys) {
                 // split this node
-                idx -= cur->rebalance_or_split(&root, root_lock, idx);
+                idx -= cur->rebalance_or_split(&root, root_lock, static_cast<int>(idx));
 
                 // insert element in right fragment
                 if (((size_type)idx) > cur->numElements) {
@@ -1666,7 +1676,7 @@ public:
             assert(cur->numElements < node::maxKeys && "Split required!");
 
             // move keys
-            for (int j = cur->numElements; j > idx; --j) {
+            for (int j = static_cast<int>(cur->numElements); j > idx; --j) {
                 cur->keys[j] = cur->keys[j - 1];
             }
 
@@ -1787,7 +1797,7 @@ public:
 
             if (pos < b && equal(*pos, k)) {
                 hints.last_find_end.access(cur);
-                return iterator(cur, pos - a);
+                return iterator(cur, static_cast<field_index_type>(pos - a));
             }
 
             if (!cur->inner) {
@@ -1842,7 +1852,7 @@ public:
             auto b = &(cur->keys[cur->numElements]);
 
             auto pos = search.lower_bound(k, a, b, comp);
-            auto idx = pos - a;
+            auto idx = static_cast<field_index_type>(pos - a);
 
             if (!cur->inner) {
                 hints.last_lower_bound_end.access(cur);
@@ -1903,7 +1913,7 @@ public:
             auto b = &(cur->keys[cur->numElements]);
 
             auto pos = search.upper_bound(k, a, b, comp);
-            auto idx = pos - a;
+            auto idx = static_cast<field_index_type>(pos - a);
 
             if (!cur->inner) {
                 hints.last_upper_bound_end.access(cur);

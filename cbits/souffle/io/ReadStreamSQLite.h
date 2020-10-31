@@ -14,11 +14,11 @@
 
 #pragma once
 
-#include "RamTypes.h"
-#include "ReadStream.h"
-#include "SymbolTable.h"
-#include "utility/MiscUtil.h"
-#include "utility/StringUtil.h"
+#include "souffle/RamTypes.h"
+#include "souffle/SymbolTable.h"
+#include "souffle/io/ReadStream.h"
+#include "souffle/utility/MiscUtil.h"
+#include "souffle/utility/StringUtil.h"
 #include <cassert>
 #include <cstdint>
 #include <fstream>
@@ -55,12 +55,12 @@ protected:
      * Returns nullptr if no tuple was readable.
      * @return
      */
-    std::unique_ptr<RamDomain[]> readNextTuple() override {
+    Own<RamDomain[]> readNextTuple() override {
         if (sqlite3_step(selectStatement) != SQLITE_ROW) {
             return nullptr;
         }
 
-        std::unique_ptr<RamDomain[]> tuple = std::make_unique<RamDomain[]>(arity + auxiliaryArity);
+        Own<RamDomain[]> tuple = std::make_unique<RamDomain[]>(arity + auxiliaryArity);
 
         uint32_t column;
         for (column = 0; column < arity; column++) {
@@ -180,9 +180,9 @@ protected:
 
 class ReadSQLiteFactory : public ReadStreamFactory {
 public:
-    std::unique_ptr<ReadStream> getReader(const std::map<std::string, std::string>& rwOperation,
-            SymbolTable& symbolTable, RecordTable& recordTable) override {
-        return std::make_unique<ReadStreamSQLite>(rwOperation, symbolTable, recordTable);
+    Own<ReadStream> getReader(const std::map<std::string, std::string>& rwOperation, SymbolTable& symbolTable,
+            RecordTable& recordTable) override {
+        return mk<ReadStreamSQLite>(rwOperation, symbolTable, recordTable);
     }
 
     const std::string& getName() const override {

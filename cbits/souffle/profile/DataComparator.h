@@ -8,8 +8,8 @@
 
 #pragma once
 
-#include "CellInterface.h"
-#include "Row.h"
+#include "souffle/profile/CellInterface.h"
+#include "souffle/profile/Row.h"
 
 #include <cmath>
 #include <memory>

@@ -62,47 +62,50 @@ include-dirs:
   - cbits/souffle
 
 install-includes:
-  - souffle/RamTypes.h
-  - souffle/utility/MiscUtil.h
-  - souffle/SymbolTable.h
-  - souffle/json11.h
-  - souffle/utility/FunctionalUtil.h
-  - souffle/utility/StreamUtil.h
-  - souffle/utility/StringUtil.h
-  - souffle/ReadStreamCSV.h
-  - souffle/ReadStream.h
-  - souffle/utility/ContainerUtil.h
-  - souffle/utility/FileUtil.h
-  - souffle/gzfstream.h
   - souffle/CompiledTuple.h
+  - souffle/RamTypes.h
+  - souffle/utility/ContainerUtil.h
   - souffle/RecordTable.h
-  - souffle/Brie.h
-  - souffle/utility/CacheUtil.h
+  - souffle/SymbolTable.h
+  - souffle/utility/MiscUtil.h
   - souffle/SouffleInterface.h
-  - souffle/EventProcessor.h
-  - souffle/ProfileDatabase.h
-  - souffle/WriteStreamSQLite.h
-  - souffle/WriteStream.h
-  - souffle/LambdaBTree.h
-  - souffle/BTree.h
+  - souffle/io/ReadStreamCSV.h
+  - souffle/io/ReadStream.h
+  - souffle/utility/FileUtil.h
+  - souffle/utility/StringUtil.h
+  - souffle/io/gzfstream.h
+  - souffle/io/WriteStreamSQLite.h
+  - souffle/io/WriteStream.h
+  - souffle/io/WriteStreamJSON.h
+  - souffle/utility/json11.h
+  - souffle/io/WriteStreamCSV.h
   - souffle/utility/ParallelUtil.h
-  - souffle/WriteStreamJSON.h
-  - souffle/WriteStreamCSV.h
-  - souffle/IOSystem.h
-  - souffle/ReadStreamJSON.h
-  - souffle/ReadStreamSQLite.h
-  - souffle/UnionFind.h
-  - souffle/PiggyList.h
-  - souffle/ProfileEvent.h
-  - souffle/SerialisationStream.h
-  - souffle/CompiledSouffle.h
-  - souffle/EquivalenceRelation.h
-  - souffle/SignalHandler.h
-  - souffle/Table.h
-  - souffle/utility/EvaluatorUtil.h
-  - souffle/CompiledOptions.h
-  - souffle/Logger.h
+  - souffle/io/IOSystem.h
+  - souffle/io/ReadStreamJSON.h
+  - souffle/io/ReadStreamSQLite.h
+  - souffle/io/SerialisationStream.h
+  - souffle/utility/StreamUtil.h
+  - souffle/datastructure/Brie.h
+  - souffle/utility/CacheUtil.h
+  - souffle/datastructure/LambdaBTree.h
+  - souffle/datastructure/BTree.h
+  - souffle/datastructure/UnionFind.h
+  - souffle/datastructure/PiggyList.h
+  - souffle/datastructure/EquivalenceRelation.h
   - souffle/utility/tinyformat.h
+  - souffle/profile/ProfileDatabase.h
+  - souffle/profile/ProfileEvent.h
+  - souffle/profile/DataComparator.h
+  - souffle/profile/CellInterface.h
+  - souffle/profile/Row.h
+  - souffle/profile/EventProcessor.h
+  - souffle/profile/Table.h
+  - souffle/profile/Logger.h
+  - souffle/CompiledSouffle.h
+  - souffle/SignalHandler.h
+  - souffle/utility/EvaluatorUtil.h
+  - souffle/utility/FunctionalUtil.h
+  - souffle/CompiledOptions.h
 
 library:
   source-dirs: lib

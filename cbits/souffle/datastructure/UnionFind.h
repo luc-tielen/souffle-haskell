@@ -1,6 +1,6 @@
 /*
  * Souffle - A Datalog Compiler
- * Copyright (c) 2017 The Souffle Developers. All Rights reserved
+ * Copyright (c) 2017 The Souffle Developers. All rights reserved
  * Licensed under the Universal Permissive License v 1.0 as shown at:
  * - https://opensource.org/licenses/UPL
  * - <souffle root>/licenses/SOUFFLE-UPL.txt
@@ -16,8 +16,8 @@
 
 #pragma once
 
-#include "LambdaBTree.h"
-#include "PiggyList.h"
+#include "souffle/datastructure/LambdaBTree.h"
+#include "souffle/datastructure/PiggyList.h"
 #include <atomic>
 #include <cstddef>
 #include <cstdint>

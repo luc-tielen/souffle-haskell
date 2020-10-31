@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "ProfileDatabase.h"
-#include "utility/MiscUtil.h"
-#include "utility/StreamUtil.h"
+#include "souffle/profile/ProfileDatabase.h"
+#include "souffle/utility/MiscUtil.h"
+#include "souffle/utility/StreamUtil.h"
 #include <cassert>
 #include <chrono>
 #include <cstdarg>

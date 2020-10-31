@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "CompiledTuple.h"
-#include "RamTypes.h"
+#include "souffle/CompiledTuple.h"
+#include "souffle/RamTypes.h"
 #include <cassert>
 #include <cstddef>
 #include <limits>
@@ -70,7 +70,7 @@ public:
 #pragma omp critical(record_unpack)
                 {
                     indexToRecord.push_back(vector);
-                    index = indexToRecord.size() - 1;
+                    index = static_cast<RamDomain>(indexToRecord.size()) - 1;
                     recordToIndex[vector] = index;
 
                     // assert that new index is smaller than the range
@@ -117,8 +117,13 @@ public:
     }
     /** @brief convert record reference to a record */
     const RamDomain* unpack(RamDomain ref, size_t arity) const {
-        auto iter = maps.find(arity);
-        assert(iter != maps.end() && "Attempting to unpack non-existing record");
+        std::unordered_map<size_t, RecordMap>::const_iterator iter;
+#pragma omp critical(RecordTableGetForArity)
+        {
+            // Find a previously emplaced map
+            iter = maps.find(arity);
+        }
+        assert(iter != maps.end() && "Attempting to unpack record for non-existing arity");
         return (iter->second).unpack(ref);
     }
 

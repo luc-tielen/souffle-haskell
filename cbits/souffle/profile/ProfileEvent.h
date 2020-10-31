@@ -16,9 +16,9 @@
 
 #pragma once
 
-#include "EventProcessor.h"
-#include "ProfileDatabase.h"
-#include "utility/MiscUtil.h"
+#include "souffle/profile/EventProcessor.h"
+#include "souffle/profile/ProfileDatabase.h"
+#include "souffle/utility/MiscUtil.h"
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -29,8 +29,12 @@
 #include <sstream>
 #include <string>
 #include <thread>
+#ifdef WIN32
+#include <Psapi.h>
+#else
 #include <sys/resource.h>
 #include <sys/time.h>
+#endif  // WIN32
 
 namespace souffle {
 
@@ -85,6 +89,27 @@ public:
     void makeUtilisationEvent(const std::string& txt) {
         /* current time */
         microseconds time = std::chrono::duration_cast<microseconds>(now().time_since_epoch());
+
+#ifdef WIN32
+        HANDLE hProcess = GetCurrentProcess();
+        FILETIME systemFileTime, userFileTime;
+        GetProcessTimes(hProcess, nullptr, nullptr, &systemFileTime, &userFileTime);
+        /* system CPU time and user CPU time are both expected to be in
+           microseconds below, GetProcessTime gives us a value which is a
+           counter of 100 nanosecond units. */
+        /* system CPU time used */
+        uint64_t systemTime = systemFileTime.dwHighDateTime;
+        systemTime = (systemTime << 32) | systemFileTime.dwLowDateTime;
+        systemTime /= 1000;
+        /* user CPU time used */
+        uint64_t userTime = userFileTime.dwHighDateTime;
+        userTime = (userTime << 32) | userFileTime.dwLowDateTime;
+        userTime /= 1000;
+        PROCESS_MEMORY_COUNTERS processMemoryCounters;
+        GetProcessMemoryInfo(hProcess, &processMemoryCounters, sizeof(processMemoryCounters));
+        /* Maximum resident set size (kb) */
+        size_t maxRSS = processMemoryCounters.PeakWorkingSetSize / 1000;
+#else
         /* system CPU time used */
         struct rusage ru {};
         getrusage(RUSAGE_SELF, &ru);
@@ -94,13 +119,14 @@ public:
         uint64_t userTime = ru.ru_utime.tv_sec * 1000000 + ru.ru_utime.tv_usec;
         /* Maximum resident set size (kb) */
         size_t maxRSS = ru.ru_maxrss;
+#endif  // WIN32
 
         profile::EventProcessorSingleton::instance().process(
                 database, txt.c_str(), time, systemTime, userTime, maxRSS);
     }
 
-    void setOutputFile(std::string filename) {
-        this->filename = filename;
+    void setOutputFile(std::string outputFilename) {
+        filename = outputFilename;
     }
     /** Dump all events */
     void dump() {
@@ -131,8 +157,8 @@ public:
         return database;
     }
 
-    void setDBFromFile(const std::string& filename) {
-        database = profile::ProfileDatabase(filename);
+    void setDBFromFile(const std::string& databaseFilename) {
+        database = profile::ProfileDatabase(databaseFilename);
     }
 
 private:

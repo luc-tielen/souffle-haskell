@@ -16,17 +16,17 @@
 
 #pragma once
 
-#include "souffle/Brie.h"
 #include "souffle/CompiledTuple.h"
-#include "souffle/EquivalenceRelation.h"
-#include "souffle/IOSystem.h"
 #include "souffle/RamTypes.h"
 #include "souffle/RecordTable.h"
 #include "souffle/SignalHandler.h"
 #include "souffle/SouffleInterface.h"
 #include "souffle/SymbolTable.h"
-#include "souffle/Table.h"
-#include "souffle/WriteStream.h"
+#include "souffle/datastructure/Brie.h"
+#include "souffle/datastructure/EquivalenceRelation.h"
+#include "souffle/datastructure/Table.h"
+#include "souffle/io/IOSystem.h"
+#include "souffle/io/WriteStream.h"
 #include "souffle/utility/CacheUtil.h"
 #include "souffle/utility/ContainerUtil.h"
 #include "souffle/utility/EvaluatorUtil.h"
@@ -38,8 +38,8 @@
 #include "souffle/utility/StringUtil.h"
 #ifndef __EMBEDDED_SOUFFLE__
 #include "souffle/CompiledOptions.h"
-#include "souffle/Logger.h"
-#include "souffle/ProfileEvent.h"
+#include "souffle/profile/Logger.h"
+#include "souffle/profile/ProfileEvent.h"
 #endif
 #include <array>
 #include <atomic>
@@ -178,10 +178,16 @@ public:
     context createContext() {
         return context();
     }
-    class iterator : public std::iterator<std::forward_iterator_tag, RamDomain*> {
+    class iterator {
         bool value;
 
     public:
+        typedef std::forward_iterator_tag iterator_category;
+        typedef RamDomain* value_type;
+        typedef ptrdiff_t difference_type;
+        typedef value_type* pointer;
+        typedef value_type& reference;
+
         iterator(bool v = false) : value(v) {}
 
         const RamDomain* operator*() {
@@ -238,7 +244,7 @@ public:
     void purge() {
         data = false;
     }
-    void printHintStatistics(std::ostream& /* o */, std::string /* prefix */) const {}
+    void printStatistics(std::ostream& /* o */) const {}
 };
 
 /** info relations */
@@ -323,7 +329,7 @@ public:
     void purge() {
         data.clear();
     }
-    void printHintStatistics(std::ostream& /* o */, std::string /* prefix */) const {}
+    void printStatistics(std::ostream& /* o */) const {}
 };
 
 }  // namespace souffle

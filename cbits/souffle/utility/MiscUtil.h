@@ -48,6 +48,7 @@
  */
 #define __builtin_popcountll __popcnt64
 
+#if _MSC_VER < 1924
 constexpr unsigned long __builtin_ctz(unsigned long value) {
     unsigned long trailing_zeroes = 0;
     while ((value = value >> 1) ^ 1) {
@@ -65,6 +66,7 @@ inline unsigned long __builtin_ctzll(unsigned long long value) {
         return 64;
     }
 }
+#endif  // _MSC_VER < 1924
 #endif
 
 // -------------------------------------------------------------------------------
@@ -109,6 +111,77 @@ std::unique_ptr<A> clone(const std::unique_ptr<A>& node) {
 template <typename A, typename B>
 auto clone(const std::pair<A, B>& p) {
     return std::make_pair(clone(p.first), clone(p.second));
+}
+
+// -------------------------------------------------------------------------------
+//                             Comparison Utilities
+// -------------------------------------------------------------------------------
+/**
+ * Compares two values referenced by a pointer where the case where both
+ * pointers are null is also considered equivalent.
+ */
+template <typename T>
+bool equal_ptr(const T* a, const T* b) {
+    if (a == nullptr && b == nullptr) {
+        return true;
+    }
+    if (a != nullptr && b != nullptr) {
+        return *a == *b;
+    }
+    return false;
+}
+
+/**
+ * Compares two values referenced by a pointer where the case where both
+ * pointers are null is also considered equivalent.
+ */
+template <typename T>
+bool equal_ptr(const std::unique_ptr<T>& a, const std::unique_ptr<T>& b) {
+    return equal_ptr(a.get(), b.get());
+}
+
+template <typename A, typename B>
+using copy_const_t = std::conditional_t<std::is_const_v<A>, const B, B>;
+
+/**
+ * Helpers for `dynamic_cast`ing without having to specify redundant type qualifiers.
+ * e.g. `as<AstLiteral>(p)` instead of `dynamic_cast<const AstLiteral*>(p.get())`.
+ */
+template <typename B, typename A>
+auto as(A* x) {
+    static_assert(std::is_base_of_v<A, B>,
+            "`as<B, A>` does not allow cross-type dyn casts. "
+            "(i.e. `as<B, A>` where `B <: A` is not true.) "
+            "Such a cast is likely a mistake or typo.");
+    return dynamic_cast<copy_const_t<A, B>*>(x);
+}
+
+template <typename B, typename A>
+std::enable_if_t<std::is_base_of_v<A, B>, copy_const_t<A, B>*> as(A& x) {
+    return as<B>(&x);
+}
+
+template <typename B, typename A>
+B* as(const std::unique_ptr<A>& x) {
+    return as<B>(x.get());
+}
+
+/**
+ * Checks if the object of type Source can be casted to type Destination.
+ */
+template <typename B, typename A>
+bool isA(A* x) {
+    return dynamic_cast<copy_const_t<A, B>*>(x) != nullptr;
+}
+
+template <typename B, typename A>
+std::enable_if_t<std::is_base_of_v<A, B>, bool> isA(A& x) {
+    return isA<B>(&x);
+}
+
+template <typename B, typename A>
+bool isA(const std::unique_ptr<A>& x) {
+    return isA<B>(x.get());
 }
 
 // -------------------------------------------------------------------------------

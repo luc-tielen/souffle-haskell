@@ -14,18 +14,18 @@
 
 #pragma once
 
-#include "RamTypes.h"
-#include "ReadStream.h"
-#include "ReadStreamCSV.h"
-#include "ReadStreamJSON.h"
-#include "SymbolTable.h"
-#include "WriteStream.h"
-#include "WriteStreamCSV.h"
-#include "WriteStreamJSON.h"
+#include "souffle/RamTypes.h"
+#include "souffle/SymbolTable.h"
+#include "souffle/io/ReadStream.h"
+#include "souffle/io/ReadStreamCSV.h"
+#include "souffle/io/ReadStreamJSON.h"
+#include "souffle/io/WriteStream.h"
+#include "souffle/io/WriteStreamCSV.h"
+#include "souffle/io/WriteStreamJSON.h"
 
 #ifdef USE_SQLITE
-#include "ReadStreamSQLite.h"
-#include "WriteStreamSQLite.h"
+#include "souffle/io/ReadStreamSQLite.h"
+#include "souffle/io/WriteStreamSQLite.h"
 #endif
 
 #include <map>
@@ -54,7 +54,7 @@ public:
     /**
      * Return a new WriteStream
      */
-    std::unique_ptr<WriteStream> getWriter(const std::map<std::string, std::string>& rwOperation,
+    Own<WriteStream> getWriter(const std::map<std::string, std::string>& rwOperation,
             const SymbolTable& symbolTable, const RecordTable& recordTable) const {
         std::string ioType = rwOperation.at("IO");
         if (outputFactories.count(ioType) == 0) {
@@ -65,8 +65,8 @@ public:
     /**
      * Return a new ReadStream
      */
-    std::unique_ptr<ReadStream> getReader(const std::map<std::string, std::string>& rwOperation,
-            SymbolTable& symbolTable, RecordTable& recordTable) const {
+    Own<ReadStream> getReader(const std::map<std::string, std::string>& rwOperation, SymbolTable& symbolTable,
+            RecordTable& recordTable) const {
         std::string ioType = rwOperation.at("IO");
         if (inputFactories.count(ioType) == 0) {
             throw std::invalid_argument("Requested input type <" + ioType + "> is not supported.");

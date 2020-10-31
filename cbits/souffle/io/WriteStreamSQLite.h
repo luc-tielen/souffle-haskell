@@ -14,9 +14,9 @@
 
 #pragma once
 
-#include "RamTypes.h"
-#include "SymbolTable.h"
-#include "WriteStream.h"
+#include "souffle/RamTypes.h"
+#include "souffle/SymbolTable.h"
+#include "souffle/io/WriteStream.h"
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -282,9 +282,9 @@ private:
 
 class WriteSQLiteFactory : public WriteStreamFactory {
 public:
-    std::unique_ptr<WriteStream> getWriter(const std::map<std::string, std::string>& rwOperation,
+    Own<WriteStream> getWriter(const std::map<std::string, std::string>& rwOperation,
             const SymbolTable& symbolTable, const RecordTable& recordTable) override {
-        return std::make_unique<WriteStreamSQLite>(rwOperation, symbolTable, recordTable);
+        return mk<WriteStreamSQLite>(rwOperation, symbolTable, recordTable);
     }
 
     const std::string& getName() const override {

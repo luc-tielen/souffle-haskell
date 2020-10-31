@@ -19,9 +19,9 @@
 
 #pragma once
 
-#include "BTree.h"
-#include "utility/ContainerUtil.h"
-#include "utility/ParallelUtil.h"
+#include "souffle/datastructure/BTree.h"
+#include "souffle/utility/ContainerUtil.h"
+#include "souffle/utility/ParallelUtil.h"
 #include <atomic>
 #include <cassert>
 #include <typeinfo>
