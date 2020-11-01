@@ -4,7 +4,7 @@ cabal-version: 2.2
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 17a2133824e79c6ff55b5265db624c245ef1ac772e73136d6fb98bd34e3ef6b1
+-- hash: 2be8fc32fb75d482148ccc79df9ddc8cf124ffaffad84f886597ea11cc0564bf
 
 name:           souffle-haskell
 version:        2.0.2
@@ -24,7 +24,6 @@ extra-source-files:
     CHANGELOG.md
     LICENSE
     cbits/souffle.h
-    cbits/souffle/CompiledOptions.h
     cbits/souffle/CompiledSouffle.h
     cbits/souffle/CompiledTuple.h
     cbits/souffle/datastructure/Brie.h
@@ -45,14 +44,6 @@ extra-source-files:
     cbits/souffle/io/WriteStreamCSV.h
     cbits/souffle/io/WriteStreamJSON.h
     cbits/souffle/io/WriteStreamSQLite.h
-    cbits/souffle/profile/CellInterface.h
-    cbits/souffle/profile/DataComparator.h
-    cbits/souffle/profile/EventProcessor.h
-    cbits/souffle/profile/Logger.h
-    cbits/souffle/profile/ProfileDatabase.h
-    cbits/souffle/profile/ProfileEvent.h
-    cbits/souffle/profile/Row.h
-    cbits/souffle/profile/Table.h
     cbits/souffle/RamTypes.h
     cbits/souffle/RecordTable.h
     cbits/souffle/SignalHandler.h
@@ -98,50 +89,42 @@ library
       cbits
       cbits/souffle
   install-includes:
+      souffle/CompiledSouffle.h
       souffle/CompiledTuple.h
       souffle/RamTypes.h
-      souffle/utility/ContainerUtil.h
       souffle/RecordTable.h
+      souffle/SignalHandler.h
+      souffle/SouffleInterface.h
       souffle/SymbolTable.h
       souffle/utility/MiscUtil.h
-      souffle/SouffleInterface.h
-      souffle/io/ReadStreamCSV.h
-      souffle/io/ReadStream.h
-      souffle/utility/FileUtil.h
-      souffle/utility/StringUtil.h
-      souffle/io/gzfstream.h
-      souffle/io/WriteStreamSQLite.h
-      souffle/io/WriteStream.h
-      souffle/io/WriteStreamJSON.h
-      souffle/utility/json11.h
-      souffle/io/WriteStreamCSV.h
+      souffle/utility/tinyformat.h
       souffle/utility/ParallelUtil.h
-      souffle/io/IOSystem.h
-      souffle/io/ReadStreamJSON.h
-      souffle/io/ReadStreamSQLite.h
-      souffle/io/SerialisationStream.h
       souffle/utility/StreamUtil.h
+      souffle/utility/ContainerUtil.h
       souffle/datastructure/Brie.h
       souffle/utility/CacheUtil.h
+      souffle/datastructure/EquivalenceRelation.h
       souffle/datastructure/LambdaBTree.h
       souffle/datastructure/BTree.h
-      souffle/datastructure/UnionFind.h
       souffle/datastructure/PiggyList.h
-      souffle/datastructure/EquivalenceRelation.h
-      souffle/utility/tinyformat.h
-      souffle/profile/ProfileDatabase.h
-      souffle/profile/ProfileEvent.h
-      souffle/profile/DataComparator.h
-      souffle/profile/CellInterface.h
-      souffle/profile/Row.h
-      souffle/profile/EventProcessor.h
-      souffle/profile/Table.h
-      souffle/profile/Logger.h
-      souffle/CompiledSouffle.h
-      souffle/SignalHandler.h
+      souffle/datastructure/UnionFind.h
+      souffle/datastructure/Table.h
+      souffle/io/IOSystem.h
+      souffle/io/ReadStream.h
+      souffle/io/SerialisationStream.h
+      souffle/utility/json11.h
+      souffle/utility/StringUtil.h
+      souffle/io/ReadStreamCSV.h
+      souffle/utility/FileUtil.h
+      souffle/io/gzfstream.h
+      souffle/io/ReadStreamJSON.h
+      souffle/io/WriteStream.h
+      souffle/io/WriteStreamCSV.h
+      souffle/io/WriteStreamJSON.h
+      souffle/io/ReadStreamSQLite.h
+      souffle/io/WriteStreamSQLite.h
       souffle/utility/EvaluatorUtil.h
       souffle/utility/FunctionalUtil.h
-      souffle/CompiledOptions.h
   cxx-sources:
       cbits/souffle.cpp
   build-depends:
@@ -161,82 +144,6 @@ library
   if os(linux)
     extra-libraries:
         stdc++
-  default-language: Haskell2010
-
-executable import-souffle-headers
-  main-is: import_souffle_headers.hs
-  other-modules:
-      Paths_souffle_haskell
-  hs-source-dirs:
-      scripts
-  default-extensions: OverloadedStrings LambdaCase ScopedTypeVariables
-  ghc-options: -Wall -Weverything -Wno-safe -Wno-unsafe -Wno-implicit-prelude -Wno-missed-specializations -Wno-all-missed-specializations -Wno-missing-import-lists -Wno-type-defaults -Wno-missing-local-signatures -Wno-monomorphism-restriction -Wno-missing-deriving-strategies -optP-Wno-nonportable-include-path -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
-  cxx-options: -std=c++17
-  include-dirs:
-      cbits
-      cbits/souffle
-  install-includes:
-      souffle/CompiledTuple.h
-      souffle/RamTypes.h
-      souffle/utility/ContainerUtil.h
-      souffle/RecordTable.h
-      souffle/SymbolTable.h
-      souffle/utility/MiscUtil.h
-      souffle/SouffleInterface.h
-      souffle/io/ReadStreamCSV.h
-      souffle/io/ReadStream.h
-      souffle/utility/FileUtil.h
-      souffle/utility/StringUtil.h
-      souffle/io/gzfstream.h
-      souffle/io/WriteStreamSQLite.h
-      souffle/io/WriteStream.h
-      souffle/io/WriteStreamJSON.h
-      souffle/utility/json11.h
-      souffle/io/WriteStreamCSV.h
-      souffle/utility/ParallelUtil.h
-      souffle/io/IOSystem.h
-      souffle/io/ReadStreamJSON.h
-      souffle/io/ReadStreamSQLite.h
-      souffle/io/SerialisationStream.h
-      souffle/utility/StreamUtil.h
-      souffle/datastructure/Brie.h
-      souffle/utility/CacheUtil.h
-      souffle/datastructure/LambdaBTree.h
-      souffle/datastructure/BTree.h
-      souffle/datastructure/UnionFind.h
-      souffle/datastructure/PiggyList.h
-      souffle/datastructure/EquivalenceRelation.h
-      souffle/utility/tinyformat.h
-      souffle/profile/ProfileDatabase.h
-      souffle/profile/ProfileEvent.h
-      souffle/profile/DataComparator.h
-      souffle/profile/CellInterface.h
-      souffle/profile/Row.h
-      souffle/profile/EventProcessor.h
-      souffle/profile/Table.h
-      souffle/profile/Logger.h
-      souffle/CompiledSouffle.h
-      souffle/SignalHandler.h
-      souffle/utility/EvaluatorUtil.h
-      souffle/utility/FunctionalUtil.h
-      souffle/CompiledOptions.h
-  build-depends:
-      array <=1.0
-    , base >=4.12 && <5
-    , containers >=0.6.2.1 && <1
-    , deepseq >=1.4.4 && <2
-    , directory >=1.3.3 && <2
-    , extra >=1.6.18 && <2
-    , filepath >=1.4.2 && <2
-    , megaparsec >=7.0.5 && <8
-    , mtl >=2.0 && <3
-    , process >=1.6 && <2
-    , souffle-haskell
-    , template-haskell >=2 && <3
-    , temporary >=1.3 && <2
-    , text >=1.0 && <2
-    , type-errors-pretty >=0.0.1.0 && <1
-    , vector <=1.0
   default-language: Haskell2010
 
 test-suite souffle-haskell-test
@@ -259,50 +166,42 @@ test-suite souffle-haskell-test
       cbits
       cbits/souffle
   install-includes:
+      souffle/CompiledSouffle.h
       souffle/CompiledTuple.h
       souffle/RamTypes.h
-      souffle/utility/ContainerUtil.h
       souffle/RecordTable.h
+      souffle/SignalHandler.h
+      souffle/SouffleInterface.h
       souffle/SymbolTable.h
       souffle/utility/MiscUtil.h
-      souffle/SouffleInterface.h
-      souffle/io/ReadStreamCSV.h
-      souffle/io/ReadStream.h
-      souffle/utility/FileUtil.h
-      souffle/utility/StringUtil.h
-      souffle/io/gzfstream.h
-      souffle/io/WriteStreamSQLite.h
-      souffle/io/WriteStream.h
-      souffle/io/WriteStreamJSON.h
-      souffle/utility/json11.h
-      souffle/io/WriteStreamCSV.h
+      souffle/utility/tinyformat.h
       souffle/utility/ParallelUtil.h
-      souffle/io/IOSystem.h
-      souffle/io/ReadStreamJSON.h
-      souffle/io/ReadStreamSQLite.h
-      souffle/io/SerialisationStream.h
       souffle/utility/StreamUtil.h
+      souffle/utility/ContainerUtil.h
       souffle/datastructure/Brie.h
       souffle/utility/CacheUtil.h
+      souffle/datastructure/EquivalenceRelation.h
       souffle/datastructure/LambdaBTree.h
       souffle/datastructure/BTree.h
-      souffle/datastructure/UnionFind.h
       souffle/datastructure/PiggyList.h
-      souffle/datastructure/EquivalenceRelation.h
-      souffle/utility/tinyformat.h
-      souffle/profile/ProfileDatabase.h
-      souffle/profile/ProfileEvent.h
-      souffle/profile/DataComparator.h
-      souffle/profile/CellInterface.h
-      souffle/profile/Row.h
-      souffle/profile/EventProcessor.h
-      souffle/profile/Table.h
-      souffle/profile/Logger.h
-      souffle/CompiledSouffle.h
-      souffle/SignalHandler.h
+      souffle/datastructure/UnionFind.h
+      souffle/datastructure/Table.h
+      souffle/io/IOSystem.h
+      souffle/io/ReadStream.h
+      souffle/io/SerialisationStream.h
+      souffle/utility/json11.h
+      souffle/utility/StringUtil.h
+      souffle/io/ReadStreamCSV.h
+      souffle/utility/FileUtil.h
+      souffle/io/gzfstream.h
+      souffle/io/ReadStreamJSON.h
+      souffle/io/WriteStream.h
+      souffle/io/WriteStreamCSV.h
+      souffle/io/WriteStreamJSON.h
+      souffle/io/ReadStreamSQLite.h
+      souffle/io/WriteStreamSQLite.h
       souffle/utility/EvaluatorUtil.h
       souffle/utility/FunctionalUtil.h
-      souffle/CompiledOptions.h
   cxx-sources:
       tests/fixtures/path.cpp
       tests/fixtures/round_trip.cpp
