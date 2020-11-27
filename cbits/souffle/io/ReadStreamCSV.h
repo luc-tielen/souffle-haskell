@@ -14,15 +14,15 @@
 
 #pragma once
 
-#include "RamTypes.h"
-#include "ReadStream.h"
-#include "SymbolTable.h"
-#include "utility/ContainerUtil.h"
-#include "utility/FileUtil.h"
-#include "utility/StringUtil.h"
+#include "souffle/RamTypes.h"
+#include "souffle/SymbolTable.h"
+#include "souffle/io/ReadStream.h"
+#include "souffle/utility/ContainerUtil.h"
+#include "souffle/utility/FileUtil.h"
+#include "souffle/utility/StringUtil.h"
 
 #ifdef USE_LIBZ
-#include "gzfstream.h"
+#include "souffle/io/gzfstream.h"
 #else
 #include <fstream>
 #endif
@@ -48,7 +48,7 @@ public:
             SymbolTable& symbolTable, RecordTable& recordTable)
             : ReadStream(rwOperation, symbolTable, recordTable),
               delimiter(getOr(rwOperation, "delimiter", "\t")), file(file), lineNumber(0),
-              inputMap(getInputColumnMap(rwOperation, arity)) {
+              inputMap(getInputColumnMap(rwOperation, static_cast<unsigned int>(arity))) {
         while (inputMap.size() < arity) {
             int size = static_cast<int>(inputMap.size());
             inputMap[size] = size;
@@ -62,12 +62,12 @@ protected:
      * Returns nullptr if no tuple was readable.
      * @return
      */
-    std::unique_ptr<RamDomain[]> readNextTuple() override {
+    Own<RamDomain[]> readNextTuple() override {
         if (file.eof()) {
             return nullptr;
         }
         std::string line;
-        std::unique_ptr<RamDomain[]> tuple = std::make_unique<RamDomain[]>(typeAttributes.size());
+        Own<RamDomain[]> tuple = std::make_unique<RamDomain[]>(typeAttributes.size());
 
         if (!getline(file, line)) {
             return nullptr;
@@ -99,6 +99,10 @@ protected:
                     }
                     case 'r': {
                         tuple[inputMap[column]] = readRecord(element, ty, 0, &charactersRead);
+                        break;
+                    }
+                    case '+': {
+                        tuple[inputMap[column]] = readADT(element, ty, 0, &charactersRead);
                         break;
                     }
                     case 'i': {
@@ -259,7 +263,7 @@ public:
      * Returns nullptr if no tuple was readable.
      * @return
      */
-    std::unique_ptr<RamDomain[]> readNextTuple() override {
+    Own<RamDomain[]> readNextTuple() override {
         try {
             return ReadStreamCSV::readNextTuple();
         } catch (std::exception& e) {
@@ -298,9 +302,9 @@ protected:
 
 class ReadCinCSVFactory : public ReadStreamFactory {
 public:
-    std::unique_ptr<ReadStream> getReader(const std::map<std::string, std::string>& rwOperation,
-            SymbolTable& symbolTable, RecordTable& recordTable) override {
-        return std::make_unique<ReadStreamCSV>(std::cin, rwOperation, symbolTable, recordTable);
+    Own<ReadStream> getReader(const std::map<std::string, std::string>& rwOperation, SymbolTable& symbolTable,
+            RecordTable& recordTable) override {
+        return mk<ReadStreamCSV>(std::cin, rwOperation, symbolTable, recordTable);
     }
 
     const std::string& getName() const override {
@@ -312,9 +316,9 @@ public:
 
 class ReadFileCSVFactory : public ReadStreamFactory {
 public:
-    std::unique_ptr<ReadStream> getReader(const std::map<std::string, std::string>& rwOperation,
-            SymbolTable& symbolTable, RecordTable& recordTable) override {
-        return std::make_unique<ReadFileCSV>(rwOperation, symbolTable, recordTable);
+    Own<ReadStream> getReader(const std::map<std::string, std::string>& rwOperation, SymbolTable& symbolTable,
+            RecordTable& recordTable) override {
+        return mk<ReadFileCSV>(rwOperation, symbolTable, recordTable);
     }
 
     const std::string& getName() const override {

@@ -163,11 +163,21 @@ auto map(const std::vector<A>& xs, F&& f) {
 // -------------------------------------------------------------------------------
 
 template <typename A>
-auto clone(const std::vector<A>& xs) {
-    std::vector<decltype(clone(xs[0]))> ys;
+auto clone(const std::vector<A*>& xs) {
+    std::vector<std::unique_ptr<A>> ys;
     ys.reserve(xs.size());
     for (auto&& x : xs) {
-        ys.emplace_back(clone(x));
+        ys.emplace_back(x ? std::unique_ptr<A>(x->clone()) : nullptr);
+    }
+    return ys;
+}
+
+template <typename A>
+auto clone(const std::vector<std::unique_ptr<A>>& xs) {
+    std::vector<std::unique_ptr<A>> ys;
+    ys.reserve(xs.size());
+    for (auto&& x : xs) {
+        ys.emplace_back(x ? std::unique_ptr<A>(x->clone()) : nullptr);
     }
     return ys;
 }
@@ -457,64 +467,6 @@ bool equal_targets(
     auto comp = comp_deref<std::unique_ptr<Value>>();
     return equal_targets(
             a, b, [&comp](auto& a, auto& b) { return a.first == b.first && comp(a.second, b.second); });
-}
-
-/**
- * Compares two values referenced by a pointer where the case where both
- * pointers are null is also considered equivalent.
- */
-template <typename T>
-bool equal_ptr(const T* a, const T* b) {
-    if (a == nullptr && b == nullptr) {
-        return true;
-    }
-    if (a != nullptr && b != nullptr) {
-        return *a == *b;
-    }
-    return false;
-}
-
-/**
- * Compares two values referenced by a pointer where the case where both
- * pointers are null is also considered equivalent.
- */
-template <typename T>
-bool equal_ptr(const std::unique_ptr<T>& a, const std::unique_ptr<T>& b) {
-    return equal_ptr(a.get(), b.get());
-}
-
-template <typename A, typename B>
-using copy_const_t = std::conditional_t<std::is_const_v<A>, const B, B>;
-
-/**
- * Helpers for `dynamic_cast`ing without having to specify redundant type qualifiers.
- * e.g. `as<AstLiteral>(p)` instead of `dynamic_cast<const AstLiteral*>(p.get())`.
- */
-template <typename B, typename A>
-auto as(A* x) {
-    static_assert(std::is_base_of_v<A, B>,
-            "`as<B, A>` does not allow cross-type dyn casts. "
-            "(i.e. `as<B, A>` where `B <: A` is not true.) "
-            "Such a cast is likely a mistake or typo.");
-    return dynamic_cast<copy_const_t<A, B>*>(x);
-}
-
-template <typename B, typename A>
-std::enable_if_t<std::is_base_of_v<A, B>, copy_const_t<A, B>*> as(A& x) {
-    return as<B>(&x);
-}
-
-template <typename B, typename A>
-B* as(const Own<A>& x) {
-    return as<B>(x.get());
-}
-
-/**
- * Checks if the object of type Source can be casted to type Destination.
- */
-template <typename Destination, typename Source>
-bool isA(Source&& src) {
-    return as<Destination>(std::forward<Source>(src)) != nullptr;
 }
 
 }  // namespace souffle

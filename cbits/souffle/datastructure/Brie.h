@@ -26,11 +26,11 @@
 
 #pragma once
 
-#include "CompiledTuple.h"
-#include "RamTypes.h"
-#include "utility/CacheUtil.h"
-#include "utility/ContainerUtil.h"
-#include "utility/StreamUtil.h"
+#include "souffle/CompiledTuple.h"
+#include "souffle/RamTypes.h"
+#include "souffle/utility/CacheUtil.h"
+#include "souffle/utility/ContainerUtil.h"
+#include "souffle/utility/StreamUtil.h"
 #include <algorithm>
 #include <atomic>
 #include <bitset>
@@ -155,7 +155,7 @@ private:
         std::atomic<Node*> aptr;
 
         // a pointer to the nested level (unsynchronized operations)
-        Node* ptr;
+        Node* ptr{nullptr};
 
         // an atomic view on the value stored in this cell (leaf node)
         atomic_value_type avalue;
@@ -639,7 +639,7 @@ private:
         unsigned level = info.levels;
         while (level != 0) {
             // get X coordinate
-            auto x = getIndex(i, level);
+            auto x = getIndex(static_cast<RamDomain>(i), level);
 
             // decrease level counter
             --level;
@@ -756,7 +756,7 @@ public:
         unsigned level = unsynced.levels;
         while (level != 0) {
             // get X coordinate
-            auto x = getIndex(i, level);
+            auto x = getIndex(static_cast<RamDomain>(i), level);
 
             // decrease level counter
             --level;
@@ -847,7 +847,7 @@ public:
         Node** node = &unsynced.root;
         while (level > other.unsynced.levels) {
             // get X coordinate
-            auto x = getIndex(other.unsynced.offset, level);
+            auto x = getIndex(static_cast<RamDomain>(other.unsynced.offset), level);
 
             // decrease level counter
             --level;
@@ -959,7 +959,7 @@ public:
             int level = 1;
 
             // get current index on this level
-            x = getIndex(value.first, level);
+            x = getIndex(static_cast<RamDomain>(value.first), level);
             x++;
 
             while (level > 0 && node) {
@@ -985,7 +985,7 @@ public:
                     level++;
 
                     // get current index on this level
-                    x = getIndex(value.first, level);
+                    x = getIndex(static_cast<RamDomain>(value.first), level);
                     x++;  // go one step further
                 }
             }
@@ -1147,7 +1147,7 @@ public:
         unsigned level = unsynced.levels;
         while (true) {
             // get X coordinate
-            auto x = getIndex(i, level);
+            auto x = getIndex(static_cast<RamDomain>(i), level);
 
             // check next node
             Node* next = node->cell[x].ptr;
@@ -1260,9 +1260,7 @@ private:
      * Creates new nodes and initializes them with 0.
      */
     static Node* newNode() {
-        auto* res = new Node();
-        std::memset(res->cell, 0, sizeof(Cell) * NUM_CELLS);
-        return res;
+        return new Node();
     }
 
     /**
@@ -1356,7 +1354,7 @@ private:
         node->parent = nullptr;
 
         // insert existing root as child
-        auto x = getIndex(unsynced.offset, unsynced.levels + 1);
+        auto x = getIndex(static_cast<RamDomain>(unsynced.offset), unsynced.levels + 1);
         node->cell[x].ptr = unsynced.root;
 
         // swap the root
@@ -1383,7 +1381,7 @@ private:
         newRoot->parent = nullptr;
 
         // insert existing root as child
-        auto x = getIndex(info.offset, info.levels + 1);
+        auto x = getIndex(static_cast<RamDomain>(info.offset), info.levels + 1);
         newRoot->cell[x].ptr = info.root;
 
         // exchange the root in the info struct
@@ -1615,7 +1613,7 @@ public:
     /**
      * An iterator iterating over all indices set to 1.
      */
-    class iterator : public std::iterator<std::forward_iterator_tag, index_type> {
+    class iterator {
         using nested_iterator = typename data_store_t::iterator;
 
         // the iterator through the underlying sparse data structure
@@ -1628,6 +1626,12 @@ public:
         index_type value{};
 
     public:
+        typedef std::forward_iterator_tag iterator_category;
+        typedef index_type value_type;
+        typedef ptrdiff_t difference_type;
+        typedef value_type* pointer;
+        typedef value_type& reference;
+
         // default constructor -- creating an end-iterator
         iterator() = default;
 
@@ -1882,7 +1886,7 @@ public:
      * core -- one for each nested trie level.
      */
     template <template <unsigned D> class IterCore>
-    class iterator : public std::iterator<std::forward_iterator_tag, entry_type> {
+    class iterator {
         template <unsigned Len, unsigned Pos, unsigned Dimensions>
         friend struct fix_binding;
 
@@ -1905,6 +1909,12 @@ public:
         entry_type value;
 
     public:
+        typedef std::forward_iterator_tag iterator_category;
+        typedef entry_type value_type;
+        typedef ptrdiff_t difference_type;
+        typedef value_type* pointer;
+        typedef value_type& reference;
+
         // default constructor -- creating an end-iterator
         iterator() = default;
 
@@ -2269,7 +2279,7 @@ struct fix_upper_bound {
  * Trie storing tuples of arity > 1.
  */
 template <unsigned Dim>
-class Trie : public detail::TrieBase<Dim, Trie<Dim>> {
+class Trie : public souffle::detail::TrieBase<Dim, Trie<Dim>> {
     template <unsigned D>
     friend class Trie;
 
@@ -2277,7 +2287,7 @@ class Trie : public detail::TrieBase<Dim, Trie<Dim>> {
     friend class TrieBase;
 
     // a shortcut for the common base class type
-    using base = typename detail::TrieBase<Dim, Trie<Dim>>;
+    using base = typename souffle::detail::TrieBase<Dim, Trie<Dim>>;
 
     // the type of the nested tries (1 dimension less)
     using nested_trie_type = Trie<Dim - 1>;
@@ -2610,7 +2620,7 @@ public:
         iterator end{};
 
         // adapt them level by level
-        auto found = detail::fix_binding<levels, 0, Dim>()(store, begin, end, entry);
+        auto found = souffle::detail::fix_binding<levels, 0, Dim>()(store, begin, end, entry);
         if (!found) return make_range(iterator(), iterator());
 
         // update context
@@ -2964,7 +2974,7 @@ public:
 
         template <typename Tuple>
         iterator_core(const iter_type& iter, Tuple& entry) : iter(iter) {
-            entry[I] = *iter;
+            entry[I] = static_cast<RamDomain>(*iter);
         }
 
         void setIterator(const iter_type& iter) {

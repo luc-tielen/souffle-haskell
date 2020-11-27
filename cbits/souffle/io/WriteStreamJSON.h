@@ -14,11 +14,11 @@
 
 #pragma once
 
-#include "RamTypes.h"
-#include "SymbolTable.h"
-#include "WriteStream.h"
-#include "json11.h"
-#include "utility/ContainerUtil.h"
+#include "souffle/RamTypes.h"
+#include "souffle/SymbolTable.h"
+#include "souffle/io/WriteStream.h"
+#include "souffle/utility/ContainerUtil.h"
+#include "souffle/utility/json11.h"
 
 #include <map>
 #include <ostream>
@@ -268,9 +268,9 @@ protected:
 
 class WriteFileJSONFactory : public WriteStreamFactory {
 public:
-    std::unique_ptr<WriteStream> getWriter(const std::map<std::string, std::string>& rwOperation,
+    Own<WriteStream> getWriter(const std::map<std::string, std::string>& rwOperation,
             const SymbolTable& symbolTable, const RecordTable& recordTable) override {
-        return std::make_unique<WriteFileJSON>(rwOperation, symbolTable, recordTable);
+        return mk<WriteFileJSON>(rwOperation, symbolTable, recordTable);
     }
 
     const std::string& getName() const override {
@@ -283,9 +283,9 @@ public:
 
 class WriteCoutJSONFactory : public WriteStreamFactory {
 public:
-    std::unique_ptr<WriteStream> getWriter(const std::map<std::string, std::string>& rwOperation,
+    Own<WriteStream> getWriter(const std::map<std::string, std::string>& rwOperation,
             const SymbolTable& symbolTable, const RecordTable& recordTable) override {
-        return std::make_unique<WriteCoutJSON>(rwOperation, symbolTable, recordTable);
+        return mk<WriteCoutJSON>(rwOperation, symbolTable, recordTable);
     }
 
     const std::string& getName() const override {

@@ -1,6 +1,6 @@
 /*
  * Souffle - A Datalog Compiler
- * Copyright (c) 2017 The Souffle Developers. All Rights reserved
+ * Copyright (c) 2017 The Souffle Developers. All rights reserved
  * Licensed under the Universal Permissive License v 1.0 as shown at:
  * - https://opensource.org/licenses/UPL
  * - <souffle root>/licenses/SOUFFLE-UPL.txt
@@ -18,12 +18,12 @@
 
 #pragma once
 
-#include "LambdaBTree.h"
-#include "PiggyList.h"
-#include "RamTypes.h"
-#include "UnionFind.h"
-#include "utility/ContainerUtil.h"
-#include "utility/ParallelUtil.h"
+#include "souffle/RamTypes.h"
+#include "souffle/datastructure/LambdaBTree.h"
+#include "souffle/datastructure/PiggyList.h"
+#include "souffle/datastructure/UnionFind.h"
+#include "souffle/utility/ContainerUtil.h"
+#include "souffle/utility/ParallelUtil.h"
 #include <atomic>
 #include <cassert>
 #include <cstddef>
@@ -238,8 +238,14 @@ public:
     // Unfortunately, subclassing isn't an option with souffle
     //   - we don't deal with pointers (so no virtual)
     //   - and a single iter type is expected (see Relation::iterator e.g.) (i think)
-    class iterator : public std::iterator<std::forward_iterator_tag, TupleType> {
+    class iterator {
     public:
+        typedef std::forward_iterator_tag iterator_category;
+        typedef TupleType value_type;
+        typedef ptrdiff_t difference_type;
+        typedef value_type* pointer;
+        typedef value_type& reference;
+
         // one iterator for signalling the end (simplifies)
         explicit iterator(const EquivalenceRelation* br, bool /* signalIsEndIterator */)
                 : br(br), isEndVal(true){};
@@ -273,7 +279,8 @@ public:
         }
 
         // ANTERIOR: iterator that yields all (former, _) \in djset(former) (djset(former) === within)
-        explicit iterator(const EquivalenceRelation* br, const value_type former, const StatesBucket within)
+        explicit iterator(const EquivalenceRelation* br, const typename TupleType::value_type former,
+                const StatesBucket within)
                 : br(br), ityp(IterType::ANTERIOR), djSetList(within) {
             if (djSetList->size() == 0) {
                 isEndVal = true;
@@ -285,8 +292,8 @@ public:
 
         // ANTPOST: iterator that yields all (former, latter) \in djset(former), (djset(former) ==
         // djset(latter) == within)
-        explicit iterator(const EquivalenceRelation* br, const value_type former, value_type latter,
-                const StatesBucket within)
+        explicit iterator(const EquivalenceRelation* br, const typename TupleType::value_type former,
+                typename TupleType::value_type latter, const StatesBucket within)
                 : br(br), ityp(IterType::ANTPOST), djSetList(within) {
             if (djSetList->size() == 0) {
                 isEndVal = true;
@@ -297,7 +304,7 @@ public:
         }
 
         /** explicit set first half of cPair */
-        inline void setAnterior(const value_type a) {
+        inline void setAnterior(const typename TupleType::value_type a) {
             this->cPair[0] = a;
         }
 
@@ -307,7 +314,7 @@ public:
         }
 
         /** explicit set second half of cPair */
-        inline void setPosterior(const value_type b) {
+        inline void setPosterior(const typename TupleType::value_type b) {
             this->cPair[1] = b;
         }
 
@@ -586,7 +593,8 @@ public:
         auto found = equivalencePartition.find({sds.findNode(anteriorVal), nullptr});
         assert(found != equivalencePartition.end() && "iterator called on partition that doesn't exist");
 
-        return iterator(this, anteriorVal, (*found).second);
+        return iterator(static_cast<const EquivalenceRelation*>(this),
+                static_cast<const value_type>(anteriorVal), static_cast<const StatesBucket>((*found).second));
     }
 
     /**
@@ -714,7 +722,7 @@ private:
             typename TupleType::value_type sparseVal = this->sds.toSparse(i);
             parent_t rep = this->sds.findNode(sparseVal);
 
-            StorePair p = {rep, nullptr};
+            StorePair p = {static_cast<value_type>(rep), nullptr};
             StatesList* mapList = equivalencePartition.insert(p, [&](StorePair& sp) {
                 auto* r = new StatesList(1);
                 sp.second = r;

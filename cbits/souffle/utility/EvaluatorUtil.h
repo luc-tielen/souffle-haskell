@@ -16,8 +16,8 @@
 
 #pragma once
 
-#include "../CompiledTuple.h"
-#include "../RamTypes.h"
+#include "souffle/CompiledTuple.h"
+#include "souffle/RamTypes.h"
 #include "tinyformat.h"
 
 namespace souffle::evaluator {
@@ -58,7 +58,7 @@ A symbol2numeric(const std::string& src) {
     } catch (...) {
         tfm::format(std::cerr, "error: wrong string provided by `to_number(\"%s\")` functor.\n", src);
         raise(SIGFPE);
-        fatal("");  // UNREACHABLE: `raise` lacks a no-return attribute
+        abort();  // UNREACHABLE: `raise` lacks a no-return attribute
     }
 };
 

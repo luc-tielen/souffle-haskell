@@ -20,7 +20,7 @@ data Reachable = Reachable String String
   deriving (Eq, Show, Generic)
 
 instance Souffle.Program Path where
-  type ProgramFacts Path = [Edge, Reachable]
+  type ProgramFacts Path = '[Edge, Reachable]
   programName = const "path"
 
 instance Souffle.Fact Edge where

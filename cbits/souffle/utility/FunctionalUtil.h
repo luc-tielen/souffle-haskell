@@ -18,6 +18,8 @@
 
 #include <algorithm>
 #include <functional>
+#include <utility>
+#include <vector>
 
 namespace souffle {
 
