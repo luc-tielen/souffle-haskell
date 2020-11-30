@@ -1,8 +1,7 @@
 {-# LANGUAGE GADTs, RankNTypes, TypeFamilies, DataKinds, TypeOperators, ConstraintKinds #-}
 {-# LANGUAGE UndecidableInstances, UndecidableSuperClasses, FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, DerivingVia, ScopedTypeVariables #-}
-{-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE TypeFamilyDependencies #-}
+{-# LANGUAGE PolyKinds, TypeFamilyDependencies #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 {-| This module provides an experimental DSL for generating Souffle Datalog code,

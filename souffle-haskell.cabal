@@ -4,7 +4,7 @@ cabal-version: 2.2
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 2be8fc32fb75d482148ccc79df9ddc8cf124ffaffad84f886597ea11cc0564bf
+-- hash: 123fec0c8bc8501dad3cd1a02fd121d9aa0cf0176294820b6b77fde9e463ac7f
 
 name:           souffle-haskell
 version:        2.0.2
@@ -83,7 +83,7 @@ library
   hs-source-dirs:
       lib
   default-extensions: OverloadedStrings LambdaCase ScopedTypeVariables
-  ghc-options: -Wall -Weverything -Wno-safe -Wno-unsafe -Wno-implicit-prelude -Wno-missed-specializations -Wno-all-missed-specializations -Wno-missing-import-lists -Wno-type-defaults -Wno-missing-local-signatures -Wno-monomorphism-restriction -Wno-missing-deriving-strategies -optP-Wno-nonportable-include-path -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits -Wno-prepositive-qualified-module -Wno-missing-safe-haskell-mode
+  ghc-options: -Wall -Weverything -Wno-safe -Wno-unsafe -Wno-implicit-prelude -Wno-missed-specializations -Wno-all-missed-specializations -Wno-missing-import-lists -Wno-type-defaults -Wno-missing-local-signatures -Wno-monomorphism-restriction -Wno-missing-deriving-strategies -Wno-prepositive-qualified-module -Wno-missing-safe-haskell-mode -optP-Wno-nonportable-include-path -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++17 -Wall
   include-dirs:
       cbits
@@ -160,7 +160,7 @@ test-suite souffle-haskell-test
   hs-source-dirs:
       tests
   default-extensions: OverloadedStrings LambdaCase ScopedTypeVariables
-  ghc-options: -Wall -Weverything -Wno-safe -Wno-unsafe -Wno-implicit-prelude -Wno-missed-specializations -Wno-all-missed-specializations -Wno-missing-import-lists -Wno-type-defaults -Wno-missing-local-signatures -Wno-monomorphism-restriction -Wno-missing-deriving-strategies -optP-Wno-nonportable-include-path -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
+  ghc-options: -Wall -Weverything -Wno-safe -Wno-unsafe -Wno-implicit-prelude -Wno-missed-specializations -Wno-all-missed-specializations -Wno-missing-import-lists -Wno-type-defaults -Wno-missing-local-signatures -Wno-monomorphism-restriction -Wno-missing-deriving-strategies -Wno-prepositive-qualified-module -Wno-missing-safe-haskell-mode -optP-Wno-nonportable-include-path -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++17 -D__EMBEDDED_SOUFFLE__
   include-dirs:
       cbits

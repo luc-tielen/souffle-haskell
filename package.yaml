@@ -49,6 +49,8 @@ ghc-options:
   - -Wno-missing-local-signatures
   - -Wno-monomorphism-restriction
   - -Wno-missing-deriving-strategies
+  - -Wno-prepositive-qualified-module
+  - -Wno-missing-safe-haskell-mode
   - -optP-Wno-nonportable-include-path
   - -fhide-source-paths
   - -fno-show-valid-hole-fits
