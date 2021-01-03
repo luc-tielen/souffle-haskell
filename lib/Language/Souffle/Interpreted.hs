@@ -32,7 +32,6 @@ import Prelude hiding (init)
 import Control.DeepSeq (deepseq)
 import Control.Exception (ErrorCall(..), throwIO, bracket)
 import Control.Monad.State.Strict
-import Control.Monad.Reader
 import Data.IORef
 import Data.Foldable (traverse_)
 import Data.List hiding (init)
@@ -56,10 +55,9 @@ import Text.Printf
 
 
 -- | A monad for executing Souffle-related actions in.
-newtype SouffleM a
-  = SouffleM (ReaderT Config IO a)
+newtype SouffleM a = SouffleM (IO a)
   deriving (Functor, Applicative, Monad, MonadIO)
-  via (ReaderT Config IO)
+  via IO
 
 -- | A helper data type for storing the configurable settings of the
 --   interpreter.
@@ -135,7 +133,7 @@ runSouffleWith
   :: Program prog => Config -> prog -> (Maybe (Handle prog) -> SouffleM a) -> IO a
 runSouffleWith cfg program f = bracket initialize maybeCleanup $ \handle -> do
   let (SouffleM action) = f handle
-  runReaderT action cfg
+  action
   where
     initialize = datalogProgramFile program (cfgDatalogDir cfg) >>= \case
       Nothing -> pure Nothing
