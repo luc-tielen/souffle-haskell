@@ -56,8 +56,8 @@ import Text.Printf
 
 -- | A monad for executing Souffle-related actions in.
 newtype SouffleM a = SouffleM (IO a)
-  deriving (Functor, Applicative, Monad, MonadIO)
-  via IO
+  deriving (Functor, Applicative, Monad, MonadIO) via IO
+  deriving (Semigroup, Monoid) via (IO a)
 
 -- | A helper data type for storing the configurable settings of the
 --   interpreter.

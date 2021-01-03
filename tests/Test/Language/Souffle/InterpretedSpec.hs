@@ -218,3 +218,41 @@ spec = describe "Souffle API" $ parallel $ do
         pure (e, r)
       edge `shouldBe` Just (Edge "a" "b")
       reachable `shouldBe` Just (Reachable "a" "c")
+
+  describe "Semigroup and Monoid instances" $ parallel $ do
+    it "combines Souffle actions into one using (<>)" $ do
+      edges <- Souffle.runSouffle Path $ \handle -> do
+        let prog = fromJust handle
+            action1 = Souffle.addFact prog $ Edge "e" "f"
+            action2 = Souffle.addFact prog $ Edge "f" "g"
+            action = action1 <> action2
+        action
+        Souffle.run prog
+        Souffle.getFacts prog
+      edges `shouldBe` [ Edge "a" "b", Edge "b" "c"
+                       , Edge "e" "f", Edge "f" "g"
+                       ]
+
+    it "supports mempty" $ do
+      edges <- Souffle.runSouffle Path $ \handle -> do
+        let prog = fromJust handle
+            action = Souffle.addFact prog $ Edge "e" "f"
+            action' = action <> mempty
+        action'
+        Souffle.run prog
+        Souffle.getFacts prog
+      edges `shouldBe` [Edge "a" "b", Edge "b" "c", Edge "e" "f"]
+
+    it "supports foldMap" $ do
+      edges <- Souffle.runSouffle Path $ \handle -> do
+        let prog = fromJust handle
+            fact1 = Edge "e" "f"
+            fact2 = Edge "f" "g"
+            action = foldMap (Souffle.addFact prog) [fact1, fact2]
+        action
+        Souffle.run prog
+        Souffle.getFacts prog
+      edges `shouldBe` [ Edge "a" "b", Edge "b" "c"
+                       , Edge "e" "f", Edge "f" "g"
+                       ]
+

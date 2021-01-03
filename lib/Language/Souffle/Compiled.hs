@@ -50,7 +50,8 @@ newtype Handle prog = Handle (ForeignPtr Internal.Souffle)
 
 -- | A monad for executing Souffle-related actions in.
 newtype SouffleM a = SouffleM (IO a)
-  deriving ( Functor, Applicative, Monad, MonadIO ) via IO
+  deriving (Functor, Applicative, Monad, MonadIO) via IO
+  deriving (Semigroup, Monoid) via (IO a)
 
 {- | Initializes and runs a Souffle program.
 
