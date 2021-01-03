@@ -229,6 +229,7 @@ The project makes use of [Nix](https://nixos.org/nix/download.html) to setup the
 Setup your environment by entering the following command:
 
 ```bash
+$ cachix use luctielen  # Optional (improves setup time *significantly*)
 $ nix-shell
 ```
 
