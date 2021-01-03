@@ -7,6 +7,8 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
 
 - souffle-haskell now supports Souffle version 2.0.2.
 - Fix GHC 8.10 specific warnings and compile error.
+- Support Semigroup and Monoid instances for composing Souffle actions in
+  other ways.
 
 ## [2.0.1] - 2020-09-05
 
