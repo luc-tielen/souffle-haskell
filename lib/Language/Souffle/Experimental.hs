@@ -2,6 +2,7 @@
 {-# LANGUAGE UndecidableInstances, UndecidableSuperClasses, FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, DerivingVia, ScopedTypeVariables #-}
 {-# LANGUAGE PolyKinds, TypeFamilyDependencies #-}
+{-# LANGUAGE FunctionalDependencies, TypeApplications #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 {-| This module provides an experimental DSL for generating Souffle Datalog code,
@@ -92,6 +93,7 @@ module Language.Souffle.Experimental
   , __
   , underscore
   , (|-)
+  , (||-)
   , (\/)
   , not'
   -- ** Souffle operators
@@ -476,6 +478,18 @@ Head name terms |- body =
   in addDefinition relation
 
 infixl 0 |-
+
+(||-)
+  :: forall a k prog. (GenVars (Structure a), ToFun (MapType (Term 'Relation) (Structure a)) (Body 'Relation ()) k)
+  => Predicate a
+  -> k
+  -> DSL prog 'Definition ()
+(Predicate h) ||- f = h vars |- applyFun (Proxy @(MapType (Term 'Relation) (Structure a))) f vars
+  where
+    vars :: Tuple 'Relation (Structure a)
+    vars = genVars (Proxy @(Structure a))
+
+infixl 0 ||-
 
 -- | A typeclass used for generating AST fragments of Datalog code.
 --   The generated fragments can be further glued together using the
@@ -990,6 +1004,24 @@ accessorNames _ = case toStrings (Proxy :: Proxy (AccessorNames a)) of
 -- | A type synonym for a tuple consisting of Datalog 'Term's.
 --   Only tuples containing up to 10 elements are currently supported.
 type Tuple ctx ts = TupleOf (MapType (Term ctx) ts)
+
+class GenVars (ts :: [Type]) where
+  genVars :: Proxy ts -> Tuple 'Relation ts
+
+varI :: Int -> Term 'Relation a
+varI i = VarTerm $ "x" <> T.pack (show i)
+
+instance GenVars '[t] where
+  genVars _ = varI 0
+
+instance GenVars '[t1, t2] where
+  genVars _ = (varI 0, varI 1)
+
+class ToFun (ts :: [Type]) r k | ts r -> k where
+  applyFun :: Proxy ts -> k -> TupleOf ts -> r
+
+instance ToFun '[] r r
+instance (ToFun ts r k) => ToFun (t:ts) r (t -> k)
 
 class ToTerms (ts :: [Type]) where
   toTerms :: Proxy ctx -> TypeInfo a ts -> Tuple ctx ts -> NonEmpty SimpleTerm
