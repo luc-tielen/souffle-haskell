@@ -235,9 +235,9 @@ spec = describe "Souffle DSL" $ parallel $ do
     it "can render a relation with a single rule" $ do
       let prog = do
             Predicate edge <- predicateFor @Edge
-            reachable'@(Predicate reachable) <- predicateFor @Reachable
-            reachable' ||- \ a b -> edge(a, b)
-            reachable' ||- \ a b -> reachable(a, b)
+            Predicate reachable <- predicateFor @Reachable
+            reachable ||- \ (a, b) -> edge(a, b)
+            reachable ||- \ (a, b) -> reachable(a, b)
       prog ==> [text|
         .decl edge(t1: symbol, t2: symbol)
         .input edge
@@ -1113,4 +1113,3 @@ spec = describe "Souffle DSL" $ parallel $ do
         C.run prog
         C.getFacts prog
       rs `shouldBe` [F.Reachable "b" "c", F.Reachable "a" "c", F.Reachable "a" "b"]
-

@@ -480,14 +480,13 @@ Head name terms |- body =
 infixl 0 |-
 
 (||-)
-  :: forall a k prog. (GenVars (Structure a), ToFun (MapType (Term 'Relation) (Structure a)) (Body 'Relation ()) k)
-  => Predicate a
-  -> k
+  :: forall args prog. (GenVars args)
+  => (forall f. Fragment f 'Relation => args -> f 'Relation ())
+  -> (args -> Body 'Relation ())
   -> DSL prog 'Definition ()
-(Predicate h) ||- f = h vars |- applyFun (Proxy @(MapType (Term 'Relation) (Structure a))) f vars
-  where
-    vars :: Tuple 'Relation (Structure a)
-    vars = genVars (Proxy @(Structure a))
+h ||- f = do
+    vars <- genVars
+    h vars |- f vars
 
 infixl 0 ||-
 
@@ -1005,23 +1004,14 @@ accessorNames _ = case toStrings (Proxy :: Proxy (AccessorNames a)) of
 --   Only tuples containing up to 10 elements are currently supported.
 type Tuple ctx ts = TupleOf (MapType (Term ctx) ts)
 
-class GenVars (ts :: [Type]) where
-  genVars :: Proxy ts -> Tuple 'Relation ts
+class GenVars a where
+  genVars :: DSL prog 'Definition a
 
-varI :: Int -> Term 'Relation a
-varI i = VarTerm $ "x" <> T.pack (show i)
+instance GenVars (Term 'Relation a) where
+  genVars = var "x"
 
-instance GenVars '[t] where
-  genVars _ = varI 0
-
-instance GenVars '[t1, t2] where
-  genVars _ = (varI 0, varI 1)
-
-class ToFun (ts :: [Type]) r k | ts r -> k where
-  applyFun :: Proxy ts -> k -> TupleOf ts -> r
-
-instance ToFun '[] r r
-instance (ToFun ts r k) => ToFun (t:ts) r (t -> k)
+instance (GenVars a, GenVars b) => GenVars (a, b) where
+  genVars = (,) <$> genVars <*> genVars
 
 class ToTerms (ts :: [Type]) where
   toTerms :: Proxy ctx -> TypeInfo a ts -> Tuple ctx ts -> NonEmpty SimpleTerm
