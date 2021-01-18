@@ -48,6 +48,7 @@ import Foreign.Ptr
 import qualified Language.Souffle.Internal.Bindings as Bindings
 import Language.Souffle.Internal.Bindings
   ( Souffle, Relation, RelationIterator, Tuple )
+import Control.Exception (mask_)
 
 
 {- | Initializes a Souffle program.
@@ -60,7 +61,7 @@ import Language.Souffle.Internal.Bindings
      in this module.
 -}
 init :: String -> IO (Maybe (ForeignPtr Souffle))
-init prog = do
+init prog = mask_ $ do
   ptr <- withCString prog Bindings.init
   if ptr == nullPtr
     then pure Nothing
@@ -115,7 +116,7 @@ countFacts relation =
 
 -- | Create an iterator for iterating over the facts of a relation.
 getRelationIterator :: Ptr Relation -> IO (ForeignPtr RelationIterator)
-getRelationIterator relation =
+getRelationIterator relation = mask_ $
   Bindings.getRelationIterator relation >>= newForeignPtr Bindings.freeRelationIterator
 {-# INLINABLE getRelationIterator #-}
 
@@ -130,7 +131,7 @@ relationIteratorNext iter = withForeignPtr iter Bindings.relationIteratorNext
 
 -- | Allocates memory for a tuple (fact) to be added to a relation.
 allocTuple :: Ptr Relation -> IO (ForeignPtr Tuple)
-allocTuple relation =
+allocTuple relation = mask_ $
   Bindings.allocTuple relation >>= newForeignPtr Bindings.freeTuple
 {-# INLINABLE allocTuple #-}
 
