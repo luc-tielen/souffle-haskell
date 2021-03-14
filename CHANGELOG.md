@@ -9,6 +9,8 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
 - Fix GHC 8.10 specific warnings and compile error.
 - Support Semigroup and Monoid instances for composing Souffle actions in
   other ways.
+- Add role annotations to handle types to avoid using `coerce` to change
+  the type of a Souffle handle.
 
 ## [2.0.1] - 2020-09-05
 
