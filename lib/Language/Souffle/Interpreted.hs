@@ -347,8 +347,9 @@ locateSouffle = do
   (_, Just hout, _, locateCmdHandle) <- createProcess locateCmd
   waitForProcess locateCmdHandle >>= \case
     ExitFailure _ -> pure Nothing
-    ExitSuccess ->
-      words <$> hGetContents hout >>= \case
+    ExitSuccess -> do
+      contents <- hGetContents hout
+      case words contents of
         [souffleBin] -> pure $ Just souffleBin
         _ -> pure Nothing
 {-# INLINABLE locateSouffle #-}
