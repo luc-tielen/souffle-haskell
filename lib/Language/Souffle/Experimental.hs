@@ -294,7 +294,7 @@ runDSL _ (DSL a) = Statements $ mapMaybe simplify $ execWriter (evalStateT a mem
 --   get a compile-time error because it can't deduce the constraint.
 var :: NoVarsInAtom ctx => VarName -> DSL prog ctx' (Term ctx ty)
 var name = do
-  count <- fromMaybe 0 <$> gets (Map.lookup name)
+  count <- gets (fromMaybe 0 . Map.lookup name)
   modify $ Map.insert name (count + 1)
   let varName = if count == 0 then name else name <> "_" <> T.pack (show count)
   pure $ VarTerm varName

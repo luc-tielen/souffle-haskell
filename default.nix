@@ -1,4 +1,4 @@
-{ compiler ? "ghc881", pkgs ? import ./nix/packages.nix { } }:
+{ compiler ? "ghc884", pkgs ? import ./nix/packages.nix { } }:
 
 with pkgs;
 
