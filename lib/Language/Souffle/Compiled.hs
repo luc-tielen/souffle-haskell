@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# LANGUAGE FlexibleInstances, TypeFamilies, DerivingVia, InstanceSigs, BangPatterns #-}
+{-# LANGUAGE FlexibleInstances, TypeFamilies, DerivingVia, InstanceSigs #-}
+{-# LANGUAGE BangPatterns, RoleAnnotations #-}
 
 -- | This module provides an implementation for the typeclasses defined in
 --   "Language.Souffle.Class".
@@ -42,11 +43,11 @@ import Language.Souffle.Class
 import qualified Language.Souffle.Internal as Internal
 import Language.Souffle.Marshal
 
-
 -- | A datatype representing a handle to a datalog program.
 --   The type parameter is used for keeping track of which program
 --   type the handle belongs to for additional type safety.
-newtype Handle prog = Handle (ForeignPtr Internal.Souffle)
+data Handle prog = Handle (ForeignPtr Internal.Souffle)
+type role Handle nominal
 
 -- | A monad for executing Souffle-related actions in.
 newtype SouffleM a = SouffleM (IO a)

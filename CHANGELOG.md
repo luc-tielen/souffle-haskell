@@ -16,6 +16,8 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
 
 - Support Semigroup and Monoid instances for composing Souffle actions in
   other ways.
+- Add role annotations to handle types to avoid using `coerce` to change
+  the type of a Souffle handle.
 
 ### Changed
 
