@@ -71,6 +71,10 @@
     name: Use camelCase
     within:
       - Language.Souffle.Experimental
+- ignore:
+    name: Use newtype instead of data
+    within:
+      - Language.Souffle.Compiled
 
 
 # Define some custom infix operators

@@ -4,10 +4,10 @@ cabal-version: 2.2
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 123fec0c8bc8501dad3cd1a02fd121d9aa0cf0176294820b6b77fde9e463ac7f
+-- hash: 282b7f644a46aaacc10fd325f80d88a1529d0ea5737403640996967d6b523a4c
 
 name:           souffle-haskell
-version:        2.0.2
+version:        2.1.0
 synopsis:       Souffle Datalog bindings for Haskell
 description:    Souffle Datalog bindings for Haskell.
 category:       Logic Programming, Foreign Binding, Bindings

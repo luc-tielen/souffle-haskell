@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# LANGUAGE FlexibleInstances, TypeFamilies, DerivingVia, InstanceSigs, UndecidableInstances #-}
+{-# LANGUAGE FlexibleInstances, TypeFamilies, DerivingVia, InstanceSigs #-}
+{-# LANGUAGE UndecidableInstances, RoleAnnotations #-}
 
 -- | This module provides an implementation for the `MonadSouffle` typeclass
 --   defined in "Language.Souffle.Class".
@@ -169,6 +170,7 @@ data Handle prog = Handle
   , stdoutResult :: IORef (Maybe T.Text)
   , stderrResult :: IORef (Maybe T.Text)
   }
+type role Handle nominal
 
 -- | The data needed for the interpreter is the path where the souffle
 --   executable can be found, and a template directory where the program
