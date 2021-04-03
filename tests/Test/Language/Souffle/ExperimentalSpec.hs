@@ -236,9 +236,8 @@ spec = describe "Souffle DSL" $ parallel $ do
       let prog = do
             Predicate edge <- predicateFor @Edge
             Predicate reachable <- predicateFor @Reachable
-            a <- var "a"
-            b <- var "b"
-            reachable(a, b) |- edge(a, b)
+            reachable ||- \ (a, b) -> edge(a, b)
+            reachable ||- \ (a, b) -> reachable(a, b)
       prog ==> [text|
         .decl edge(t1: symbol, t2: symbol)
         .input edge
@@ -1114,4 +1113,3 @@ spec = describe "Souffle DSL" $ parallel $ do
         C.run prog
         C.getFacts prog
       rs `shouldBe` [F.Reachable "b" "c", F.Reachable "a" "c", F.Reachable "a" "b"]
-

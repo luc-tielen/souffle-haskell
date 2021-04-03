@@ -2,6 +2,7 @@
 {-# LANGUAGE UndecidableInstances, UndecidableSuperClasses, FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, DerivingVia, ScopedTypeVariables #-}
 {-# LANGUAGE PolyKinds, TypeFamilyDependencies #-}
+{-# LANGUAGE FunctionalDependencies, TypeApplications #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 {-| This module provides an experimental DSL for generating Souffle Datalog code,
@@ -92,6 +93,7 @@ module Language.Souffle.Experimental
   , __
   , underscore
   , (|-)
+  , (||-)
   , (\/)
   , not'
   -- ** Souffle operators
@@ -476,6 +478,17 @@ Head name terms |- body =
   in addDefinition relation
 
 infixl 0 |-
+
+(||-)
+  :: forall args prog. (GenVars args)
+  => (forall f. Fragment f 'Relation => args -> f 'Relation ())
+  -> (args -> Body 'Relation ())
+  -> DSL prog 'Definition ()
+h ||- f = do
+    vars <- genVars
+    h vars |- f vars
+
+infixl 0 ||-
 
 -- | A typeclass used for generating AST fragments of Datalog code.
 --   The generated fragments can be further glued together using the
@@ -990,6 +1003,15 @@ accessorNames _ = case toStrings (Proxy :: Proxy (AccessorNames a)) of
 -- | A type synonym for a tuple consisting of Datalog 'Term's.
 --   Only tuples containing up to 10 elements are currently supported.
 type Tuple ctx ts = TupleOf (MapType (Term ctx) ts)
+
+class GenVars a where
+  genVars :: DSL prog 'Definition a
+
+instance GenVars (Term 'Relation a) where
+  genVars = var "x"
+
+instance (GenVars a, GenVars b) => GenVars (a, b) where
+  genVars = (,) <$> genVars <*> genVars
 
 class ToTerms (ts :: [Type]) where
   toTerms :: Proxy ctx -> TypeInfo a ts -> Tuple ctx ts -> NonEmpty SimpleTerm
