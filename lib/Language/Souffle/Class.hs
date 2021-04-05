@@ -288,7 +288,6 @@ instance MonadSouffle m => MonadSouffle (ExceptT e m) where
   addFacts facts = lift . addFacts facts
   {-# INLINABLE addFacts #-}
 
-
 -- | A mtl-style typeclass for Souffle-related actions that involve file IO.
 class MonadSouffle m => MonadSouffleFileIO m where
   -- | Load all facts from files in a certain directory.
@@ -327,3 +326,4 @@ instance MonadSouffleFileIO m => MonadSouffleFileIO (ExceptT s m) where
   {-# INLINABLE loadFiles #-}
   writeFiles prog = lift . writeFiles prog
   {-# INLINABLE writeFiles #-}
+

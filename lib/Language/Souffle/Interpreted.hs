@@ -201,6 +201,9 @@ instance MonadPush IMarshal where
   pushString str = modify (str:)
   {-# INLINABLE pushString #-}
 
+  pushText txt = pushString (T.unpack txt)
+  {-# INLINABLE pushText #-}
+
 instance MonadPop IMarshal where
   popInt32 = state $ \case
     [] -> error "Empty fact stack"
@@ -221,6 +224,13 @@ instance MonadPop IMarshal where
     [] -> error "Empty fact stack"
     (h:t) -> (h, t)
   {-# INLINABLE popString #-}
+
+  popText = do
+    str <- state $ \case
+      [] -> error "Empty fact stack"
+      (h:t) -> (h, t)
+    pure $ T.pack str
+  {-# INLINABLE popText #-}
 
 popMarshalT :: IMarshal a -> [String] -> a
 popMarshalT (IMarshal m) = evalState m

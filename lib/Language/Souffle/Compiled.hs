@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# LANGUAGE FlexibleInstances, TypeFamilies, DerivingVia, InstanceSigs #-}
-{-# LANGUAGE BangPatterns, RoleAnnotations #-}
+{-# LANGUAGE FlexibleInstances, FlexibleContexts, TypeFamilies, DerivingVia #-}
+{-# LANGUAGE BangPatterns, RoleAnnotations, MultiParamTypeClasses #-}
+{-# LANGUAGE InstanceSigs, DataKinds #-}
 
 -- | This module provides an implementation for the typeclasses defined in
 --   "Language.Souffle.Class".
@@ -26,19 +27,23 @@ module Language.Souffle.Compiled
   ) where
 
 import Prelude hiding ( init )
-
 import Control.Monad.Except
-import Control.Monad.RWS.Strict
-import Control.Monad.Reader
+import Control.Monad.State.Strict
 import Data.Foldable ( traverse_ )
+import Data.Functor.Identity
 import Data.Proxy
+import Data.Monoid
 import qualified Data.Array as A
 import qualified Data.Array.IO as A
 import qualified Data.Array.Unsafe as A
 import qualified Data.Vector as V
 import qualified Data.Vector.Mutable as MV
+import qualified Data.Text.Foreign as TF
+import Data.Word
 import Foreign.ForeignPtr
+import Foreign.Marshal.Alloc
 import Foreign.Ptr
+import qualified Foreign.Storable as S
 import Language.Souffle.Class
 import qualified Language.Souffle.Internal as Internal
 import Language.Souffle.Marshal
@@ -71,103 +76,110 @@ runSouffle prog action =
         action handle
    in result
 
-type Tuple = Ptr Internal.Tuple
+type ByteBuf = Ptr Internal.ByteBuf
 
 -- | A monad used solely for marshalling and unmarshalling
 --   between Haskell and Souffle Datalog.
-newtype CMarshal a = CMarshal (ReaderT Tuple IO a)
-  deriving (Functor, Applicative, Monad, MonadIO, MonadReader Tuple)
-  via ( ReaderT Tuple IO )
+newtype CMarshal a = CMarshal (StateT ByteBuf IO a)
+  deriving (Functor, Applicative, Monad, MonadIO, MonadState ByteBuf)
+  via ( StateT ByteBuf IO )
 
-runM :: CMarshal a -> Tuple -> IO a
-runM (CMarshal m) = runReaderT m
-{-# INLINABLE runM #-}
+runMarshalM :: CMarshal a -> ByteBuf -> IO a
+runMarshalM (CMarshal m) = evalStateT m
+{-# INLINABLE runMarshalM #-}
 
 instance MonadPush CMarshal where
-  pushInt32 int = do
-    tuple <- ask
-    liftIO $ Internal.tuplePushInt32 tuple int
+  pushInt32 = writeAsBytes
   {-# INLINABLE pushInt32 #-}
-
-  pushUInt32 int = do
-    tuple <- ask
-    liftIO $ Internal.tuplePushUInt32 tuple int
+  pushUInt32 = writeAsBytes
   {-# INLINABLE pushUInt32 #-}
-
-  pushFloat float = do
-    tuple <- ask
-    liftIO $ Internal.tuplePushFloat tuple float
+  pushFloat = writeAsBytes
   {-# INLINABLE pushFloat #-}
-
   pushString str = do
-    tuple <- ask
-    liftIO $ Internal.tuplePushString tuple str
+    pushUInt32 (fromIntegral $ numBytes str)
+    traverse_ pokeChar str
+    where
+      pokeChar c = do
+        ptr <- gets castPtr
+        liftIO $ S.poke ptr c
+        put $ ptr `plusPtr` 1
   {-# INLINABLE pushString #-}
+  pushText txt = do
+    pushUInt32 (fromIntegral byteCount)
+    ptr <- gets castPtr
+    liftIO $ TF.unsafeCopyToPtr txt ptr
+    put $ ptr `plusPtr` byteCount
+    where byteCount = numBytes txt
+  {-# INLINABLE pushText #-}
 
 instance MonadPop CMarshal where
-  popInt32 = do
-    tuple <- ask
-    liftIO $ Internal.tuplePopInt32 tuple
+  popInt32 = readAsBytes
   {-# INLINABLE popInt32 #-}
-
-  popUInt32 = do
-    tuple <- ask
-    liftIO $ Internal.tuplePopUInt32 tuple
+  popUInt32 = readAsBytes
   {-# INLINABLE popUInt32 #-}
-
-  popFloat = do
-    tuple <- ask
-    liftIO $ Internal.tuplePopFloat tuple
+  popFloat = readAsBytes
   {-# INLINABLE popFloat #-}
-
   popString = do
-    tuple <- ask
-    liftIO $ Internal.tuplePopString tuple
+    len <- popUInt32
+    loop len []
+    where
+      loop count acc
+        | count == 0 = pure $ reverse acc  -- TODO: use difflist?
+        | otherwise  = do
+          c <- peekChar
+          loop (count - 1) (c:acc)
+      peekChar = do
+        ptr <- gets castPtr
+        c <- liftIO $ S.peek ptr
+        put $ ptr `plusPtr` 1
+        pure c
   {-# INLINABLE popString #-}
+  popText = do
+    byteCount <- popUInt32
+    ptr <- gets castPtr
+    let lengthU16 = fromIntegral $ byteCount `div` 2
+    txt <- liftIO $ TF.fromPtr ptr lengthU16
+    put $ ptr `plusPtr` fromIntegral byteCount
+    pure txt
+  {-# INLINABLE popText #-}
 
 class Collect c where
-  collect :: Marshal a => Int -> ForeignPtr Internal.RelationIterator -> IO (c a)
+  collect :: Marshal a => Word32 -> CMarshal (c a)
 
 instance Collect [] where
-  collect factCount = go 0 factCount []
-    where
-      go idx count acc _ | idx == count = pure acc
-      go idx count !acc !it = do
-        tuple <- Internal.relationIteratorNext it
-        result <- runM pop tuple
-        go (idx + 1) count (result : acc) it
+  collect objCount
+    | objCount == 0 = pure []
+    | otherwise =
+      (:) <$!> pop <*> collect (objCount - 1)
   {-# INLINABLE collect #-}
 
 instance Collect V.Vector where
-  collect factCount iterator = do
-    vec <- MV.unsafeNew factCount
-    go vec 0 factCount iterator
+  collect objCount = do
+    vm <- liftIO $ MV.unsafeNew objCount'
+    collect' vm 0
     where
-      go vec idx count _ | idx == count = V.unsafeFreeze vec
-      go vec idx count it = do
-        tuple <- Internal.relationIteratorNext it
-        result <- runM pop tuple
-        MV.unsafeWrite vec idx result
-        go vec (idx + 1) count it
+      objCount' = fromIntegral objCount
+      collect' vec idx
+        | idx == objCount' = liftIO $ V.unsafeFreeze vec
+        | otherwise = do
+          !obj <- pop
+          liftIO $ MV.write vec idx obj
+          collect' vec (idx + 1)
   {-# INLINABLE collect #-}
 
 instance Collect (A.Array Int) where
-  collect factCount iterator = do
-    array <- A.newArray_ (0, factCount - 1)
-    go array 0 factCount iterator
+  collect objCount = do
+    ma <- liftIO $ A.newArray_ (0, objCount' - 1)
+    collect' ma 0
     where
-      go :: Marshal a
-         => A.IOArray Int a
-         -> Int
-         -> Int
-         -> ForeignPtr Internal.RelationIterator
-         -> IO (A.Array Int a)
-      go array idx count _ | idx == count = A.unsafeFreeze array
-      go array idx count it = do
-        tuple <- Internal.relationIteratorNext it
-        result <- runM pop tuple
-        A.writeArray array idx result
-        go array (idx + 1) count it
+      objCount' = fromIntegral objCount
+      collect' :: Marshal a => A.IOArray Int a -> Int -> CMarshal (A.Array Int a)
+      collect' array idx
+        | idx == objCount' = liftIO $ A.unsafeFreeze array
+        | otherwise = do
+          !obj <- pop
+          liftIO $ A.writeArray array idx obj
+          collect' array (idx + 1)
   {-# INLINABLE collect #-}
 
 instance MonadSouffle SouffleM where
@@ -190,15 +202,15 @@ instance MonadSouffle SouffleM where
   addFact (Handle prog) fact = liftIO $ do
     let relationName = factName (Proxy :: Proxy a)
     relation <- Internal.getRelation prog relationName
-    addFact' relation fact
+    writeBytes relation (Identity fact)
   {-# INLINABLE addFact #-}
 
-  addFacts :: forall t a prog . (Foldable t, Fact a, ContainsInputFact prog a)
+  addFacts :: forall t a prog. (Foldable t, Fact a, ContainsInputFact prog a)
            => Handle prog -> t a -> SouffleM ()
   addFacts (Handle prog) facts = liftIO $ do
     let relationName = factName (Proxy :: Proxy a)
     relation <- Internal.getRelation prog relationName
-    traverse_ (addFact' relation) facts
+    writeBytes relation facts
   {-# INLINABLE addFacts #-}
 
   getFacts :: forall a c prog. (Fact a, ContainsOutputFact prog a, Collect c)
@@ -206,8 +218,8 @@ instance MonadSouffle SouffleM where
   getFacts (Handle prog) = SouffleM $ do
     let relationName = factName (Proxy :: Proxy a)
     relation <- Internal.getRelation prog relationName
-    factCount <- Internal.countFacts relation
-    Internal.getRelationIterator relation >>= collect factCount
+    buf <- Internal.popFacts relation
+    withForeignPtr buf $ runMarshalM $ collect =<< popUInt32
   {-# INLINABLE getFacts #-}
 
   findFact :: forall a prog. (Fact a, ContainsOutputFact prog a)
@@ -215,19 +227,11 @@ instance MonadSouffle SouffleM where
   findFact (Handle prog) fact = SouffleM $ do
     let relationName = factName (Proxy :: Proxy a)
     relation <- Internal.getRelation prog relationName
-    tuple <- Internal.allocTuple relation
-    withForeignPtr tuple $ runM (push fact)
-    found <- Internal.containsTuple relation tuple
-    pure $ if found then Just fact else Nothing
+    allocaBytes (numBytes fact) $ \ptr -> do
+      runMarshalM (push fact) ptr
+      found <- Internal.containsFact relation ptr
+      pure $ if found then Just fact else Nothing
   {-# INLINABLE findFact #-}
-
-addFact' :: Fact a => Ptr Internal.Relation -> a -> IO ()
-addFact' relation fact = do
-  tuple <- Internal.allocTuple relation
-  withForeignPtr tuple $ runM (push fact)
-  Internal.addTuple relation tuple
-{-# INLINABLE addFact' #-}
-
 
 instance MonadSouffleFileIO SouffleM where
   loadFiles (Handle prog) = SouffleM . Internal.loadAll prog
@@ -235,4 +239,30 @@ instance MonadSouffleFileIO SouffleM where
 
   writeFiles (Handle prog) = SouffleM . Internal.printAll prog
   {-# INLINABLE writeFiles #-}
+
+
+writeBytes :: (Foldable f, Marshal a)
+           => Ptr Internal.Relation -> f a -> IO ()
+writeBytes relation fa = allocaBytes totalByteCount $ \ptr -> do
+  runMarshalM (traverse_ push fa) ptr
+  Internal.pushFacts relation ptr (fromIntegral objCount)
+  where
+    totalByteCount = getSum $ foldMap (Sum . numBytes) fa
+    objCount = length fa
+{-# INLINABLE writeBytes #-}
+
+writeAsBytes :: (S.Storable a, Marshal a) => a -> CMarshal ()
+writeAsBytes a = do
+  ptr <- gets castPtr
+  liftIO $ S.poke ptr a
+  put $ ptr `plusPtr` numBytes a
+{-# INLINABLE writeAsBytes #-}
+
+readAsBytes :: (S.Storable a, Marshal a) => CMarshal a
+readAsBytes = do
+  ptr <- gets castPtr
+  a <- liftIO $ S.peek ptr
+  put $ ptr `plusPtr` numBytes a
+  pure a
+{-# INLINABLE readAsBytes #-}
 

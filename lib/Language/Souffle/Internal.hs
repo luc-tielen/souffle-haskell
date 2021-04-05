@@ -10,8 +10,7 @@
 module Language.Souffle.Internal
   ( Souffle
   , Relation
-  , RelationIterator
-  , Tuple
+  , ByteBuf
   , init
   , setNumThreads
   , getNumThreads
@@ -19,35 +18,21 @@ module Language.Souffle.Internal
   , loadAll
   , printAll
   , getRelation
-  , countFacts
-  , getRelationIterator
-  , relationIteratorNext
-  , allocTuple
-  , addTuple
-  , containsTuple
-  , tuplePushInt32
-  , tuplePushUInt32
-  , tuplePushFloat
-  , tuplePushString
-  , tuplePopInt32
-  , tuplePopUInt32
-  , tuplePopFloat
-  , tuplePopString
+  , pushFacts
+  , popFacts
+  , containsFact
   ) where
 
 import Prelude hiding ( init )
 import Data.Functor ( (<&>) )
 import Data.Word
-import Data.Int
-import Foreign.Marshal.Alloc
-import Foreign.Storable
 import Foreign.C.String
 import Foreign.C.Types
 import Foreign.ForeignPtr
 import Foreign.Ptr
 import qualified Language.Souffle.Internal.Bindings as Bindings
 import Language.Souffle.Internal.Bindings
-  ( Souffle, Relation, RelationIterator, Tuple )
+  ( Souffle, Relation, ByteBuf )
 import Control.Exception (mask_)
 
 
@@ -107,103 +92,25 @@ getRelation prog relation = withForeignPtr prog $ \ptr ->
   withCString relation $ Bindings.getRelation ptr
 {-# INLINABLE getRelation #-}
 
--- | Returns the amount of facts found in a relation.
-countFacts :: Ptr Relation -> IO Int
-countFacts relation =
-  Bindings.getTupleCount relation >>= \(CSize count) ->
-    -- TODO: check what happens for really large sizes?
-    pure (fromIntegral count)
+pushFacts :: Ptr Relation -> Ptr ByteBuf -> Word64 -> IO ()
+pushFacts relation buf x =
+  Bindings.pushByteBuf relation buf (CSize x)
+{-# INLINABLE pushFacts #-}
 
--- | Create an iterator for iterating over the facts of a relation.
-getRelationIterator :: Ptr Relation -> IO (ForeignPtr RelationIterator)
-getRelationIterator relation = mask_ $
-  Bindings.getRelationIterator relation >>= newForeignPtr Bindings.freeRelationIterator
-{-# INLINABLE getRelationIterator #-}
-
-{-| Advances the relation iterator by 1 position.
-
-    Calling this function when there are no more results to be returned
-    will result in a crash.
--}
-relationIteratorNext :: ForeignPtr RelationIterator -> IO (Ptr Tuple)
-relationIteratorNext iter = withForeignPtr iter Bindings.relationIteratorNext
-{-# INLINABLE relationIteratorNext #-}
-
--- | Allocates memory for a tuple (fact) to be added to a relation.
-allocTuple :: Ptr Relation -> IO (ForeignPtr Tuple)
-allocTuple relation = mask_ $
-  Bindings.allocTuple relation >>= newForeignPtr Bindings.freeTuple
-{-# INLINABLE allocTuple #-}
-
--- | Adds a tuple (fact) to a relation.
-addTuple :: Ptr Relation -> ForeignPtr Tuple -> IO ()
-addTuple relation tuple =
-  withForeignPtr tuple $ Bindings.addTuple relation
-{-# INLINABLE addTuple #-}
+popFacts :: Ptr Relation -> IO (ForeignPtr ByteBuf)
+popFacts relation = mask_ $ do
+  buf <- Bindings.popByteBuf relation
+  newForeignPtr Bindings.freeByteBuf buf
+{-# INLINABLE popFacts #-}
 
 {- | Checks if a relation contains a certain tuple.
 
      Returns True if the tuple was found in the relation; otherwise False.
 -}
-containsTuple :: Ptr Relation -> ForeignPtr Tuple -> IO Bool
-containsTuple relation tuple = withForeignPtr tuple $ \ptr ->
-  Bindings.containsTuple relation ptr <&> \case
+containsFact :: Ptr Relation -> Ptr ByteBuf -> IO Bool
+containsFact relation buf =
+  Bindings.containsTuple relation buf <&> \case
     CBool 0 -> False
     CBool _ -> True
-{-# INLINABLE containsTuple #-}
-
--- | Pushes an integer value into a tuple.
-tuplePushInt32 :: Ptr Tuple -> Int32 -> IO ()
-tuplePushInt32 tuple i = Bindings.tuplePushInt32 tuple (CInt i)
-{-# INLINABLE tuplePushInt32 #-}
-
--- | Pushes an unsigned integer value into a tuple.
-tuplePushUInt32 :: Ptr Tuple -> Word32 -> IO ()
-tuplePushUInt32 tuple i = Bindings.tuplePushUInt32 tuple (CUInt i)
-{-# INLINABLE tuplePushUInt32 #-}
-
--- | Pushes a float value into a tuple.
-tuplePushFloat :: Ptr Tuple -> Float -> IO ()
-tuplePushFloat tuple f = Bindings.tuplePushFloat tuple (CFloat f)
-{-# INLINABLE tuplePushFloat #-}
-
--- | Pushes a string value into a tuple.
-tuplePushString :: Ptr Tuple -> String -> IO ()
-tuplePushString tuple str =
-  withCString str $ Bindings.tuplePushString tuple
-{-# INLINABLE tuplePushString #-}
-
--- | Extracts a 32 bit signed integer value from a tuple.
-tuplePopInt32 :: Ptr Tuple -> IO Int32
-tuplePopInt32 tuple = alloca $ \ptr -> do
-  Bindings.tuplePopInt32 tuple ptr
-  (CInt res) <- peek ptr
-  pure res
-{-# INLINABLE tuplePopInt32 #-}
-
--- | Extracts a 32 bit unsigned integer value from a tuple.
-tuplePopUInt32 :: Ptr Tuple -> IO Word32
-tuplePopUInt32 tuple = alloca $ \ptr -> do
-  Bindings.tuplePopUInt32 tuple ptr
-  (CUInt res) <- peek ptr
-  pure res
-{-# INLINABLE tuplePopUInt32 #-}
-
--- | Extracts a float value from a tuple.
-tuplePopFloat :: Ptr Tuple -> IO Float
-tuplePopFloat tuple = alloca $ \ptr -> do
-  Bindings.tuplePopFloat tuple ptr
-  (CFloat res) <- peek ptr
-  pure res
-{-# INLINABLE tuplePopFloat #-}
-
--- | Extracts a string value from a tuple.
-tuplePopString :: Ptr Tuple -> IO String
-tuplePopString tuple = alloca $ \ptr -> do
-  Bindings.tuplePopString tuple ptr
-  cstr <- peek ptr
-  str <- peekCString cstr
-  free cstr
-  pure str
-{-# INLINABLE tuplePopString #-}
+{-# INLINABLE containsFact #-}
 
