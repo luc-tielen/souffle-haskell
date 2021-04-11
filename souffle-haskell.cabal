@@ -1,10 +1,10 @@
 cabal-version: 2.2
 
--- This file has been generated from package.yaml by hpack version 0.33.0.
+-- This file has been generated from package.yaml by hpack version 0.34.2.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 282b7f644a46aaacc10fd325f80d88a1529d0ea5737403640996967d6b523a4c
+-- hash: a06b30a464b659d95bd85ba7c896c0b3645cffa8047cb5476b603df59ec9b1b9
 
 name:           souffle-haskell
 version:        2.1.0
@@ -70,7 +70,6 @@ library
   exposed-modules:
       Language.Souffle.Class
       Language.Souffle.Compiled
-      Language.Souffle.Experimental
       Language.Souffle.Internal
       Language.Souffle.Internal.Bindings
       Language.Souffle.Internal.Constraints
@@ -151,9 +150,6 @@ test-suite souffle-haskell-test
   main-is: test.hs
   other-modules:
       Test.Language.Souffle.CompiledSpec
-      Test.Language.Souffle.Experimental.Fixtures
-      Test.Language.Souffle.Experimental.FixturesCompiled
-      Test.Language.Souffle.ExperimentalSpec
       Test.Language.Souffle.InterpretedSpec
       Test.Language.Souffle.MarshalSpec
       Paths_souffle_haskell
