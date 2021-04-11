@@ -1,6 +1,7 @@
 
 {-# LANGUAGE DeriveGeneric, TypeFamilies, DataKinds, RankNTypes #-}
 
+{-# LANGUAGE FlexibleContexts #-}
 module Test.Language.Souffle.MarshalSpec
   ( module Test.Language.Souffle.MarshalSpec
   ) where
@@ -139,6 +140,7 @@ type RoundTripAction
   = forall a. Souffle.Fact a
   => Souffle.ContainsInputFact RoundTrip a
   => Souffle.ContainsOutputFact RoundTrip a
+  => Compiled.Submit a
   => a -> PropertyT IO a
 
 spec :: Spec

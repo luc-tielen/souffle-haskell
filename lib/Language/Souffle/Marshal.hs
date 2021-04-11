@@ -16,6 +16,7 @@ import GHC.Generics
 import Data.Int
 import Data.Word
 import qualified Data.Text as T
+import qualified Data.Text.Short as TS
 import qualified Data.Text.Lazy as TL
 import qualified Language.Souffle.Internal.Constraints as C
 
@@ -34,8 +35,10 @@ class Monad m => MonadPush m where
   pushFloat :: Float -> m ()
   -- | Marshals a string to the datalog side.
   pushString :: String -> m ()
-  -- | Marshals a Text string to the datalog side.
-  pushText :: T.Text -> m ()
+  -- | Marshals a UTF8-encoded Text string to the datalog side.
+  pushText :: TS.ShortText -> m ()
+  -- | Marshals a UTF16-encoded Text string to the datalog side.
+  pushTextUtf16 :: T.Text -> m ()
 
 {- | A typeclass for serializing primitive values from Datalog to Haskell.
 
@@ -53,7 +56,9 @@ class Monad m => MonadPop m where
   -- | Unmarshals a string from the datalog side.
   popString :: m String
   -- | Unmarshals a Text string from the datalog side.
-  popText :: m T.Text
+  popText :: m TS.ShortText
+  -- | Unmarshals a UTF16-encoded Text string from the datalog side.
+  popTextUtf16 :: m T.Text
 
 {- | A typeclass for providing a uniform API to marshal/unmarshal values
      between Haskell and Souffle datalog.
@@ -79,7 +84,6 @@ class Marshal a where
   push :: MonadPush m => a -> m ()
   -- | Unmarshals a value from the datalog side.
   pop :: MonadPop m => m a
-  numBytes :: a -> Int  -- TODO: Word32?
 
   default push
     :: (Generic a, C.SimpleProduct a, GMarshal (Rep a), MonadPush m)
@@ -87,76 +91,62 @@ class Marshal a where
   default pop
     :: (Generic a, C.SimpleProduct a, GMarshal (Rep a), MonadPop m)
     => m a
-  default numBytes
-    :: (Generic a, C.SimpleProduct a, GMarshal (Rep a))
-    => a -> Int
   push a = gpush (from a)
   {-# INLINABLE push #-}
   pop = to <$> gpop
   {-# INLINABLE pop #-}
-  numBytes a = gNumBytes (from a)
-  {-# INLINABLE numBytes #-}
 
 instance Marshal Int32 where
   push = pushInt32
   {-# INLINABLE push #-}
   pop = popInt32
   {-# INLINABLE pop #-}
-  numBytes = const 4
-  {-# INLINABLE numBytes #-}
 
 instance Marshal Word32 where
   push = pushUInt32
   {-# INLINABLE push #-}
   pop = popUInt32
   {-# INLINABLE pop #-}
-  numBytes = const 4
-  {-# INLINABLE numBytes #-}
 
 instance Marshal Float where
   push = pushFloat
   {-# INLINABLE push #-}
   pop = popFloat
   {-# INLINABLE pop #-}
-  numBytes = const 4
-  {-# INLINABLE numBytes #-}
 
 instance Marshal String where
   push = pushString
   {-# INLINABLE push #-}
   pop = popString
   {-# INLINABLE pop #-}
-  numBytes a = length a
-  {-# INLINABLE numBytes #-}
 
-instance Marshal T.Text where
+instance Marshal TS.ShortText where
   push = pushText
   {-# INLINABLE push #-}
   pop = popText
   {-# INLINABLE pop #-}
-  numBytes a = T.length a
-  {-# INLINABLE numBytes #-}
+
+instance Marshal T.Text where
+  push = pushTextUtf16
+  {-# INLINABLE push #-}
+  pop = popTextUtf16
+  {-# INLINABLE pop #-}
 
 instance Marshal TL.Text where
   push = push . TL.toStrict
   {-# INLINABLE push #-}
   pop = TL.fromStrict <$> pop
   {-# INLINABLE pop #-}
-  numBytes a = fromIntegral (TL.length a)
-  {-# INLINABLE numBytes #-}
 
 class GMarshal f where
   gpush :: MonadPush m => f a -> m ()
   gpop  :: MonadPop m => m (f a)
-  gNumBytes :: f a -> Int
 
 instance Marshal a => GMarshal (K1 i a) where
   gpush (K1 x) = push x
   {-# INLINABLE gpush #-}
   gpop = K1 <$> pop
   {-# INLINABLE gpop #-}
-  gNumBytes (K1 x) = numBytes x
-  {-# INLINABLE gNumBytes #-}
 
 instance (GMarshal f, GMarshal g) => GMarshal (f :*: g) where
   gpush (a :*: b) = do
@@ -165,13 +155,9 @@ instance (GMarshal f, GMarshal g) => GMarshal (f :*: g) where
   {-# INLINABLE gpush #-}
   gpop = (:*:) <$> gpop <*> gpop
   {-# INLINABLE gpop #-}
-  gNumBytes (a :*: b) = gNumBytes a + gNumBytes b
-  {-# INLINABLE gNumBytes #-}
 
 instance GMarshal a => GMarshal (M1 i c a) where
   gpush (M1 x) = gpush x
   {-# INLINABLE gpush #-}
   gpop = M1 <$> gpop
   {-# INLINABLE gpop #-}
-  gNumBytes (M1 x) = gNumBytes x
-  {-# INLINABLE gNumBytes #-}

@@ -171,6 +171,19 @@ spec = describe "Souffle API" $ parallel $ do
       edge `shouldBe` Just (Edge "a" "b")
       reachable `shouldBe` Just (Reachable "a" "c")
 
+    it "can handle unicode characters" $ do
+      let fact = Edge "∀∀" "bla"
+          fact2 = Edge "∃∃" "bla"
+          fact3 = Edge "℀℀" "bla"
+      results <- Souffle.runSouffle Path $ \handle -> do
+        let prog = fromJust handle
+        Souffle.addFact prog fact
+        Souffle.run prog
+        (,,) <$> Souffle.findFact prog fact
+             <*> Souffle.findFact prog fact2
+             <*> Souffle.findFact prog fact3
+      results `shouldBe` (Just fact, Nothing, Nothing)
+
   -- TODO writeFiles / loadFiles
 
   describe "Semigroup and Monoid instances" $ parallel $ do

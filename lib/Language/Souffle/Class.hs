@@ -161,6 +161,9 @@ class Monad m => MonadSouffle m where
   -- | Helper associated type constraint that allows collecting facts from
   --   Souffle in a list or vector. Only used internally.
   type CollectFacts m (c :: Type -> Type) :: Constraint
+  -- | Helper associated type constraint that allows submitting facts to
+  --   Souffle. Only used internally.
+  type SubmitFacts m (a :: Type) :: Constraint
 
   -- | Runs the Souffle program.
   run :: Handler m prog -> m ()
@@ -181,21 +184,22 @@ class Monad m => MonadSouffle m where
   --
   --   Conceptually equivalent to @List.find (== fact) \<$\> getFacts prog@,
   --   but this operation can be implemented much faster.
-  findFact :: (Fact a, ContainsOutputFact prog a, Eq a)
+  findFact :: (Fact a, ContainsOutputFact prog a, Eq a, SubmitFacts m a)
            => Handler m prog -> a -> m (Maybe a)
 
   -- | Adds a fact to the program.
-  addFact :: (Fact a, ContainsInputFact prog a)
+  addFact :: (Fact a, ContainsInputFact prog a, SubmitFacts m a)
           => Handler m prog -> a -> m ()
 
   -- | Adds multiple facts to the program. This function could be implemented
   --   in terms of 'addFact', but this is done as a minor optimization.
-  addFacts :: (Foldable t, Fact a, ContainsInputFact prog a)
+  addFacts :: (Foldable t, Fact a, ContainsInputFact prog a, SubmitFacts m a)
            => Handler m prog -> t a -> m ()
 
 instance MonadSouffle m => MonadSouffle (ReaderT r m) where
   type Handler (ReaderT r m) = Handler m
   type CollectFacts (ReaderT r m) c = CollectFacts m c
+  type SubmitFacts (ReaderT r m) a = SubmitFacts m a
 
   run = lift . run
   {-# INLINABLE run #-}
@@ -215,6 +219,7 @@ instance MonadSouffle m => MonadSouffle (ReaderT r m) where
 instance (Monoid w, MonadSouffle m) => MonadSouffle (WriterT w m) where
   type Handler (WriterT w m) = Handler m
   type CollectFacts (WriterT w m) c = CollectFacts m c
+  type SubmitFacts (WriterT w m) a = SubmitFacts m a
 
   run = lift . run
   {-# INLINABLE run #-}
@@ -234,6 +239,7 @@ instance (Monoid w, MonadSouffle m) => MonadSouffle (WriterT w m) where
 instance MonadSouffle m => MonadSouffle (StateT s m) where
   type Handler (StateT s m) = Handler m
   type CollectFacts (StateT s m) c = CollectFacts m c
+  type SubmitFacts (StateT s m) a = SubmitFacts m a
 
   run = lift . run
   {-# INLINABLE run #-}
@@ -253,6 +259,7 @@ instance MonadSouffle m => MonadSouffle (StateT s m) where
 instance (MonadSouffle m, Monoid w) => MonadSouffle (RWST r w s m) where
   type Handler (RWST r w s m) = Handler m
   type CollectFacts (RWST r w s m) c = CollectFacts m c
+  type SubmitFacts (RWST r w s m) a = SubmitFacts m a
 
   run = lift . run
   {-# INLINABLE run #-}
@@ -272,6 +279,7 @@ instance (MonadSouffle m, Monoid w) => MonadSouffle (RWST r w s m) where
 instance MonadSouffle m => MonadSouffle (ExceptT e m) where
   type Handler (ExceptT e m) = Handler m
   type CollectFacts (ExceptT e m) c = CollectFacts m c
+  type SubmitFacts (ExceptT e m) a = SubmitFacts m a
 
   run = lift . run
   {-# INLINABLE run #-}

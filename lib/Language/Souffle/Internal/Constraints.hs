@@ -14,6 +14,7 @@ import Data.Int
 import Data.Word
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Short as TS
 
 
 -- | A helper type family used for generating a more user-friendly type error
@@ -23,7 +24,8 @@ import qualified Data.Text.Lazy as TL
 --   The __a__ type parameter is the original type, used when displaying the type error.
 --
 --   A type error is returned if the passed in type is not a simple product type
---   consisting of only "simple" types like Int32, Word32, Float, String and Text.
+--   consisting of only "simple" types like Int32, Word32, Float, String, Text
+--   and ShortText.
 type family SimpleProduct (a :: Type) :: Constraint where
   SimpleProduct a = (ProductLike a (Rep a), OnlySimpleFields a (Rep a))
 
@@ -56,12 +58,13 @@ type family OnlySimpleField (a :: Type) (f :: Type -> Type) :: Constraint where
 type family DirectlyMarshallable (a :: Type) (b :: Type) :: Constraint where
   DirectlyMarshallable _ T.Text = ()
   DirectlyMarshallable _ TL.Text = ()
+  DirectlyMarshallable _ TS.ShortText = ()
   DirectlyMarshallable _ Int32 = ()
   DirectlyMarshallable _ Word32 = ()
   DirectlyMarshallable _ Float = ()
   DirectlyMarshallable _ String = ()
   DirectlyMarshallable t a =
     TypeError ( "Error while generating marshalling code for " <> t <> ":"
-              % "Can only marshal values of Int32, Word32, Float, String and Text directly"
+              % "Can only marshal values of Int32, Word32, Float, String, Text and ShortText directly"
              <> ", but found " <> a <> " type instead.")
 

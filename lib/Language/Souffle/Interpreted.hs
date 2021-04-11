@@ -41,6 +41,7 @@ import Data.Maybe (fromMaybe)
 import Data.Proxy
 import qualified Data.Array as A
 import qualified Data.Text as T
+import qualified Data.Text.Short as TS
 import qualified Data.Vector as V
 import Data.Word
 import Language.Souffle.Class
@@ -201,8 +202,11 @@ instance MonadPush IMarshal where
   pushString str = modify (str:)
   {-# INLINABLE pushString #-}
 
-  pushText txt = pushString (T.unpack txt)
+  pushText txt = pushString (TS.unpack txt)
   {-# INLINABLE pushText #-}
+
+  pushTextUtf16 txt = pushString (T.unpack txt)
+  {-# INLINABLE pushTextUtf16 #-}
 
 instance MonadPop IMarshal where
   popInt32 = state $ \case
@@ -229,8 +233,15 @@ instance MonadPop IMarshal where
     str <- state $ \case
       [] -> error "Empty fact stack"
       (h:t) -> (h, t)
-    pure $ T.pack str
+    pure $ TS.pack str
   {-# INLINABLE popText #-}
+
+  popTextUtf16 = do
+    str <- state $ \case
+      [] -> error "Empty fact stack"
+      (h:t) -> (h, t)
+    pure $ T.pack str
+  {-# INLINABLE popTextUtf16 #-}
 
 popMarshalT :: IMarshal a -> [String] -> a
 popMarshalT (IMarshal m) = evalState m
@@ -264,6 +275,7 @@ instance Collect (A.Array Int) where
 instance MonadSouffle SouffleM where
   type Handler SouffleM = Handle
   type CollectFacts SouffleM c = Collect c
+  type SubmitFacts SouffleM _ = ()
 
   run (Handle refHandleData refHandleStdOut refHandleStdErr) = liftIO $ do
     handle <- readIORef refHandleData
