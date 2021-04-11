@@ -55,22 +55,12 @@
     within:
       - Test.Language.Souffle.CompiledSpec
       - Test.Language.Souffle.InterpretedSpec
-      - Test.Language.Souffle.ExperimentalSpec
       - Language.Souffle.Interpreted
 - ignore:
     name: Monoid law, right identity
     within:
       - Test.Language.Souffle.CompiledSpec
       - Test.Language.Souffle.InterpretedSpec
-- ignore:
-    name: Redundant bracket
-    within:
-      - Test.Language.Souffle.ExperimentalSpec
-      - Main
-- ignore:
-    name: Use camelCase
-    within:
-      - Language.Souffle.Experimental
 - ignore:
     name: Use newtype instead of data
     within:
