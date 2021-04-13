@@ -270,7 +270,7 @@ spec = describe "Marshalling" $ parallel $ do
         Compiled.run prog
         Prelude.head <$> Compiled.getFacts prog
 
-  fdescribe "edge cases" $ parallel $ do
+  describe "edge cases" $ parallel $ do
     let longString :: IsString a => a
         longString = "long_string_from_DL:...............................................................................................................................................................................................................................................................................................end"
 
@@ -283,7 +283,7 @@ spec = describe "Marshalling" $ parallel $ do
         getFactsC = Compiled.runSouffle EdgeCases $ \handle -> do
           let prog = fromJust handle
           Compiled.run prog
-          Compiled.getFacts prog
+          Prelude.reverse <$> Compiled.getFacts prog
 
         getUnicodeFactsI :: forall a. (IsString a, Eq a, Souffle.Fact (Unicode a), Souffle.ContainsOutputFact EdgeCases (Unicode a))
                          => IO ([Unicode a], Maybe (Unicode a), Maybe (Unicode a))
@@ -299,7 +299,7 @@ spec = describe "Marshalling" $ parallel $ do
         getUnicodeFactsC = Compiled.runSouffle EdgeCases $ \handle -> do
           let prog = fromJust handle
           Compiled.run prog
-          (,,) <$> Compiled.getFacts prog
+          (,,) <$> (Prelude.reverse <$> Compiled.getFacts prog)
                <*> Compiled.findFact prog (Unicode "⌀")  -- \x2300 iso \x2200
                <*> Compiled.findFact prog (Unicode "≂")  -- \x2242 iso \x2200
 
@@ -374,6 +374,6 @@ spec = describe "Marshalling" $ parallel $ do
     describe "interpreted mode" $ parallel $ do
       runTests getFactsI getUnicodeFactsI
 
-    --describe "compiled mode" $ parallel $ do
-      --runTests getFactsC getUnicodeFactsC
+    describe "compiled mode" $ parallel $ do
+      runTests getFactsC getUnicodeFactsC
 
