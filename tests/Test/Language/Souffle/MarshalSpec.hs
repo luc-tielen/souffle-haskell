@@ -272,7 +272,7 @@ spec = describe "Marshalling" $ parallel $ do
         Compiled.run prog
         Prelude.head <$> Compiled.getFacts prog
 
-  describe "edge cases" $ parallel $ do
+  fdescribe "edge cases" $ parallel $ do
     let longString :: IsString a => a
         longString = "long_string_from_DL:...............................................................................................................................................................................................................................................................................................end"
 
@@ -335,30 +335,43 @@ spec = describe "Marshalling" $ parallel $ do
 
     -- TODO marshal back and forth
 
-    -- TODO 1 in a row, 2 in a row, unicode chars with 1 byte the same
-    -- TODO: findFact + getFacts
     it "correctly marshals facts containing unicode characters (String)" $ do
-      facts <- Interpreted.runSouffle EdgeCases $ \handle -> do
+      results <- Interpreted.runSouffle EdgeCases $ \handle -> do
         let prog = fromJust handle
         Interpreted.run prog
-        Interpreted.getFacts prog
-      (facts :: [Unicode String]) `shouldBe`
-        [ Unicode "∀", Unicode "∀∀" ]
+        (,,) <$> Interpreted.getFacts prog
+             <*> Interpreted.findFact prog (Unicode "⌀")  -- \x2300 iso \x2200
+             <*> Interpreted.findFact prog (Unicode "≂")  -- \x2242 iso \x2200
+      results `shouldBe`
+        ( [ Unicode ("∀" :: T.Text), Unicode "∀∀" ]
+        , Nothing :: Maybe (Unicode String)
+        , Nothing :: Maybe (Unicode String)
+        )
 
     it "correctly marshals facts containing unicode characters (Text)" $ do
-      facts <- Interpreted.runSouffle EdgeCases $ \handle -> do
+      results <- Interpreted.runSouffle EdgeCases $ \handle -> do
         let prog = fromJust handle
         Interpreted.run prog
-        Interpreted.getFacts prog
-      (facts :: [Unicode T.Text]) `shouldBe`
-        [ Unicode "∀", Unicode "∀∀" ]
+        (,,) <$> Interpreted.getFacts prog
+             <*> Interpreted.findFact prog (Unicode "⌀")  -- \x2300 iso \x2200
+             <*> Interpreted.findFact prog (Unicode "≂")  -- \x2242 iso \x2200
+      results `shouldBe`
+        ( [ Unicode ("∀" :: T.Text), Unicode "∀∀" ]
+        , Nothing :: Maybe (Unicode T.Text)
+        , Nothing :: Maybe (Unicode T.Text)
+        )
 
     it "correctly marshals facts containing unicode characters (lazy Text)" $ do
-      facts <- Interpreted.runSouffle EdgeCases $ \handle -> do
+      results <- Interpreted.runSouffle EdgeCases $ \handle -> do
         let prog = fromJust handle
         Interpreted.run prog
-        Interpreted.getFacts prog
-      (facts :: [Unicode TL.Text]) `shouldBe`
-        [ Unicode "∀", Unicode "∀∀" ]
+        (,,) <$> Interpreted.getFacts prog
+             <*> Interpreted.findFact prog (Unicode "⌀")  -- \x2300 iso \x2200
+             <*> Interpreted.findFact prog (Unicode "≂")  -- \x2242 iso \x2200
 
-    -- TODO check overlap with some unicode chars
+      results `shouldBe`
+        ( [ Unicode ("∀" :: TL.Text), Unicode "∀∀" ]
+        , Nothing :: Maybe (Unicode TL.Text)
+        , Nothing :: Maybe (Unicode TL.Text)
+        )
+
