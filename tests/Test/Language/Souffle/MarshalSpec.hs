@@ -1,9 +1,7 @@
 
 {-# LANGUAGE DeriveGeneric, TypeFamilies, DataKinds, RankNTypes #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Test.Language.Souffle.MarshalSpec
   ( module Test.Language.Souffle.MarshalSpec
   ) where
@@ -276,102 +274,106 @@ spec = describe "Marshalling" $ parallel $ do
     let longString :: IsString a => a
         longString = "long_string_from_DL:...............................................................................................................................................................................................................................................................................................end"
 
-    -- TODO both for interpreted and compiled mode
-    it "correctly marshals facts with empty Strings" $ do
-      facts <- Interpreted.runSouffle EdgeCases $ \handle -> do
-        let prog = fromJust handle
-        Interpreted.run prog
-        Interpreted.getFacts prog
-      (facts :: [EmptyStrings String])
-        `shouldBe` [ EmptyStrings "" "" 42
-                   , EmptyStrings "" "abc" 42
-                   , EmptyStrings "abc" "" 42
-                   ]
+        getFactsI :: forall f a. (Souffle.Fact (f a), Souffle.ContainsOutputFact EdgeCases (f a)) => IO [f a]
+        getFactsI = Interpreted.runSouffle EdgeCases $ \handle -> do
+          let prog = fromJust handle
+          Interpreted.run prog
+          Interpreted.getFacts prog
+        getFactsC :: forall f a. (Souffle.Fact (f a), Souffle.ContainsOutputFact EdgeCases (f a)) => IO [f a]
+        getFactsC = Compiled.runSouffle EdgeCases $ \handle -> do
+          let prog = fromJust handle
+          Compiled.run prog
+          Compiled.getFacts prog
 
-    it "correctly marshals facts with empty Texts" $ do
-      facts <- Interpreted.runSouffle EdgeCases $ \handle -> do
-        let prog = fromJust handle
-        Interpreted.run prog
-        Interpreted.getFacts prog
-      (facts :: [EmptyStrings T.Text])
-        `shouldBe` [ EmptyStrings "" "" 42
-                   , EmptyStrings "" "abc" 42
-                   , EmptyStrings "abc" "" 42
-                   ]
+        getUnicodeFactsI :: forall a. (IsString a, Eq a, Souffle.Fact (Unicode a), Souffle.ContainsOutputFact EdgeCases (Unicode a))
+                         => IO ([Unicode a], Maybe (Unicode a), Maybe (Unicode a))
+        getUnicodeFactsI = Interpreted.runSouffle EdgeCases $ \handle -> do
+          let prog = fromJust handle
+          Interpreted.run prog
+          (,,) <$> Interpreted.getFacts prog
+               <*> Interpreted.findFact prog (Unicode "⌀")  -- \x2300 iso \x2200
+               <*> Interpreted.findFact prog (Unicode "≂")  -- \x2242 iso \x2200
 
-    it "correctly marshals facts with empty lazy Texts" $ do
-      facts <- Interpreted.runSouffle EdgeCases $ \handle -> do
-        let prog = fromJust handle
-        Interpreted.run prog
-        Interpreted.getFacts prog
-      (facts :: [EmptyStrings TL.Text])
-        `shouldBe` [ EmptyStrings "" "" 42
-                   , EmptyStrings "" "abc" 42
-                   , EmptyStrings "abc" "" 42
-                   ]
+        getUnicodeFactsC :: forall a. (IsString a, Eq a, Souffle.Fact (Unicode a), Souffle.ContainsOutputFact EdgeCases (Unicode a))
+                         => IO ([Unicode a], Maybe (Unicode a), Maybe (Unicode a))
+        getUnicodeFactsC = Compiled.runSouffle EdgeCases $ \handle -> do
+          let prog = fromJust handle
+          Compiled.run prog
+          (,,) <$> Compiled.getFacts prog
+               <*> Compiled.findFact prog (Unicode "⌀")  -- \x2300 iso \x2200
+               <*> Compiled.findFact prog (Unicode "≂")  -- \x2242 iso \x2200
 
-    -- TODO write to datalog and back
+        runTests :: (forall f a. (Souffle.Fact (f a), Souffle.ContainsOutputFact EdgeCases (f a)) => IO [f a])
+                 -> (forall a. (IsString a, Eq a, Souffle.Fact (Unicode a), Souffle.ContainsOutputFact EdgeCases (Unicode a))
+                      => IO ([Unicode a], Maybe (Unicode a), Maybe (Unicode a)))
+                 -> Spec
+        runTests getFacts getUnicodeFacts = do
+          it "correctly marshals facts with empty Strings" $ do
+            facts <- getFacts
+            (facts :: [EmptyStrings String])
+              `shouldBe` [ EmptyStrings "" "" 42
+                        , EmptyStrings "" "abc" 42
+                        , EmptyStrings "abc" "" 42
+                        ]
 
-    it "correctly marshals facts really with long (>255 chars) String" $ do
-      facts <- Interpreted.runSouffle EdgeCases $ \handle -> do
-        let prog = fromJust handle
-        Interpreted.run prog
-        Interpreted.getFacts prog
-      (facts :: [LongStrings String]) `shouldBe` [ LongStrings longString ]
+          it "correctly marshals facts with empty Texts" $ do
+            facts <- getFacts
+            (facts :: [EmptyStrings T.Text])
+              `shouldBe` [ EmptyStrings "" "" 42
+                        , EmptyStrings "" "abc" 42
+                        , EmptyStrings "abc" "" 42
+                        ]
 
-    it "correctly marshals facts really with long (>255 chars) Text" $ do
-      facts <- Interpreted.runSouffle EdgeCases $ \handle -> do
-        let prog = fromJust handle
-        Interpreted.run prog
-        Interpreted.getFacts prog
-      (facts :: [LongStrings T.Text]) `shouldBe` [ LongStrings longString ]
+          it "correctly marshals facts with empty lazy Texts" $ do
+            facts <- getFacts
+            (facts :: [EmptyStrings TL.Text])
+              `shouldBe` [ EmptyStrings "" "" 42
+                        , EmptyStrings "" "abc" 42
+                        , EmptyStrings "abc" "" 42
+                        ]
+          -- TODO write to datalog and back
 
-    it "correctly marshals facts really with long (>255 chars) lazy Text" $ do
-      facts <- Interpreted.runSouffle EdgeCases $ \handle -> do
-        let prog = fromJust handle
-        Interpreted.run prog
-        Interpreted.getFacts prog
-      (facts :: [LongStrings TL.Text]) `shouldBe` [ LongStrings longString ]
+          it "correctly marshals facts really with long (>255 chars) String" $ do
+            facts <- getFacts
+            (facts :: [LongStrings String]) `shouldBe` [ LongStrings longString ]
 
-    -- TODO marshal back and forth
+          it "correctly marshals facts really with long (>255 chars) Text" $ do
+            facts <- getFacts
+            (facts :: [LongStrings T.Text]) `shouldBe` [ LongStrings longString ]
 
-    it "correctly marshals facts containing unicode characters (String)" $ do
-      results <- Interpreted.runSouffle EdgeCases $ \handle -> do
-        let prog = fromJust handle
-        Interpreted.run prog
-        (,,) <$> Interpreted.getFacts prog
-             <*> Interpreted.findFact prog (Unicode "⌀")  -- \x2300 iso \x2200
-             <*> Interpreted.findFact prog (Unicode "≂")  -- \x2242 iso \x2200
-      results `shouldBe`
-        ( [ Unicode ("∀" :: T.Text), Unicode "∀∀" ]
-        , Nothing :: Maybe (Unicode String)
-        , Nothing :: Maybe (Unicode String)
-        )
+          it "correctly marshals facts really with long (>255 chars) lazy Text" $ do
+            facts <- getFacts
+            (facts :: [LongStrings TL.Text]) `shouldBe` [ LongStrings longString ]
 
-    it "correctly marshals facts containing unicode characters (Text)" $ do
-      results <- Interpreted.runSouffle EdgeCases $ \handle -> do
-        let prog = fromJust handle
-        Interpreted.run prog
-        (,,) <$> Interpreted.getFacts prog
-             <*> Interpreted.findFact prog (Unicode "⌀")  -- \x2300 iso \x2200
-             <*> Interpreted.findFact prog (Unicode "≂")  -- \x2242 iso \x2200
-      results `shouldBe`
-        ( [ Unicode ("∀" :: T.Text), Unicode "∀∀" ]
-        , Nothing :: Maybe (Unicode T.Text)
-        , Nothing :: Maybe (Unicode T.Text)
-        )
+          -- TODO marshal back and forth
 
-    it "correctly marshals facts containing unicode characters (lazy Text)" $ do
-      results <- Interpreted.runSouffle EdgeCases $ \handle -> do
-        let prog = fromJust handle
-        Interpreted.run prog
-        (,,) <$> Interpreted.getFacts prog
-             <*> Interpreted.findFact prog (Unicode "⌀")  -- \x2300 iso \x2200
-             <*> Interpreted.findFact prog (Unicode "≂")  -- \x2242 iso \x2200
+          it "correctly marshals facts containing unicode characters (String)" $ do
+            results <- getUnicodeFacts
+            results `shouldBe`
+              ( [ Unicode ("∀" :: String), Unicode "∀∀" ]
+              , Nothing :: Maybe (Unicode String)
+              , Nothing :: Maybe (Unicode String)
+              )
 
-      results `shouldBe`
-        ( [ Unicode ("∀" :: TL.Text), Unicode "∀∀" ]
-        , Nothing :: Maybe (Unicode TL.Text)
-        , Nothing :: Maybe (Unicode TL.Text)
-        )
+          it "correctly marshals facts containing unicode characters (Text)" $ do
+            results <- getUnicodeFacts
+            results `shouldBe`
+              ( [ Unicode ("∀" :: T.Text), Unicode "∀∀" ]
+              , Nothing :: Maybe (Unicode T.Text)
+              , Nothing :: Maybe (Unicode T.Text)
+              )
+
+          it "correctly marshals facts containing unicode characters (lazy Text)" $ do
+            results <- getUnicodeFacts
+            results `shouldBe`
+              ( [ Unicode ("∀" :: TL.Text), Unicode "∀∀" ]
+              , Nothing :: Maybe (Unicode TL.Text)
+              , Nothing :: Maybe (Unicode TL.Text)
+              )
+
+    describe "interpreted mode" $ parallel $ do
+      runTests getFactsI getUnicodeFactsI
+
+    --describe "compiled mode" $ parallel $ do
+      --runTests getFactsC getUnicodeFactsC
 
