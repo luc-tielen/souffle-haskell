@@ -1,6 +1,9 @@
 
 {-# LANGUAGE DeriveGeneric, TypeFamilies, DataKinds, RankNTypes #-}
-
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeOperators #-}
 module Test.Language.Souffle.MarshalSpec
   ( module Test.Language.Souffle.MarshalSpec
   ) where
@@ -22,6 +25,7 @@ import qualified Language.Souffle.Marshal as Souffle
 import qualified Language.Souffle.Class as Souffle
 import qualified Language.Souffle.Compiled as Compiled
 import qualified Language.Souffle.Interpreted as Interpreted
+import Data.String (IsString)
 
 
 data Edge = Edge String String
@@ -141,6 +145,70 @@ type RoundTripAction
   => Souffle.ContainsOutputFact RoundTrip a
   => a -> PropertyT IO a
 
+
+data EdgeCases = EdgeCases
+
+data EmptyStrings a
+  = EmptyStrings a a Int32
+  deriving (Eq, Show, Generic)
+
+newtype LongStrings a
+  = LongStrings a
+  deriving (Eq, Show, Generic)
+
+newtype Unicode a
+  = Unicode a
+  deriving (Eq, Show, Generic)
+
+instance Souffle.Program EdgeCases where
+  type ProgramFacts EdgeCases =
+    [ EmptyStrings String, EmptyStrings T.Text, EmptyStrings TL.Text
+    , LongStrings String, LongStrings T.Text, LongStrings TL.Text
+    , Unicode String, Unicode T.Text, Unicode TL.Text
+    ]
+  programName = const "edge_cases"
+
+instance Souffle.Fact (EmptyStrings String) where
+  type FactDirection (EmptyStrings String) = 'Souffle.InputOutput
+  factName = const "empty_strings"
+instance Souffle.Fact (EmptyStrings T.Text) where
+  type FactDirection (EmptyStrings T.Text) = 'Souffle.InputOutput
+  factName = const "empty_strings"
+instance Souffle.Fact (EmptyStrings TL.Text) where
+  type FactDirection (EmptyStrings TL.Text) = 'Souffle.InputOutput
+  factName = const "empty_strings"
+
+instance Souffle.Fact (LongStrings String) where
+  type FactDirection (LongStrings String) = 'Souffle.InputOutput
+  factName = const "long_strings"
+instance Souffle.Fact (LongStrings T.Text) where
+  type FactDirection (LongStrings T.Text) = 'Souffle.InputOutput
+  factName = const "long_strings"
+instance Souffle.Fact (LongStrings TL.Text) where
+  type FactDirection (LongStrings TL.Text) = 'Souffle.InputOutput
+  factName = const "long_strings"
+
+instance Souffle.Fact (Unicode String) where
+  type FactDirection (Unicode String) = 'Souffle.InputOutput
+  factName = const "unicode"
+instance Souffle.Fact (Unicode T.Text) where
+  type FactDirection (Unicode T.Text) = 'Souffle.InputOutput
+  factName = const "unicode"
+instance Souffle.Fact (Unicode TL.Text) where
+  type FactDirection (Unicode TL.Text) = 'Souffle.InputOutput
+  factName = const "unicode"
+
+instance Marshal (EmptyStrings String)
+instance Marshal (EmptyStrings T.Text)
+instance Marshal (EmptyStrings TL.Text)
+instance Marshal (LongStrings String)
+instance Marshal (LongStrings T.Text)
+instance Marshal (LongStrings TL.Text)
+instance Marshal (Unicode String)
+instance Marshal (Unicode T.Text)
+instance Marshal (Unicode TL.Text)
+
+
 spec :: Spec
 spec = describe "Marshalling" $ parallel $ do
   describe "Auto-deriving marshalling code" $
@@ -203,3 +271,94 @@ spec = describe "Marshalling" $ parallel $ do
         Compiled.addFact prog fact
         Compiled.run prog
         Prelude.head <$> Compiled.getFacts prog
+
+  describe "edge cases" $ parallel $ do
+    let longString :: IsString a => a
+        longString = "long_string_from_DL:...............................................................................................................................................................................................................................................................................................end"
+
+    -- TODO both for interpreted and compiled mode
+    it "correctly marshals facts with empty Strings" $ do
+      facts <- Interpreted.runSouffle EdgeCases $ \handle -> do
+        let prog = fromJust handle
+        Interpreted.run prog
+        Interpreted.getFacts prog
+      (facts :: [EmptyStrings String])
+        `shouldBe` [ EmptyStrings "" "" 42
+                   , EmptyStrings "" "abc" 42
+                   , EmptyStrings "abc" "" 42
+                   ]
+
+    it "correctly marshals facts with empty Texts" $ do
+      facts <- Interpreted.runSouffle EdgeCases $ \handle -> do
+        let prog = fromJust handle
+        Interpreted.run prog
+        Interpreted.getFacts prog
+      (facts :: [EmptyStrings T.Text])
+        `shouldBe` [ EmptyStrings "" "" 42
+                   , EmptyStrings "" "abc" 42
+                   , EmptyStrings "abc" "" 42
+                   ]
+
+    it "correctly marshals facts with empty lazy Texts" $ do
+      facts <- Interpreted.runSouffle EdgeCases $ \handle -> do
+        let prog = fromJust handle
+        Interpreted.run prog
+        Interpreted.getFacts prog
+      (facts :: [EmptyStrings TL.Text])
+        `shouldBe` [ EmptyStrings "" "" 42
+                   , EmptyStrings "" "abc" 42
+                   , EmptyStrings "abc" "" 42
+                   ]
+
+    -- TODO write to datalog and back
+
+    it "correctly marshals facts really with long (>255 chars) String" $ do
+      facts <- Interpreted.runSouffle EdgeCases $ \handle -> do
+        let prog = fromJust handle
+        Interpreted.run prog
+        Interpreted.getFacts prog
+      (facts :: [LongStrings String]) `shouldBe` [ LongStrings longString ]
+
+    it "correctly marshals facts really with long (>255 chars) Text" $ do
+      facts <- Interpreted.runSouffle EdgeCases $ \handle -> do
+        let prog = fromJust handle
+        Interpreted.run prog
+        Interpreted.getFacts prog
+      (facts :: [LongStrings T.Text]) `shouldBe` [ LongStrings longString ]
+
+    it "correctly marshals facts really with long (>255 chars) lazy Text" $ do
+      facts <- Interpreted.runSouffle EdgeCases $ \handle -> do
+        let prog = fromJust handle
+        Interpreted.run prog
+        Interpreted.getFacts prog
+      (facts :: [LongStrings TL.Text]) `shouldBe` [ LongStrings longString ]
+
+    -- TODO marshal back and forth
+
+    -- TODO 1 in a row, 2 in a row, unicode chars with 1 byte the same
+    -- TODO: findFact + getFacts
+    it "correctly marshals facts containing unicode characters (String)" $ do
+      facts <- Interpreted.runSouffle EdgeCases $ \handle -> do
+        let prog = fromJust handle
+        Interpreted.run prog
+        Interpreted.getFacts prog
+      (facts :: [Unicode String]) `shouldBe`
+        [ Unicode "∀", Unicode "∀∀" ]
+
+    it "correctly marshals facts containing unicode characters (Text)" $ do
+      facts <- Interpreted.runSouffle EdgeCases $ \handle -> do
+        let prog = fromJust handle
+        Interpreted.run prog
+        Interpreted.getFacts prog
+      (facts :: [Unicode T.Text]) `shouldBe`
+        [ Unicode "∀", Unicode "∀∀" ]
+
+    it "correctly marshals facts containing unicode characters (lazy Text)" $ do
+      facts <- Interpreted.runSouffle EdgeCases $ \handle -> do
+        let prog = fromJust handle
+        Interpreted.run prog
+        Interpreted.getFacts prog
+      (facts :: [Unicode TL.Text]) `shouldBe`
+        [ Unicode "∀", Unicode "∀∀" ]
+
+    -- TODO check overlap with some unicode chars
