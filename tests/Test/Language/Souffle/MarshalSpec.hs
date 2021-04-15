@@ -327,8 +327,12 @@ spec = describe "Marshalling" $ parallel $ do
         runTests :: (forall f a. (Souffle.Fact (f a), Souffle.ContainsOutputFact EdgeCases (f a)) => IO [f a])
                  -> (forall a. (IsString a, Eq a, Souffle.Fact (Unicode a), Souffle.ContainsOutputFact EdgeCases (Unicode a))
                       => IO ([Unicode a], Maybe (Unicode a), Maybe (Unicode a)))
+                 -> (forall f a. Souffle.Fact (f a)
+                      => Souffle.ContainsInputFact EdgeCases (f a)
+                      => Souffle.ContainsOutputFact EdgeCases (f a)
+                      => [f a] -> IO [f a])
                  -> Spec
-        runTests getFacts getUnicodeFacts = do
+        runTests getFacts getUnicodeFacts addAndGetFacts = do
           it "correctly marshals facts with empty Strings" $ do
             facts <- getFacts
             (facts :: [EmptyStrings String])
@@ -389,12 +393,6 @@ spec = describe "Marshalling" $ parallel $ do
               , Nothing :: Maybe (Unicode TL.Text)
               )
 
-        runTests' :: (forall f a. Souffle.Fact (f a)
-                      => Souffle.ContainsInputFact EdgeCases (f a)
-                      => Souffle.ContainsOutputFact EdgeCases (f a)
-                      => [f a] -> IO [f a])
-                 -> Spec
-        runTests' addAndGetFacts = do
           it "correctly marshals empty strings back and forth (Strings)" $ do
             let facts :: [EmptyStrings String]
                 facts = [EmptyStrings "" "" 1, EmptyStrings "" "" 42, EmptyStrings "" "abc" 2, EmptyStrings "" "abc" 42, EmptyStrings "abc" "" 3, EmptyStrings "abc" "" 42]
@@ -450,10 +448,7 @@ spec = describe "Marshalling" $ parallel $ do
             facts' `shouldBe` facts
 
     describe "interpreted mode" $ parallel $ do
-      runTests getFactsI getUnicodeFactsI
-      runTests' addAndGetFactsI
+      runTests getFactsI getUnicodeFactsI addAndGetFactsI
 
     describe "compiled mode" $ parallel $ do
-      runTests getFactsC getUnicodeFactsC
-      runTests' addAndGetFactsC
-
+      runTests getFactsC getUnicodeFactsC addAndGetFactsC
