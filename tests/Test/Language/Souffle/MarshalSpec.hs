@@ -271,7 +271,7 @@ spec = describe "Marshalling" $ parallel $ do
         Compiled.run prog
         Prelude.head <$> Compiled.getFacts prog
 
-  fdescribe "edge cases" $ parallel $ do
+  describe "edge cases" $ parallel $ do
     let longString :: IsString a => a
         longString = "long_string_from_DL:...............................................................................................................................................................................................................................................................................................end"
 
