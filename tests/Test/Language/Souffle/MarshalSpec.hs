@@ -1,6 +1,7 @@
 
 {-# LANGUAGE DeriveGeneric, TypeFamilies, DataKinds, RankNTypes #-}
-
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Test.Language.Souffle.MarshalSpec
   ( module Test.Language.Souffle.MarshalSpec
   ) where
@@ -17,11 +18,13 @@ import Data.Int
 import Data.Word
 import Data.Maybe ( fromJust )
 import Control.Monad.IO.Class ( liftIO )
+import Control.Monad
 import Language.Souffle.Marshal
 import qualified Language.Souffle.Marshal as Souffle
 import qualified Language.Souffle.Class as Souffle
 import qualified Language.Souffle.Compiled as Compiled
 import qualified Language.Souffle.Interpreted as Interpreted
+import Data.String (IsString)
 
 
 data Edge = Edge String String
@@ -141,6 +144,70 @@ type RoundTripAction
   => Souffle.ContainsOutputFact RoundTrip a
   => a -> PropertyT IO a
 
+
+data EdgeCases = EdgeCases
+
+data EmptyStrings a
+  = EmptyStrings a a Int32
+  deriving (Eq, Show, Generic)
+
+newtype LongStrings a
+  = LongStrings a
+  deriving (Eq, Show, Generic)
+
+newtype Unicode a
+  = Unicode a
+  deriving (Eq, Show, Generic)
+
+instance Souffle.Program EdgeCases where
+  type ProgramFacts EdgeCases =
+    [ EmptyStrings String, EmptyStrings T.Text, EmptyStrings TL.Text
+    , LongStrings String, LongStrings T.Text, LongStrings TL.Text
+    , Unicode String, Unicode T.Text, Unicode TL.Text
+    ]
+  programName = const "edge_cases"
+
+instance Souffle.Fact (EmptyStrings String) where
+  type FactDirection (EmptyStrings String) = 'Souffle.InputOutput
+  factName = const "empty_strings"
+instance Souffle.Fact (EmptyStrings T.Text) where
+  type FactDirection (EmptyStrings T.Text) = 'Souffle.InputOutput
+  factName = const "empty_strings"
+instance Souffle.Fact (EmptyStrings TL.Text) where
+  type FactDirection (EmptyStrings TL.Text) = 'Souffle.InputOutput
+  factName = const "empty_strings"
+
+instance Souffle.Fact (LongStrings String) where
+  type FactDirection (LongStrings String) = 'Souffle.InputOutput
+  factName = const "long_strings"
+instance Souffle.Fact (LongStrings T.Text) where
+  type FactDirection (LongStrings T.Text) = 'Souffle.InputOutput
+  factName = const "long_strings"
+instance Souffle.Fact (LongStrings TL.Text) where
+  type FactDirection (LongStrings TL.Text) = 'Souffle.InputOutput
+  factName = const "long_strings"
+
+instance Souffle.Fact (Unicode String) where
+  type FactDirection (Unicode String) = 'Souffle.InputOutput
+  factName = const "unicode"
+instance Souffle.Fact (Unicode T.Text) where
+  type FactDirection (Unicode T.Text) = 'Souffle.InputOutput
+  factName = const "unicode"
+instance Souffle.Fact (Unicode TL.Text) where
+  type FactDirection (Unicode TL.Text) = 'Souffle.InputOutput
+  factName = const "unicode"
+
+instance Marshal (EmptyStrings String)
+instance Marshal (EmptyStrings T.Text)
+instance Marshal (EmptyStrings TL.Text)
+instance Marshal (LongStrings String)
+instance Marshal (LongStrings T.Text)
+instance Marshal (LongStrings TL.Text)
+instance Marshal (Unicode String)
+instance Marshal (Unicode T.Text)
+instance Marshal (Unicode TL.Text)
+
+
 spec :: Spec
 spec = describe "Marshalling" $ parallel $ do
   describe "Auto-deriving marshalling code" $
@@ -203,3 +270,185 @@ spec = describe "Marshalling" $ parallel $ do
         Compiled.addFact prog fact
         Compiled.run prog
         Prelude.head <$> Compiled.getFacts prog
+
+  describe "edge cases" $ parallel $ do
+    let longString :: IsString a => a
+        longString = "long_string_from_DL:...............................................................................................................................................................................................................................................................................................end"
+
+        getFactsI :: forall f a. (Souffle.Fact (f a), Souffle.ContainsOutputFact EdgeCases (f a)) => IO [f a]
+        getFactsI = Interpreted.runSouffle EdgeCases $ \handle -> do
+          let prog = fromJust handle
+          Interpreted.run prog
+          Interpreted.getFacts prog
+        getFactsC :: forall f a. (Souffle.Fact (f a), Souffle.ContainsOutputFact EdgeCases (f a)) => IO [f a]
+        getFactsC = Compiled.runSouffle EdgeCases $ \handle -> do
+          let prog = fromJust handle
+          Compiled.run prog
+          Prelude.reverse <$> Compiled.getFacts prog
+
+        getUnicodeFactsI :: forall a. (IsString a, Eq a, Souffle.Fact (Unicode a), Souffle.ContainsOutputFact EdgeCases (Unicode a))
+                         => IO ([Unicode a], Maybe (Unicode a), Maybe (Unicode a))
+        getUnicodeFactsI = Interpreted.runSouffle EdgeCases $ \handle -> do
+          let prog = fromJust handle
+          Interpreted.run prog
+          (,,) <$> Interpreted.getFacts prog
+               <*> Interpreted.findFact prog (Unicode "⌀")  -- \x2300 iso \x2200
+               <*> Interpreted.findFact prog (Unicode "≂")  -- \x2242 iso \x2200
+
+        getUnicodeFactsC :: forall a. (IsString a, Eq a, Souffle.Fact (Unicode a), Souffle.ContainsOutputFact EdgeCases (Unicode a))
+                         => IO ([Unicode a], Maybe (Unicode a), Maybe (Unicode a))
+        getUnicodeFactsC = Compiled.runSouffle EdgeCases $ \handle -> do
+          let prog = fromJust handle
+          Compiled.run prog
+          (,,) <$> (Prelude.reverse <$> Compiled.getFacts prog)
+               <*> Compiled.findFact prog (Unicode "⌀")  -- \x2300 iso \x2200
+               <*> Compiled.findFact prog (Unicode "≂")  -- \x2242 iso \x2200
+
+        addAndGetFactsI :: Souffle.Fact (f a)
+                        => Souffle.ContainsInputFact EdgeCases (f a)
+                        => Souffle.ContainsOutputFact EdgeCases (f a)
+                        => [f a] -> IO [f a]
+        addAndGetFactsI fs = Interpreted.runSouffle EdgeCases $ \handle -> do
+          let prog = fromJust handle
+          Interpreted.addFacts prog fs
+          Interpreted.run prog
+          Interpreted.getFacts prog
+        addAndGetFactsC :: Souffle.Fact (f a)
+                        => Souffle.ContainsInputFact EdgeCases (f a)
+                        => Souffle.ContainsOutputFact EdgeCases (f a)
+                        => [f a] -> IO [f a]
+        addAndGetFactsC fs = Compiled.runSouffle EdgeCases $ \handle -> do
+          let prog = fromJust handle
+          Compiled.addFacts prog fs
+          Compiled.run prog
+          Prelude.reverse <$> Compiled.getFacts prog
+
+
+        runTests :: (forall f a. (Souffle.Fact (f a), Souffle.ContainsOutputFact EdgeCases (f a)) => IO [f a])
+                 -> (forall a. (IsString a, Eq a, Souffle.Fact (Unicode a), Souffle.ContainsOutputFact EdgeCases (Unicode a))
+                      => IO ([Unicode a], Maybe (Unicode a), Maybe (Unicode a)))
+                 -> (forall f a. Souffle.Fact (f a)
+                      => Souffle.ContainsInputFact EdgeCases (f a)
+                      => Souffle.ContainsOutputFact EdgeCases (f a)
+                      => [f a] -> IO [f a])
+                 -> Spec
+        runTests getFacts getUnicodeFacts addAndGetFacts = do
+          it "correctly marshals facts with empty Strings" $ do
+            facts <- getFacts
+            (facts :: [EmptyStrings String])
+              `shouldBe` [ EmptyStrings "" "" 42
+                         , EmptyStrings "" "abc" 42
+                         , EmptyStrings "abc" "" 42
+                         ]
+
+          it "correctly marshals facts with empty Texts" $ do
+            facts <- getFacts
+            (facts :: [EmptyStrings T.Text])
+              `shouldBe` [ EmptyStrings "" "" 42
+                         , EmptyStrings "" "abc" 42
+                         , EmptyStrings "abc" "" 42
+                         ]
+
+          it "correctly marshals facts with empty lazy Texts" $ do
+            facts <- getFacts
+            (facts :: [EmptyStrings TL.Text])
+              `shouldBe` [ EmptyStrings "" "" 42
+                         , EmptyStrings "" "abc" 42
+                         , EmptyStrings "abc" "" 42
+                         ]
+
+          it "correctly marshals facts really with long (>255 chars) String" $ do
+            facts <- getFacts
+            (facts :: [LongStrings String]) `shouldBe` [ LongStrings longString ]
+
+          it "correctly marshals facts really with long (>255 chars) Text" $ do
+            facts <- getFacts
+            (facts :: [LongStrings T.Text]) `shouldBe` [ LongStrings longString ]
+
+          it "correctly marshals facts really with long (>255 chars) lazy Text" $ do
+            facts <- getFacts
+            (facts :: [LongStrings TL.Text]) `shouldBe` [ LongStrings longString ]
+
+          it "correctly marshals facts containing unicode characters (String)" $ do
+            results <- getUnicodeFacts
+            results `shouldBe`
+              ( [ Unicode ("∀" :: String), Unicode "∀∀" ]
+              , Nothing :: Maybe (Unicode String)
+              , Nothing :: Maybe (Unicode String)
+              )
+
+          it "correctly marshals facts containing unicode characters (Text)" $ do
+            results <- getUnicodeFacts
+            results `shouldBe`
+              ( [ Unicode ("∀" :: T.Text), Unicode "∀∀" ]
+              , Nothing :: Maybe (Unicode T.Text)
+              , Nothing :: Maybe (Unicode T.Text)
+              )
+
+          it "correctly marshals facts containing unicode characters (lazy Text)" $ do
+            results <- getUnicodeFacts
+            results `shouldBe`
+              ( [ Unicode ("∀" :: TL.Text), Unicode "∀∀" ]
+              , Nothing :: Maybe (Unicode TL.Text)
+              , Nothing :: Maybe (Unicode TL.Text)
+              )
+
+          it "correctly marshals empty strings back and forth (Strings)" $ do
+            let facts :: [EmptyStrings String]
+                facts = [EmptyStrings "" "" 1, EmptyStrings "" "" 42, EmptyStrings "" "abc" 2, EmptyStrings "" "abc" 42, EmptyStrings "abc" "" 3, EmptyStrings "abc" "" 42]
+            facts' <- addAndGetFacts facts
+            facts' `shouldBe` facts
+
+          it "correctly marshals empty strings back and forth (Text)" $ do
+            let facts :: [EmptyStrings T.Text]
+                facts = [EmptyStrings "" "" 1, EmptyStrings "" "" 42, EmptyStrings "" "abc" 2, EmptyStrings "" "abc" 42, EmptyStrings "abc" "" 3, EmptyStrings "abc" "" 42]
+            facts' <- addAndGetFacts facts
+            facts' `shouldBe` facts
+
+          it "correctly marshals empty strings back and forth (lazy Text)" $ do
+            let facts :: [EmptyStrings TL.Text]
+                facts = [EmptyStrings "" "" 1, EmptyStrings "" "" 42, EmptyStrings "" "abc" 2, EmptyStrings "" "abc" 42, EmptyStrings "abc" "" 3, EmptyStrings "abc" "" 42]
+            facts' <- addAndGetFacts facts
+            facts' `shouldBe` facts
+
+          it "correctly marshals unicode back and forth (Strings)" $ do
+            let facts :: [Unicode String]
+                facts = [Unicode "∀", Unicode "∀∀", Unicode "≂", Unicode "⌀", Unicode "⌀⌀"]
+            facts' <- addAndGetFacts facts
+            facts' `shouldBe` facts
+
+          it "correctly marshals unicode back and forth (Text)" $ do
+            let facts :: [Unicode T.Text]
+                facts = [Unicode "∀", Unicode "∀∀", Unicode "≂", Unicode "⌀", Unicode "⌀⌀"]
+            facts' <- addAndGetFacts facts
+            facts' `shouldBe` facts
+
+          it "correctly marshals unicode back and forth (lazy Text)" $ do
+            let facts :: [Unicode TL.Text]
+                facts = [Unicode "∀", Unicode "∀∀", Unicode "≂", Unicode "⌀", Unicode "⌀⌀"]
+            facts' <- addAndGetFacts facts
+            facts' `shouldBe` facts
+
+          it "correctly marshals really long strings back and forth (Strings)" $ do
+            let facts :: [LongStrings String]
+                facts = [LongStrings longString, LongStrings $ join $ Prelude.replicate 10000 "abc"]
+            facts' <- addAndGetFacts facts
+            facts' `shouldBe` facts
+
+          it "correctly marshals really long strings back and forth (Text)" $ do
+            let facts :: [LongStrings T.Text]
+                facts = [LongStrings longString, LongStrings $ T.pack $ join $ Prelude.replicate 10000 "abc"]
+            facts' <- addAndGetFacts facts
+            facts' `shouldBe` facts
+
+          it "correctly marshals really long strings back and forth (lazy Text)" $ do
+            let facts :: [LongStrings TL.Text]
+                facts = [LongStrings longString, LongStrings $ TL.pack $ join $ Prelude.replicate 10000 "abc"]
+            facts' <- addAndGetFacts facts
+            facts' `shouldBe` facts
+
+    describe "interpreted mode" $ parallel $ do
+      runTests getFactsI getUnicodeFactsI addAndGetFactsI
+
+    describe "compiled mode" $ parallel $ do
+      runTests getFactsC getUnicodeFactsC addAndGetFactsC

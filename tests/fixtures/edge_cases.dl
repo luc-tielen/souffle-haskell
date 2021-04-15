@@ -1,0 +1,28 @@
+// NOTE: call souffle -g path.cpp path.dl in same directory as this file,
+// otherwise tests will fail.
+
+.decl empty_strings(s: symbol, s2: symbol, n: number)
+.input empty_strings
+.output empty_strings
+
+.decl long_strings(s: symbol)
+.input long_strings
+.output long_strings
+
+.decl unicode(s: symbol)
+.input unicode
+.output unicode
+
+
+empty_strings("", "", 42).
+empty_strings("", "abc", 42).
+empty_strings("abc", "", 42).
+
+// NOTE: important here is that it is longer than 255 chars
+long_strings("long_string_from_DL:...............................................................................................................................................................................................................................................................................................end").
+
+// ∀ = \x2200, depending on how it is written, it should not incorrectly
+// compare with other chars that have 1 or more byte that are similar
+// (for example: ⌀ = \x2300, or ≂ = \x2242).
+unicode("∀").
+unicode("∀∀").
