@@ -431,19 +431,19 @@ spec = describe "Marshalling" $ parallel $ do
 
           it "correctly marshals really long strings back and forth (Strings)" $ do
             let facts :: [LongStrings String]
-                facts = [LongStrings longString, LongStrings $ join $ Prelude.take 10000 $ repeat "abc"]
+                facts = [LongStrings longString, LongStrings $ join $ Prelude.replicate 10000 "abc"]
             facts' <- addAndGetFacts facts
             facts' `shouldBe` facts
 
           it "correctly marshals really long strings back and forth (Text)" $ do
             let facts :: [LongStrings T.Text]
-                facts = [LongStrings longString, LongStrings $ T.pack $ join $ Prelude.take 10000 $ repeat "abc"]
+                facts = [LongStrings longString, LongStrings $ T.pack $ join $ Prelude.replicate 10000 "abc"]
             facts' <- addAndGetFacts facts
             facts' `shouldBe` facts
 
           it "correctly marshals really long strings back and forth (lazy Text)" $ do
             let facts :: [LongStrings TL.Text]
-                facts = [LongStrings longString, LongStrings $ TL.pack $ join $ Prelude.take 10000 $ repeat "abc"]
+                facts = [LongStrings longString, LongStrings $ TL.pack $ join $ Prelude.replicate 10000 "abc"]
             facts' <- addAndGetFacts facts
             facts' `shouldBe` facts
 
