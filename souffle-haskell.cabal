@@ -4,7 +4,7 @@ cabal-version: 2.2
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5280b7121afe3856fc0949a3f59553bdb9d063fb15a88a1c9035d04d88885cf2
+-- hash: 37a2bd531ee7f3b12c2e2782fc545580f19bd88f2dfdedd22136924a90245072
 
 name:           souffle-haskell
 version:        2.1.0
@@ -70,7 +70,6 @@ library
   exposed-modules:
       Language.Souffle.Class
       Language.Souffle.Compiled
-      Language.Souffle.Experimental
       Language.Souffle.Internal
       Language.Souffle.Internal.Bindings
       Language.Souffle.Internal.Constraints
@@ -153,9 +152,6 @@ test-suite souffle-haskell-test
   main-is: test.hs
   other-modules:
       Test.Language.Souffle.CompiledSpec
-      Test.Language.Souffle.Experimental.Fixtures
-      Test.Language.Souffle.Experimental.FixturesCompiled
-      Test.Language.Souffle.ExperimentalSpec
       Test.Language.Souffle.InterpretedSpec
       Test.Language.Souffle.MarshalSpec
       Paths_souffle_haskell
@@ -205,6 +201,7 @@ test-suite souffle-haskell-test
       souffle/utility/EvaluatorUtil.h
       souffle/utility/FunctionalUtil.h
   cxx-sources:
+      tests/fixtures/edge_cases.cpp
       tests/fixtures/path.cpp
       tests/fixtures/round_trip.cpp
   build-depends:

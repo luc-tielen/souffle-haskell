@@ -3,12 +3,18 @@
 All notable changes to this project (as seen by library users) will be documented in this file.
 The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-haskell.git/CHANGELOG.md).
 
-## [2.1.1] - Unreleased
+## [3.0.0] - Unreleased
 
 ### Fixed
 
 - Potential memory leak if an async exception occurred between the point of
   allocating a pointer and wrapping it in a `ForeignPtr`.
+
+### Removed
+
+- Souffle EDSL (this is now available in the
+  [souffle-dsl](https://github.com/luc-tielen/souffle-dsl)
+  package). This is mostly done to improve compile times of this package.
 
 ## [2.1.0] - 2021-01-03
 

@@ -160,6 +160,12 @@ ghc-options:
   souffle-haskell: -optcxx-std=c++17
 ```
 
+## Souffle EDSL
+
+This package previously contained a Haskell EDSL for writing Souffle code
+directly in Haskell. This has now been moved to a separate
+[package](https://github.com/luc-tielen/souffle-dsl.git).
+
 ## Documentation
 
 The documentation for the library can be found on
