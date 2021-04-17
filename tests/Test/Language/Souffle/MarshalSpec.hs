@@ -13,6 +13,7 @@ import qualified Hedgehog.Range as Range
 import GHC.Generics
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Short as TS
 import Data.Text
 import Data.Int
 import Data.Word
@@ -91,6 +92,9 @@ newtype TextFact = TextFact T.Text
 newtype LazyTextFact = LazyTextFact TL.Text
   deriving (Eq, Show, Generic)
 
+newtype ShortTextFact = ShortTextFact TS.ShortText
+  deriving (Eq, Show, Generic)
+
 newtype Int32Fact = Int32Fact Int32
   deriving (Eq, Show, Generic)
 
@@ -112,6 +116,10 @@ instance Souffle.Fact LazyTextFact where
   type FactDirection LazyTextFact = 'Souffle.InputOutput
   factName = const "string_fact"
 
+instance Souffle.Fact ShortTextFact where
+  type FactDirection ShortTextFact = 'Souffle.InputOutput
+  factName = const "string_fact"
+
 instance Souffle.Fact Int32Fact where
   type FactDirection Int32Fact = 'Souffle.InputOutput
   factName = const "number_fact"
@@ -127,13 +135,14 @@ instance Souffle.Fact FloatFact where
 instance Souffle.Marshal StringFact
 instance Souffle.Marshal TextFact
 instance Souffle.Marshal LazyTextFact
+instance Souffle.Marshal ShortTextFact
 instance Souffle.Marshal Int32Fact
 instance Souffle.Marshal Word32Fact
 instance Souffle.Marshal FloatFact
 
 instance Souffle.Program RoundTrip where
   type ProgramFacts RoundTrip =
-    [StringFact, TextFact, LazyTextFact, Int32Fact, Word32Fact, FloatFact]
+    [StringFact, TextFact, LazyTextFact, ShortTextFact, Int32Fact, Word32Fact, FloatFact]
   programName = const "round_trip"
 
 type RoundTripAction
@@ -159,7 +168,7 @@ spec = describe "Marshalling" $ parallel $ do
             fact' <- run fact
             fact === fact'
 
-          it "can serialize and deserialize lazy Text" $ hedgehog $ do
+          it "can serialize and deserialize lazy Text values" $ hedgehog $ do
             str <- forAll $ Gen.string (Range.linear 0 10) Gen.unicode
             let fact = LazyTextFact (TL.pack str)
             fact' <- run fact
@@ -168,6 +177,12 @@ spec = describe "Marshalling" $ parallel $ do
           it "can serialize and deserialize strict Text values" $ hedgehog $ do
             str <- forAll $ Gen.text (Range.linear 0 10) Gen.unicode
             let fact = TextFact str
+            fact' <- run fact
+            fact === fact'
+
+          it "can serialize and deserialize short Text values" $ hedgehog $ do
+            str <- forAll $ Gen.text (Range.linear 0 10) Gen.unicode
+            let fact = ShortTextFact (TS.fromText str)
             fact' <- run fact
             fact === fact'
 
