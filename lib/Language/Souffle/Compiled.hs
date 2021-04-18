@@ -155,6 +155,7 @@ instance MonadPop CMarshalFast where
       else do
         ptr <- gets castPtr
         bs <- liftIO $ BSU.unsafePackCStringLen (ptr, fromIntegral byteCount)
+        put $ ptr `plusPtr` fromIntegral byteCount
         pure $ TSU.fromShortByteStringUnsafe $ BSS.toShort bs
   {-# INLINABLE popText #-}
 
@@ -248,10 +249,12 @@ class Collect c where
   collect :: Marshal a => Word32 -> CMarshalFast (c a)
 
 instance Collect [] where
-  collect objCount
-    | objCount == 0 = pure []
-    | otherwise =
-      (:) <$!> pop <*> collect (objCount - 1)
+  collect objCount = go objCount [] where
+    go count acc
+      | count == 0 = pure acc
+      | otherwise = do
+        !x <- pop
+        go (count - 1) (x:acc)
   {-# INLINABLE collect #-}
 
 instance Collect V.Vector where
