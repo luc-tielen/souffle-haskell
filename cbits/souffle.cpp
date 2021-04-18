@@ -271,7 +271,8 @@ public:
         tuple >> str;
         const uint32_t num_bytes = str.length();
 
-        if (!has_remaining_bytes(sizeof(uint32_t) + num_bytes)) {
+        // TODO try with just 1 reallocation for speed
+        while (!has_remaining_bytes(sizeof(uint32_t) + num_bytes)) {
             resize_buf();
         }
 
@@ -295,7 +296,7 @@ public:
         const auto new_num_bytes = m_num_bytes * GROW_FACTOR;
         auto buf = new char[new_num_bytes];
 
-        memcpy(m_buf, buf, m_offset);
+        memcpy(buf, m_buf, m_offset);
         delete [] m_buf;
 
         m_buf = buf;
