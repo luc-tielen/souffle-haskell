@@ -6,7 +6,7 @@
 #include <vector>
 
 #ifndef ESTIMATED_AVERAGE_STRING_SIZE
-#define ESTIMATED_AVERAGE_STRING_SIZE 20
+#define ESTIMATED_AVERAGE_STRING_SIZE 32
 #endif
 #ifndef GROW_FACTOR
 #define GROW_FACTOR 2
@@ -77,8 +77,13 @@ inline void deserialize_symbol(souffle::tuple& tuple, char* buf, offset_t& offse
 {
     auto ptr = reinterpret_cast<uint32_t*>(buf);
     const auto num_bytes = *ptr;
-    auto string_ptr = reinterpret_cast<const char*>(buf) + sizeof(uint32_t);
+    if (num_bytes == 0) {
+        tuple << "";
+        offset += sizeof(uint32_t);
+        return;
+    }
 
+    auto string_ptr = reinterpret_cast<const char*>(buf) + sizeof(uint32_t);
     std::string str(string_ptr, num_bytes);
     tuple << str;
     offset += sizeof(uint32_t) + num_bytes;
@@ -411,8 +416,8 @@ extern "C"
     {
         auto relation = reinterpret_cast<souffle::Relation *>(rel);
         auto data = reinterpret_cast<char*>(buf);
-        assert(relation);
-        assert(data);
+        assert(relation && "Relation is NULL in souffle_contains_tuple");
+        assert(data && "byte buf is NULL in souffle_contains_tuple");
 
         auto& r = *relation;
         const auto types = helpers::parse_signature(r);
@@ -426,10 +431,10 @@ extern "C"
 
     void souffle_tuple_push_many(relation_t *rel, byte_buf_t *buf, size_t size)
     {
-        auto data = reinterpret_cast<char*>(buf);
         auto relation = reinterpret_cast<souffle::Relation*>(rel);
-        assert(data);
-        assert(relation);
+        auto data = reinterpret_cast<char*>(buf);
+        assert(data && "byte buf is NULL in souffle_tuple_push_many");
+        assert(relation && "Relation is NULL in souffle_tuple_push_many");
 
         auto& r = *relation;
         const auto types = helpers::parse_signature(r);
@@ -447,7 +452,7 @@ extern "C"
     byte_buf_t *souffle_tuple_pop_many(relation_t *rel)
     {
         auto relation = reinterpret_cast<souffle::Relation*>(rel);
-        assert(relation);
+        assert(relation && "Relation is NULL in souffle_tuple_pop_many");
         auto& r = *relation;
         return helpers::relation_contains_strings(r)
             ? helpers::serialize_slow(r)
@@ -457,7 +462,7 @@ extern "C"
     void souffle_byte_buf_free(byte_buf_t *buf)
     {
         auto data = reinterpret_cast<char*>(buf);
-        assert(data);
+        assert(data && "byte buf should not be NULL");
         delete[] data;
     }
 }
