@@ -198,12 +198,19 @@ resizeBufWhenNeeded :: ByteCount -> CMarshalSlow ()
 resizeBufWhenNeeded byteCount = do
   MarshalState buf _ offset totalByteCount <- get
   when (byteCount + offset > totalByteCount) $ do
-    let newTotalByteCount = totalByteCount * 2
+    let newTotalByteCount = getNewTotalByteCount byteCount offset totalByteCount
     newBuf <- allocateBuf newTotalByteCount
     copyBuf newBuf buf totalByteCount
     let newPtr = unsafeForeignPtrToPtr newBuf
     put $ MarshalState newBuf (newPtr `plusPtr` offset) offset newTotalByteCount
 {-# INLINABLE resizeBufWhenNeeded #-}
+
+getNewTotalByteCount :: ByteCount -> Int -> ByteCount -> ByteCount
+getNewTotalByteCount byteCount offset = go where
+  go totalByteCount
+    | byteCount + offset > totalByteCount = go (totalByteCount * 2)
+    | otherwise = totalByteCount
+{-# INLINABLE getNewTotalByteCount #-}
 
 incrementPtr :: ByteCount -> CMarshalSlow ()
 incrementPtr byteCount =
@@ -227,7 +234,6 @@ instance MonadPush CMarshalSlow where
         len = BS.length bs
     resizeBufWhenNeeded (ramDomainSize + len)
     pushUInt32 (fromIntegral len)
-    incrementPtr ramDomainSize
     if len == 0
       then pure ()
       else do

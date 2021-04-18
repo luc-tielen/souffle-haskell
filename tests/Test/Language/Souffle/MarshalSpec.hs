@@ -301,7 +301,7 @@ roundTripSpecs = describe "data transfer between Haskell and Souffle" $ parallel
       Prelude.head <$> Compiled.getFacts prog
 
 edgeCaseSpecs :: Spec
-edgeCaseSpecs = fdescribe "edge cases" $ parallel $ do
+edgeCaseSpecs = describe "edge cases" $ parallel $ do
   let longString :: IsString a => a
       longString = "long_string_from_DL:...............................................................................................................................................................................................................................................................................................end"
 
@@ -374,7 +374,6 @@ edgeCaseSpecs = fdescribe "edge cases" $ parallel $ do
 
         it "correctly marshals facts with empty Strings" $ do
           facts <- getFacts
-          liftIO $ print facts
           (facts :: [EmptyStrings String])
             `shouldBe` [ EmptyStrings "" "" 42
                        , EmptyStrings "" "abc" 42
@@ -484,6 +483,15 @@ edgeCaseSpecs = fdescribe "edge cases" $ parallel $ do
         it "correctly marshals really long strings back and forth (lazy Text)" $ do
           let facts :: [LongStrings TL.Text]
               facts = [LongStrings longString, LongStrings $ TL.pack $ join $ Prelude.replicate 10000 "abc"]
+          facts' <- addAndGetFacts facts
+          facts' `shouldBe` facts
+
+        it "correctly marshals facts with number-like types" $ do
+          let facts :: [NoStrings Void]
+              facts = [ NoStrings 42 (-100) 1.5
+                      , NoStrings 123 (-456) 3.14
+                      , NoStrings 789 (-789) 1000.123
+                      ]
           facts' <- addAndGetFacts facts
           facts' `shouldBe` facts
 
