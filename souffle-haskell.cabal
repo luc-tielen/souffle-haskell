@@ -4,7 +4,7 @@ cabal-version: 2.2
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 37a2bd531ee7f3b12c2e2782fc545580f19bd88f2dfdedd22136924a90245072
+-- hash: 7e34947b7e8da9d945a99588df86302165cd35961473e3c983b993c62cd88c06
 
 name:           souffle-haskell
 version:        2.1.0
@@ -60,6 +60,7 @@ extra-source-files:
     cbits/souffle/utility/StreamUtil.h
     cbits/souffle/utility/StringUtil.h
     cbits/souffle/utility/tinyformat.h
+    cbits/souffle.cpp
     cbits/souffle/LICENSE
 
 source-repository head
