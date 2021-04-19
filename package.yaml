@@ -128,3 +128,20 @@ tests:
       - souffle-haskell
     cxx-options:
       - -D__EMBEDDED_SOUFFLE__
+
+benchmarks:
+  souffle-haskell-benchmarks:
+    main: bench.hs
+    source-dirs: benchmarks
+    cxx-sources: benchmarks/fixtures/*.cpp
+    when:
+      - condition: os(darwin)
+        extra-libraries: c++
+    dependencies:
+      - souffle-haskell
+      - criterion
+    cxx-options:
+      - -D__EMBEDDED_SOUFFLE__
+      - -O3 -march=native
+    ghc-options:
+      - -O2
