@@ -58,21 +58,6 @@ inline void deserialize_value(souffle::tuple& tuple, char* buf, offset_t& offset
     offset += sizeof(T);
 }
 
-inline void serialize_symbol(souffle::tuple& tuple, char* buf, offset_t& offset)
-{
-    std::string str;
-    tuple >> str;
-    const uint32_t num_bytes = str.length();
-
-    auto ptr = reinterpret_cast<uint32_t*>(buf);
-    *ptr = num_bytes;
-
-    // TODO: check if we can directly write into byte buf?
-    auto string_ptr = reinterpret_cast<char*>(buf) + sizeof(uint32_t);
-    std::copy(str.begin(), str.end(), string_ptr);
-    offset += sizeof(uint32_t) + num_bytes;
-}
-
 inline void deserialize_symbol(souffle::tuple& tuple, char* buf, offset_t& offset)
 {
     auto ptr = reinterpret_cast<uint32_t*>(buf);
@@ -103,7 +88,6 @@ using serializer_t = void(*)(souffle::tuple&, char*, offset_t&);
 using serializer_map = std::unordered_map<char, serializer_t>;
 
 static const serializer_map serializers_map = {
-    {'s', serialize_symbol},
     {'i', serialize_value<number_t>},
     {'u', serialize_value<unsigned_t>},
     {'f', serialize_value<float_t>}
