@@ -1,0 +1,10 @@
+// NOTE: call souffle -g bench.cpp bench.dl in same directory as this file,
+// otherwise benchmarks will fail.
+
+.decl numbers_fact(u: unsigned, n: number, f: float)
+.input numbers_fact
+.output numbers_fact
+
+.decl strings_fact(u: unsigned, s: symbol, n: number, f: float)
+.input strings_fact
+.output strings_fact

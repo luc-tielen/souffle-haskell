@@ -20,6 +20,9 @@ tests:
 		DATALOG_DIR=tests/fixtures/ cabal run souffle-haskell-test
 
 docs:
-	@cabal haddock
+		@cabal haddock
 
-.PHONY: hoogle lint clean configure build tests docs
+bench:
+		@cabal run souffle-haskell-benchmarks -- --output /tmp/benchmarks.html
+
+.PHONY: hoogle lint clean configure build tests docs bench
