@@ -240,8 +240,9 @@ public:
 
     inline void serialize_number(souffle::tuple& tuple)
     {
-        if (!has_remaining_bytes(sizeof(number_t))) {
-            resize_buf();
+        constexpr auto byte_count = sizeof(number_t);
+        if (!has_remaining_bytes(byte_count)) {
+            resize_buf(byte_count);
         }
 
         serialize_value<number_t>(tuple, m_buf + m_offset, m_offset);
@@ -249,8 +250,9 @@ public:
 
     inline void serialize_unsigned(souffle::tuple& tuple)
     {
-        if (!has_remaining_bytes(sizeof(unsigned_t))) {
-            resize_buf();
+        constexpr auto byte_count = sizeof(unsigned_t);
+        if (!has_remaining_bytes(byte_count)) {
+            resize_buf(byte_count);
         }
 
         serialize_value<unsigned_t>(tuple, m_buf + m_offset, m_offset);
@@ -258,8 +260,9 @@ public:
 
     inline void serialize_float(souffle::tuple& tuple)
     {
-        if (!has_remaining_bytes(sizeof(float_t))) {
-            resize_buf();
+        constexpr auto byte_count = sizeof(float_t);
+        if (!has_remaining_bytes(byte_count)) {
+            resize_buf(byte_count);
         }
 
         serialize_value<float_t>(tuple, m_buf + m_offset, m_offset);
@@ -271,9 +274,9 @@ public:
         tuple >> str;
         const uint32_t num_bytes = str.length();
 
-        // TODO try with just 1 reallocation for speed
-        while (!has_remaining_bytes(sizeof(uint32_t) + num_bytes)) {
-            resize_buf();
+        auto total_byte_count = sizeof(uint32_t) + num_bytes;
+        if (!has_remaining_bytes(total_byte_count)) {
+            resize_buf(total_byte_count);
         }
 
         auto buf = m_buf + m_offset;
@@ -291,9 +294,13 @@ public:
         return m_num_bytes >= m_offset + count;
     }
 
-    inline void resize_buf()
+    inline void resize_buf(size_t byte_count)
     {
-        const auto new_num_bytes = m_num_bytes * GROW_FACTOR;
+        size_t grow_factor = GROW_FACTOR;
+        while (m_offset + byte_count > m_num_bytes * grow_factor) {
+            grow_factor *= 2;
+        }
+        const auto new_num_bytes = m_num_bytes * grow_factor;
         auto buf = new char[new_num_bytes];
 
         memcpy(buf, m_buf, m_offset);
