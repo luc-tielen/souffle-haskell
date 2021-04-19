@@ -5,6 +5,12 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
 
 ## [3.0.0] - Unreleased
 
+### Changed
+
+- Optimized the underlying way of transferring facts between Haskell and C++.
+- Add an extra `Submit a` constraint on `addFacts`, `addFact` and `containsFact`
+  when using compiled mode, similar to `Collect c` when using `getFacts`.
+
 ### Fixed
 
 - Potential memory leak if an async exception occurred between the point of
