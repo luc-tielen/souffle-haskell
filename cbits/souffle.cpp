@@ -319,7 +319,6 @@ private:
     const souffle::Relation& m_relation;
     std::vector<char> m_types;
     size_t m_fact_count;
-    // TODO sample string sizes for more accurate resizing of buf?
     char *m_buf;
     size_t m_num_bytes;
     offset_t m_offset;

@@ -230,7 +230,7 @@ instance MonadPush CMarshalSlow where
   pushTextUtf16 str = pushText $ TS.fromText str
   {-# INLINABLE pushTextUtf16 #-}
   pushText txt = do
-    let bs = TS.toByteString txt  -- is it possible to get rid of this copy?
+    let bs = TS.toByteString txt  -- TODO: is it possible to get rid of this copy?
         len = BS.length bs
     resizeBufWhenNeeded (ramDomainSize + len)
     pushUInt32 (fromIntegral len)
