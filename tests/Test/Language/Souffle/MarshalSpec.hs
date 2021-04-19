@@ -491,6 +491,7 @@ edgeCaseSpecs = describe "edge cases" $ parallel $ do
               facts = [ NoStrings 42 (-100) 1.5
                       , NoStrings 123 (-456) 3.14
                       , NoStrings 789 (-789) 1000.123
+                      , NoStrings 0x12345678 (-1000) 1234.56789
                       ]
           facts' <- addAndGetFacts facts
           facts' `shouldBe` facts
