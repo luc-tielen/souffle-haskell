@@ -162,10 +162,10 @@ instance MonadPop CMarshalFast where
 
 data MarshalState
   = MarshalState
-  { _buf :: ForeignPtr ByteBuf
-  , _ptr :: Ptr ByteBuf
-  , _ptrOffset :: Int
-  , _byteCount :: ByteCount
+  { _buf :: {-# UNPACK #-} !(ForeignPtr ByteBuf)
+  , _ptr :: {-# UNPACK #-} !(Ptr ByteBuf)
+  , _ptrOffset :: {-# UNPACK #-} !Int
+  , _byteCount :: {-# UNPACK #-} !ByteCount
   }
 
 -- | A monad used solely for marshalling from Haskell to Souffle Datalog (C++).
@@ -292,6 +292,8 @@ instance Collect (A.Array Int) where
           collect' array (idx + 1)
   {-# INLINABLE collect #-}
 
+-- | A helper typeclass constraint, needed to serialize Datalog facts from
+--   Haskell to C++.
 type Submit a = ToByteSize (Rep a)
 
 instance MonadSouffle SouffleM where

@@ -92,11 +92,25 @@ getRelation prog relation = withForeignPtr prog $ \ptr ->
   withCString relation $ Bindings.getRelation ptr
 {-# INLINABLE getRelation #-}
 
+{-| Serializes many facts from Datalog to Haskell.
+
+    You need to check if the passed pointers are non-NULL before passing it
+    to this function. Not doing so results in undefined behavior.
+    Passing in a different count of objects to what is actually inside the
+    byte buffer will crash.
+-}
 pushFacts :: Ptr Relation -> Ptr ByteBuf -> Word64 -> IO ()
 pushFacts relation buf x =
   Bindings.pushByteBuf relation buf (CSize x)
 {-# INLINABLE pushFacts #-}
 
+{-| Serializes many facts from Haskell to Datalog.
+
+    You need to check if the passed pointer is non-NULL before passing it
+    to this function. Not doing so results in undefined behavior.
+
+    Returns a pointer to a byte buffer that contains the serialized Datalog facts.
+-}
 popFacts :: Ptr Relation -> IO (ForeignPtr ByteBuf)
 popFacts relation = mask_ $ do
   buf <- Bindings.popByteBuf relation

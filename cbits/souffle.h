@@ -90,10 +90,31 @@ extern "C"
      */
     bool souffle_contains_tuple(relation_t *relation, byte_buf_t *buf);
 
+    /**
+     * Pushes many Datalog facts from Haskell to Datalog.
+     * You need to check if the passed pointers are non-NULL before passing it
+     * to this function. Not doing so results in undefined behavior.
+     * Passing in a different count of objects to what is actually inside the
+     * byte buffer will crash.
+     */
     void souffle_tuple_push_many(relation_t *relation, byte_buf_t *buf, size_t size);
 
+    /**
+     * Pops many Datalog facts from Datalog to Haskell.
+     * You need to check if the passed pointers are non-NULL before passing it
+     * to this function. Not doing so results in undefined behavior.
+     * Passing in a different count of objects to what is actually inside the
+     * byte buffer will crash.
+     *
+     * Returns the byte buffer that contains the serialized Datalog facts.
+     */
     byte_buf_t *souffle_tuple_pop_many(relation_t *relation);
 
+    /**
+     * Frees a previously allocated byte buffer (allocated via C++).
+     * You need to check if the passed pointer is non-NULL before passing it
+     * to this function. Not doing so results in undefined behavior.
+     */
     void souffle_byte_buf_free(byte_buf_t *buf);
 #ifdef __cplusplus
 }

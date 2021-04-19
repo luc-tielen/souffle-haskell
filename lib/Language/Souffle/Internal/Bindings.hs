@@ -110,22 +110,42 @@ foreign import ccall unsafe "souffle_print_all" printAll
 foreign import ccall unsafe "souffle_relation" getRelation
   :: Ptr Souffle -> CString -> IO (Ptr Relation)
 
-{- | Checks if a relation contains a certain tuple.
+{-| Checks if a relation contains a certain tuple.
 
-     You need to check if the passed pointers are non-NULL before passing it
-     to this function. Not doing so results in undefined behavior.
+    You need to check if the passed pointers are non-NULL before passing it
+    to this function. Not doing so results in undefined behavior.
 
-     Returns True if the tuple was found in the relation; otherwise False.
+    Returns True if the tuple was found in the relation; otherwise False.
 -}
 foreign import ccall unsafe "souffle_contains_tuple" containsTuple
   :: Ptr Relation -> Ptr ByteBuf -> IO CBool
 
+{-| Serializes many Datalog facts from Haskell to C++.
+
+    You need to check if the passed pointers are non-NULL before passing it
+    to this function. Not doing so results in undefined behavior.
+    Passing in a different count of objects to what is actually inside the
+    byte buffer will crash.
+-}
 foreign import ccall unsafe "souffle_tuple_push_many" pushByteBuf
   :: Ptr Relation -> Ptr ByteBuf -> CSize -> IO ()
 
+{-| Serializes many Datalog facts from Datalog to Haskell
+
+    You need to check if the passed pointers are non-NULL before passing it
+    to this function. Not doing so results in undefined behavior.
+
+    Returns a pointer to a byte buffer that contains the serialized Datalog facts.
+-}
 foreign import ccall unsafe "souffle_tuple_pop_many" popByteBuf
   :: Ptr Relation -> IO (Ptr ByteBuf)
 
+{-| Frees the memory in use by the pointer, previously allocated by 'popByteBuf'.
+
+    You need to check if the pointer is not equal to 'nullPtr'
+    before passing it to this function. Not doing so results in
+    undefined behavior (in C++).
+-}
 foreign import ccall unsafe "&souffle_byte_buf_free" freeByteBuf
   :: FunPtr (Ptr ByteBuf -> IO ())
 
