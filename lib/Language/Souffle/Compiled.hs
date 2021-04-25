@@ -333,8 +333,8 @@ instance MonadSouffle SouffleM where
   getFacts (Handle prog) = SouffleM $ do
     let relationName = factName (Proxy :: Proxy a)
     relation <- Internal.getRelation prog relationName
-    buf <- Internal.popFacts relation
-    withForeignPtr buf $ runMarshalFastM $ collect =<< popUInt32
+    buf <- withForeignPtr prog $ flip Internal.popFacts relation
+    flip runMarshalFastM buf $ collect =<< popUInt32
   {-# INLINABLE getFacts #-}
 
   findFact :: forall a prog. (Fact a, ContainsOutputFact prog a, Submit a)

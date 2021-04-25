@@ -145,6 +145,7 @@ benchmarks:
       - criterion
     cxx-options:
       - -D__EMBEDDED_SOUFFLE__
+      - -std=c++17
       - -O3 -march=native
     ghc-options:
       - -O2

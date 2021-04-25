@@ -111,10 +111,8 @@ pushFacts relation buf x =
 
     Returns a pointer to a byte buffer that contains the serialized Datalog facts.
 -}
-popFacts :: Ptr Relation -> IO (ForeignPtr ByteBuf)
-popFacts relation = mask_ $ do
-  buf <- Bindings.popByteBuf relation
-  newForeignPtr Bindings.freeByteBuf buf
+popFacts :: Ptr Souffle -> Ptr Relation -> IO (Ptr ByteBuf)
+popFacts = Bindings.popByteBuf
 {-# INLINABLE popFacts #-}
 
 {- | Checks if a relation contains a certain tuple.
