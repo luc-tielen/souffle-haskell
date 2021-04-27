@@ -149,3 +149,4 @@ benchmarks:
       - -O3 -march=native
     ghc-options:
       - -O2
+      - +RTS -N1 -RTS  # Run benchmarks sequentially (parallel is not safe!)
