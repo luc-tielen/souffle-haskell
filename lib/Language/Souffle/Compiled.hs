@@ -156,7 +156,9 @@ instance MonadPop CMarshalFast where
         ptr <- gets castPtr
         bs <- liftIO $ BSU.unsafePackCStringLen (ptr, fromIntegral byteCount)
         put $ ptr `plusPtr` fromIntegral byteCount
-        pure $ TSU.fromShortByteStringUnsafe $ BSS.toShort bs
+        -- NOTE: $! is needed here to force the text value. A copy needs to
+        -- be made (using toShort), before the bytearray is overwritten.
+        pure $! TSU.fromShortByteStringUnsafe $ BSS.toShort bs
   {-# INLINABLE popText #-}
 
 
