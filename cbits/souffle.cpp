@@ -20,8 +20,12 @@ struct buf_data
     char *m_data;
     size_t m_size;
 
-    buf_data(char *buf, size_t size)
-        : m_data(buf), m_size(size) {};
+    buf_data(size_t size)
+        : m_data(new char[size])
+        , m_size(size)
+    {
+        assert(size);
+    };
 
     void resize(size_t num_bytes)
     {
@@ -44,7 +48,8 @@ struct souffle_interface
     buf_data m_buf;
 
     souffle_interface(souffle::SouffleProgram *prog)
-        : m_prog(prog), m_buf(nullptr, 0)
+        : m_prog(prog)
+        , m_buf(4)
     {
         assert(prog);
     };
@@ -206,17 +211,19 @@ struct Serializer
 {
 public:
     inline Serializer(souffle_t *prog, const souffle::Relation& relation)
-        : m_prog(prog)
-        , m_relation(relation)
+        : m_relation(relation)
         , m_types(parse_signature(relation))
+        , m_buf(prog->m_buf)
     {
         auto tuple_size = guess_tuple_size(m_types);
 
         m_fact_count = relation.size();
         m_num_bytes = sizeof(uint32_t) + m_fact_count * tuple_size;
-        // TODO use buf from prog
-        m_buf = new char[m_num_bytes];
         m_offset = 0;
+
+        // NOTE: we need to have atleast `m_num_bytes` large buffer, to make
+        // memcpy later not write beyond the buffer.
+        if (m_num_bytes > m_buf.m_size) m_buf.resize(m_num_bytes);
     }
 
     inline const Serializer& serialize()
@@ -263,7 +270,7 @@ public:
             }
         };
 
-        auto buf = reinterpret_cast<uint32_t*>(m_buf);
+        auto buf = reinterpret_cast<uint32_t*>(m_buf.m_data);
         *buf = m_fact_count;
         m_offset += sizeof(uint32_t);
 
@@ -282,7 +289,7 @@ public:
             resize_buf(byte_count);
         }
 
-        serialize_value<number_t>(tuple, m_buf + m_offset, m_offset);
+        serialize_value<number_t>(tuple, m_buf.m_data + m_offset, m_offset);
     }
 
     inline void serialize_unsigned(souffle::tuple& tuple)
@@ -292,7 +299,7 @@ public:
             resize_buf(byte_count);
         }
 
-        serialize_value<unsigned_t>(tuple, m_buf + m_offset, m_offset);
+        serialize_value<unsigned_t>(tuple, m_buf.m_data + m_offset, m_offset);
     }
 
     inline void serialize_float(souffle::tuple& tuple)
@@ -302,7 +309,7 @@ public:
             resize_buf(byte_count);
         }
 
-        serialize_value<float_t>(tuple, m_buf + m_offset, m_offset);
+        serialize_value<float_t>(tuple, m_buf.m_data + m_offset, m_offset);
     }
 
     inline void serialize_symbol(souffle::tuple& tuple)
@@ -316,7 +323,7 @@ public:
             resize_buf(total_byte_count);
         }
 
-        auto buf = m_buf + m_offset;
+        auto buf = m_buf.m_data + m_offset;
         auto ptr = reinterpret_cast<uint32_t*>(buf);
         *ptr = num_bytes;
 
@@ -338,25 +345,23 @@ public:
             grow_factor *= 2;
         }
         const auto new_num_bytes = m_num_bytes * grow_factor;
-        auto buf = new char[new_num_bytes];
-
-        memcpy(buf, m_buf, m_offset);
-        delete [] m_buf;
-
-        m_buf = buf;
         m_num_bytes = new_num_bytes;
+
+        buf_data new_buf(new_num_bytes);
+        memcpy(new_buf.m_data, m_buf.m_data, m_offset);
+        std::swap(m_buf, new_buf);
     }
 
     inline byte_buf_t *to_buf() const
     {
-        return reinterpret_cast<byte_buf_t*>(m_buf);
+        return reinterpret_cast<byte_buf_t*>(m_buf.m_data);
     }
 
 private:
     const souffle::Relation& m_relation;
     std::vector<char> m_types;
     size_t m_fact_count;
-    char *m_buf;
+    buf_data& m_buf;
     size_t m_num_bytes;
     offset_t m_offset;
 };

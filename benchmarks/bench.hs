@@ -31,8 +31,13 @@ newtype FromDatalogFact
   = FromDatalogFact Int32
   deriving (Generic, NFData)
 
+data FromDatalogStringFact
+  = FromDatalogStringFact Int32 T.Text
+  deriving (Generic, NFData)
+
 instance S.Program Benchmarks where
-  type ProgramFacts Benchmarks = '[NumbersFact, StringsFact, FromDatalogFact]
+  type ProgramFacts Benchmarks =
+      '[NumbersFact, StringsFact, FromDatalogFact, FromDatalogStringFact]
   programName = const "bench"
 
 instance S.Fact NumbersFact where
@@ -47,19 +52,22 @@ instance S.Fact FromDatalogFact where
   type FactDirection FromDatalogFact = 'S.InputOutput
   factName = const "from_datalog_fact"
 
+instance S.Fact FromDatalogStringFact where
+  type FactDirection FromDatalogStringFact = 'S.InputOutput
+  factName = const "from_datalog_string_fact"
+
 instance S.Marshal NumbersFact
 instance S.Marshal StringsFact
 instance S.Marshal FromDatalogFact
+instance S.Marshal FromDatalogStringFact
 
 
--- TODO: uncomment cases with larger numbers (crashes due to large memory allocations?)
+-- TODO: fix cases with larger numbers (crashes due to large memory allocations?)
 main :: IO ()
 main = defaultMain
-  {-
      $ roundTripBenchmarks
     ++ serializationBenchmarks
--}
-    deserializationBenchmarks
+    ++ deserializationBenchmarks
 
 roundTripBenchmarks :: [Benchmark]
 roundTripBenchmarks =
@@ -69,7 +77,7 @@ roundTripBenchmarks =
     , bench "100"    $ nfIO $ roundTrip $ mkVec 100
     , bench "1000"   $ nfIO $ roundTrip $ mkVec 1000
     , bench "10000"  $ nfIO $ roundTrip $ mkVec 10000
-    , bench "100000" $ nfIO $ roundTrip $ mkVec 100000
+    --, bench "100000" $ nfIO $ roundTrip $ mkVec 100000
     ]
   , bgroup "round trip facts (with strings)"
     [ bench "1"      $ nfIO $ roundTrip $ mkVecStr 1
@@ -114,11 +122,12 @@ serializeNumbers iterationCount = S.runSouffle Benchmarks $ \case
 
 deserializeNumbers :: Int -> IO ()
 deserializeNumbers iterationCount = S.runSouffle Benchmarks $ \case
-  Nothing -> liftIO $ print "Failed to load serialize benchmarks!"
-  Just prog -> replicateM_ iterationCount $ do
-    fs <- S.getFacts prog
-    pure (fs :: V.Vector FromDatalogFact)
-    -- No run needed?
+  Nothing -> liftIO $ print "Failed to load deserialize benchmarks!"
+  Just prog -> do
+    S.run prog
+    replicateM_ iterationCount $ do
+      fs <- S.getFacts prog
+      pure (fs :: V.Vector FromDatalogFact)
 
 serializeWithStrings :: Int -> IO ()
 serializeWithStrings iterationCount = S.runSouffle Benchmarks $ \case
@@ -127,6 +136,15 @@ serializeWithStrings iterationCount = S.runSouffle Benchmarks $ \case
     replicateM_ iterationCount $ S.addFacts prog vec
     -- No run needed
   where vec = V.generate 100 $ \i -> StringsFact (fromIntegral i) "abcdef" (-42) 3.14
+
+deserializeWithStrings :: Int -> IO ()
+deserializeWithStrings iterationCount = S.runSouffle Benchmarks $ \case
+  Nothing -> liftIO $ print "Failed to load deserialize benchmarks!"
+  Just prog -> do
+    S.run prog
+    replicateM_ iterationCount $ do
+      fs <- S.getFacts prog
+      pure (fs :: V.Vector FromDatalogStringFact)
 
 serializationBenchmarks :: [Benchmark]
 serializationBenchmarks =
@@ -137,14 +155,13 @@ serializationBenchmarks =
     , bench "1000"   $ nfIO $ serializeNumbers 1000
     , bench "10000"  $ nfIO $ serializeNumbers 10000
     ]
-    -- TODO enable
-  --, bgroup "serializing facts (with strings)"
-    --[ bench "1"      $ nfIO $ serializeWithStrings 1
-    --, bench "10"     $ nfIO $ serializeWithStrings 10
-    --, bench "100"    $ nfIO $ serializeWithStrings 100
-    --, bench "1000"   $ nfIO $ serializeWithStrings 1000
-    --, bench "10000"  $ nfIO $ serializeWithStrings 10000
-    --]
+  , bgroup "serializing facts (with strings)"
+    [ bench "1"      $ nfIO $ serializeWithStrings 1
+    , bench "10"     $ nfIO $ serializeWithStrings 10
+    , bench "100"    $ nfIO $ serializeWithStrings 100
+    , bench "1000"   $ nfIO $ serializeWithStrings 1000
+    , bench "10000"  $ nfIO $ serializeWithStrings 10000
+    ]
   ]
 
 deserializationBenchmarks :: [Benchmark]
@@ -156,12 +173,11 @@ deserializationBenchmarks =
     , bench "1000"   $ nfIO $ deserializeNumbers 1000
     , bench "10000"  $ nfIO $ deserializeNumbers 10000
     ]
-    -- TODO enable
-  --, bgroup "deserializing facts (with strings)"
-    --[ bench "1"      $ nfIO $ deserializeWithStrings 1
-    --, bench "10"     $ nfIO $ deserializeWithStrings 10
-    --, bench "100"    $ nfIO $ deserializeWithStrings 100
-    --, bench "1000"   $ nfIO $ deserializeWithStrings 1000
-    --, bench "10000"  $ nfIO $ deserializeWithStrings 10000
-    --]
+  , bgroup "deserializing facts (with strings)"
+    [ bench "1"      $ nfIO $ deserializeWithStrings 1
+    , bench "10"     $ nfIO $ deserializeWithStrings 10
+    , bench "100"    $ nfIO $ deserializeWithStrings 100
+    , bench "1000"   $ nfIO $ deserializeWithStrings 1000
+    , bench "10000"  $ nfIO $ deserializeWithStrings 10000
+    ]
   ]
