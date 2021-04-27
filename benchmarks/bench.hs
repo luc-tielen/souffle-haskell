@@ -91,7 +91,7 @@ roundTripBenchmarks =
     [ bench "1"      $ nfIO $ roundTrip $ mkVecLongStr 1
     , bench "10"     $ nfIO $ roundTrip $ mkVecLongStr 10
     , bench "100"    $ nfIO $ roundTrip $ mkVecLongStr 100
-    , bench "1000"   $ nfIO $ roundTrip $ mkVecLongStr 1000
+    --, bench "1000"   $ nfIO $ roundTrip $ mkVecLongStr 1000
     --, bench "10000"  $ nfIO $ roundTrip $ mkVecLongStr 10000
     --, bench "100000" $ nfIO $ roundTrip $ mkVecLongStr 100000
     ]
