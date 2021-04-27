@@ -50,7 +50,6 @@ import Data.Int
 import Data.Word
 import Foreign.ForeignPtr
 import Foreign.ForeignPtr.Unsafe
-import Foreign.Marshal.Alloc
 import Foreign (copyBytes)
 import Foreign.Ptr
 import qualified Foreign.Storable as S
@@ -58,11 +57,25 @@ import GHC.Generics
 import Language.Souffle.Class
 import qualified Language.Souffle.Internal as Internal
 import Language.Souffle.Marshal
+import Control.Concurrent
+
+
+type ByteCount = Int
+type ByteBuf = Internal.ByteBuf
+
+-- TODO: rename later
+data BufData
+  = BufData
+  { bufPtr :: {-# UNPACK #-} !(ForeignPtr ByteBuf)
+  , bufSize :: {-# UNPACK #-} !ByteCount
+  }
 
 -- | A datatype representing a handle to a datalog program.
 --   The type parameter is used for keeping track of which program
 --   type the handle belongs to for additional type safety.
-data Handle prog = Handle (ForeignPtr Internal.Souffle)
+data Handle prog
+  = Handle {-# UNPACK #-} !(ForeignPtr Internal.Souffle)
+           (MVar BufData)
 type role Handle nominal
 
 -- | A monad for executing Souffle-related actions in.
@@ -83,12 +96,16 @@ runSouffle :: forall prog a. Program prog
 runSouffle prog action =
   let progName = programName prog
       (SouffleM result) = do
-        handle <- fmap Handle <$> liftIO (Internal.init progName)
-        action handle
+        souffleHandle <- liftIO $ Internal.init progName
+        case souffleHandle of
+          Nothing -> action Nothing
+          Just souffleHandle' -> do
+            --TODO is this ok? no finalizer?
+            bufData <- liftIO $ do
+              ptr <- newForeignPtr_ nullPtr
+              newMVar $ BufData ptr 0
+            action $ Just $ Handle souffleHandle' bufData
    in result
-
-type ByteCount = Int
-type ByteBuf = Internal.ByteBuf
 
 -- | A monad used solely for marshalling and unmarshalling
 --   between Haskell and Souffle Datalog. This fast variant is used when the
@@ -303,36 +320,36 @@ instance MonadSouffle SouffleM where
   type CollectFacts SouffleM c = Collect c
   type SubmitFacts SouffleM a = Submit a
 
-  run (Handle prog) = SouffleM $ Internal.run prog
+  run (Handle prog _) = SouffleM $ Internal.run prog
   {-# INLINABLE run #-}
 
-  setNumThreads (Handle prog) numCores =
+  setNumThreads (Handle prog _) numCores =
     SouffleM $ Internal.setNumThreads prog numCores
   {-# INLINABLE setNumThreads #-}
 
-  getNumThreads (Handle prog) =
+  getNumThreads (Handle prog _) =
     SouffleM $ Internal.getNumThreads prog
   {-# INLINABLE getNumThreads #-}
 
   addFact :: forall a prog. (Fact a, ContainsInputFact prog a, Submit a)
           => Handle prog -> a -> SouffleM ()
-  addFact (Handle prog) fact = liftIO $ do
+  addFact (Handle prog bufVar) fact = liftIO $ do
     let relationName = factName (Proxy :: Proxy a)
     relation <- Internal.getRelation prog relationName
-    writeBytes relation (Identity fact)
+    writeBytes bufVar relation (Identity fact)
   {-# INLINABLE addFact #-}
 
   addFacts :: forall t a prog. (Foldable t, Fact a, ContainsInputFact prog a, Submit a)
            => Handle prog -> t a -> SouffleM ()
-  addFacts (Handle prog) facts = liftIO $ do
+  addFacts (Handle prog bufVar) facts = liftIO $ do
     let relationName = factName (Proxy :: Proxy a)
     relation <- Internal.getRelation prog relationName
-    writeBytes relation facts
+    writeBytes bufVar relation facts
   {-# INLINABLE addFacts #-}
 
   getFacts :: forall a c prog. (Fact a, ContainsOutputFact prog a, Collect c)
            => Handle prog -> SouffleM (c a)
-  getFacts (Handle prog) = SouffleM $ do
+  getFacts (Handle prog _) = SouffleM $ do
     let relationName = factName (Proxy :: Proxy a)
     relation <- Internal.getRelation prog relationName
     buf <- withForeignPtr prog $ flip Internal.popFacts relation
@@ -341,14 +358,21 @@ instance MonadSouffle SouffleM where
 
   findFact :: forall a prog. (Fact a, ContainsOutputFact prog a, Submit a)
            => Handle prog -> a -> SouffleM (Maybe a)
-  findFact (Handle prog) fact = SouffleM $ do
+  findFact (Handle prog bufVar) fact = SouffleM $ do
     let relationName = factName (Proxy :: Proxy a)
     relation <- Internal.getRelation prog relationName
     found <- case estimateNumBytes (Proxy @a) of
-      Exact numBytes ->
-        allocaBytes numBytes $ \ptr -> do
-          runMarshalFastM (push fact) ptr
-          Internal.containsFact relation ptr
+      Exact numBytes -> do
+        modifyMVarMasked bufVar $ \bufData -> do
+          bufData' <- if bufSize bufData > numBytes
+            then pure bufData
+            else do
+              byteArray <- allocateBuf numBytes
+              pure $ BufData byteArray numBytes
+          found <- withForeignPtr (bufPtr bufData') $ \ptr -> do
+            runMarshalFastM (push fact) ptr
+            Internal.containsFact relation ptr
+          pure (bufData', found)
       Estimated numBytes ->
         flip runMarshalSlowM numBytes $ do
           push fact
@@ -359,10 +383,10 @@ instance MonadSouffle SouffleM where
   {-# INLINABLE findFact #-}
 
 instance MonadSouffleFileIO SouffleM where
-  loadFiles (Handle prog) = SouffleM . Internal.loadAll prog
+  loadFiles (Handle prog _) = SouffleM . Internal.loadAll prog
   {-# INLINABLE loadFiles #-}
 
-  writeFiles (Handle prog) = SouffleM . Internal.printAll prog
+  writeFiles (Handle prog _) = SouffleM . Internal.printAll prog
   {-# INLINABLE writeFiles #-}
 
 
@@ -430,12 +454,20 @@ estimateNumBytes _ = toByteSize (Proxy @(Rep a))
 {-# INLINABLE estimateNumBytes #-}
 
 writeBytes :: forall f a. (Foldable f, Marshal a, ToByteSize (Rep a))
-           => Ptr Internal.Relation -> f a -> IO ()
-writeBytes relation fa = case estimateNumBytes (Proxy @a) of
-  Exact numBytes ->
-    allocaBytes (numBytes * objCount) $ \ptr -> do
+           => MVar BufData -> Ptr Internal.Relation -> f a -> IO ()
+writeBytes bufVar relation fa = case estimateNumBytes (Proxy @a) of
+  Exact numBytes -> modifyMVarMasked_ bufVar $ \bufData -> do
+    let totalByteCount = numBytes * objCount
+    bufData' <- if bufSize bufData > totalByteCount
+      then pure bufData
+      else do
+        byteArray <- allocateBuf totalByteCount
+        pure $ BufData byteArray totalByteCount
+    withForeignPtr (bufPtr bufData') $ \ptr -> do
       runMarshalFastM (traverse_ push fa) ptr
       Internal.pushFacts relation ptr (fromIntegral objCount)
+    pure bufData'
+
   Estimated numBytes ->
     flip runMarshalSlowM (numBytes * objCount) $ do
       traverse_ push fa
