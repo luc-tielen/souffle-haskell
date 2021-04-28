@@ -63,7 +63,6 @@ import Control.Concurrent
 type ByteCount = Int
 type ByteBuf = Internal.ByteBuf
 
--- TODO: rename later
 data BufData
   = BufData
   { bufPtr :: {-# UNPACK #-} !(ForeignPtr ByteBuf)
@@ -75,7 +74,7 @@ data BufData
 --   type the handle belongs to for additional type safety.
 data Handle prog
   = Handle {-# UNPACK #-} !(ForeignPtr Internal.Souffle)
-           (MVar BufData)
+           {-# UNPACK #-} !(MVar BufData)
 type role Handle nominal
 
 -- | A monad for executing Souffle-related actions in.
@@ -96,16 +95,16 @@ runSouffle :: forall prog a. Program prog
 runSouffle prog action =
   let progName = programName prog
       (SouffleM result) = do
-        souffleHandle <- liftIO $ Internal.init progName
-        case souffleHandle of
-          Nothing -> action Nothing
-          Just souffleHandle' -> do
-            --TODO is this ok? no finalizer?
+        maybeHandle <- liftIO (Internal.init progName) >>= \case
+          Nothing -> pure Nothing
+          Just souffleHandle -> do
             bufData <- liftIO $ do
               ptr <- newForeignPtr_ nullPtr
               newMVar $ BufData ptr 0
-            action $ Just $ Handle souffleHandle' bufData
+            pure $ Just $ Handle souffleHandle bufData
+        action maybeHandle
    in result
+{-# INLINABLE runSouffle #-}
 
 -- | A monad used solely for marshalling and unmarshalling
 --   between Haskell and Souffle Datalog. This fast variant is used when the
@@ -197,9 +196,7 @@ runMarshalSlowM :: BufData -> Int -> CMarshalSlow a -> IO a
 runMarshalSlowM bufData byteCount (CMarshalSlow m) = do
   bufData' <- if bufSize bufData > byteCount
     then pure bufData
-    else do
-      byteArray <- allocateBuf byteCount
-      pure $ BufData byteArray byteCount
+    else flip BufData byteCount <$> allocateBuf byteCount
   let ptr = unsafeForeignPtrToPtr (bufPtr bufData')
   evalStateT m $ MarshalState bufData' ptr 0
 {-# INLINABLE runMarshalSlowM #-}
@@ -371,9 +368,7 @@ instance MonadSouffle SouffleM where
         modifyMVarMasked bufVar $ \bufData -> do
           bufData' <- if bufSize bufData > numBytes
             then pure bufData
-            else do
-              byteArray <- allocateBuf numBytes
-              pure $ BufData byteArray numBytes
+            else flip BufData numBytes <$> allocateBuf numBytes
           found <- withForeignPtr (bufPtr bufData') $ \ptr -> do
             runMarshalFastM (push fact) ptr
             Internal.containsFact relation ptr
@@ -466,9 +461,7 @@ writeBytes bufVar relation fa = case estimateNumBytes (Proxy @a) of
     let totalByteCount = numBytes * objCount
     bufData' <- if bufSize bufData > totalByteCount
       then pure bufData
-      else do
-        byteArray <- allocateBuf totalByteCount
-        pure $ BufData byteArray totalByteCount
+      else flip BufData totalByteCount <$> allocateBuf totalByteCount
     withForeignPtr (bufPtr bufData') $ \ptr -> do
       runMarshalFastM (traverse_ push fa) ptr
       Internal.pushFacts relation ptr (fromIntegral objCount)
