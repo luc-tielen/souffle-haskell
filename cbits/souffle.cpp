@@ -4,6 +4,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <memory>
 
 #ifndef ESTIMATED_AVERAGE_STRING_SIZE
 #define ESTIMATED_AVERAGE_STRING_SIZE 32
@@ -12,9 +13,64 @@
 #define GROW_FACTOR 2
 #endif
 
-namespace helpers
+extern "C"
 {
 
+struct buf_data
+{
+private:
+    std::unique_ptr<char[]> m_data;
+    size_t m_size;
+
+public:
+    buf_data(size_t size)
+        : m_data(std::make_unique<char[]>(size))
+        , m_size(size)
+    {
+        assert(size);
+    };
+
+    void resize(size_t num_bytes)
+    {
+        m_data = std::make_unique<char[]>(num_bytes);
+        m_size = num_bytes;
+    }
+
+    auto size() const
+    {
+        return m_size;
+    }
+
+    auto data() const
+    {
+        return m_data.get();
+    }
+};
+
+struct souffle_interface
+{
+    std::unique_ptr<souffle::SouffleProgram> m_prog;
+    buf_data m_buf;
+
+    souffle_interface(souffle::SouffleProgram *prog)
+        : m_prog(prog)
+        , m_buf(4)
+    {
+        assert(prog);
+    };
+
+    char *get_buf(size_t num_bytes)
+    {
+        if (num_bytes > m_buf.size()) m_buf.resize(num_bytes);
+
+        return m_buf.data();
+    }
+};
+
+}
+
+namespace helpers
+{
 inline auto parse_signature(const souffle::Relation& relation)
 {
     const auto arity = relation.getArity();
@@ -154,16 +210,20 @@ inline auto guess_tuple_size(const std::vector<char>& types)
 struct Serializer
 {
 public:
-    inline Serializer(const souffle::Relation& relation)
+    inline Serializer(souffle_t *prog, const souffle::Relation& relation)
         : m_relation(relation)
         , m_types(parse_signature(relation))
+        , m_buf(prog->m_buf)
     {
         auto tuple_size = guess_tuple_size(m_types);
 
         m_fact_count = relation.size();
         m_num_bytes = sizeof(uint32_t) + m_fact_count * tuple_size;
-        m_buf = new char[m_num_bytes];
         m_offset = 0;
+
+        // NOTE: we need to have atleast `m_num_bytes` large buffer, to make
+        // memcpy later not write beyond the buffer.
+        if (m_num_bytes > m_buf.size()) m_buf.resize(m_num_bytes);
     }
 
     inline const Serializer& serialize()
@@ -210,7 +270,7 @@ public:
             }
         };
 
-        auto buf = reinterpret_cast<uint32_t*>(m_buf);
+        auto buf = reinterpret_cast<uint32_t*>(m_buf.data());
         *buf = m_fact_count;
         m_offset += sizeof(uint32_t);
 
@@ -229,7 +289,7 @@ public:
             resize_buf(byte_count);
         }
 
-        serialize_value<number_t>(tuple, m_buf + m_offset, m_offset);
+        serialize_value<number_t>(tuple, m_buf.data() + m_offset, m_offset);
     }
 
     inline void serialize_unsigned(souffle::tuple& tuple)
@@ -239,7 +299,7 @@ public:
             resize_buf(byte_count);
         }
 
-        serialize_value<unsigned_t>(tuple, m_buf + m_offset, m_offset);
+        serialize_value<unsigned_t>(tuple, m_buf.data() + m_offset, m_offset);
     }
 
     inline void serialize_float(souffle::tuple& tuple)
@@ -249,7 +309,7 @@ public:
             resize_buf(byte_count);
         }
 
-        serialize_value<float_t>(tuple, m_buf + m_offset, m_offset);
+        serialize_value<float_t>(tuple, m_buf.data() + m_offset, m_offset);
     }
 
     inline void serialize_symbol(souffle::tuple& tuple)
@@ -263,7 +323,7 @@ public:
             resize_buf(total_byte_count);
         }
 
-        auto buf = m_buf + m_offset;
+        auto buf = m_buf.data() + m_offset;
         auto ptr = reinterpret_cast<uint32_t*>(buf);
         *ptr = num_bytes;
 
@@ -285,36 +345,34 @@ public:
             grow_factor *= 2;
         }
         const auto new_num_bytes = m_num_bytes * grow_factor;
-        auto buf = new char[new_num_bytes];
-
-        memcpy(buf, m_buf, m_offset);
-        delete [] m_buf;
-
-        m_buf = buf;
         m_num_bytes = new_num_bytes;
+
+        buf_data new_buf(new_num_bytes);
+        memcpy(new_buf.data(), m_buf.data(), m_offset);
+        std::swap(m_buf, new_buf);
     }
 
     inline byte_buf_t *to_buf() const
     {
-        return reinterpret_cast<byte_buf_t*>(m_buf);
+        return reinterpret_cast<byte_buf_t*>(m_buf.data());
     }
 
 private:
     const souffle::Relation& m_relation;
     std::vector<char> m_types;
     size_t m_fact_count;
-    char *m_buf;
+    buf_data& m_buf;
     size_t m_num_bytes;
     offset_t m_offset;
 };
 
-inline byte_buf_t *serialize_slow(const souffle::Relation& relation)
+inline byte_buf_t *serialize_slow(souffle_t *prog, const souffle::Relation& relation)
 {
-    Serializer s(relation);
+    Serializer s(prog, relation);
     return s.serialize().to_buf();
 }
 
-inline byte_buf_t *serialize_fast(const souffle::Relation& relation)
+inline byte_buf_t *serialize_fast(souffle_t *prog, const souffle::Relation& relation)
 {
     const auto types = parse_signature(relation);
     const auto serialize = types_to_serializer(types);
@@ -322,7 +380,7 @@ inline byte_buf_t *serialize_fast(const souffle::Relation& relation)
     const auto fact_count = relation.size();
     const auto tuple_size = guess_tuple_size(types);
     const auto num_bytes = sizeof(uint32_t) + fact_count * tuple_size;
-    auto buf = new char[num_bytes];
+    auto buf = prog->get_buf(num_bytes);
     const auto start_ptr = buf;
 
     offset_t offset = 0;
@@ -346,59 +404,52 @@ extern "C"
     souffle_t *souffle_init(const char *progName)
     {
         auto prog = souffle::ProgramFactory::newInstance(progName);
-        return reinterpret_cast<souffle_t *>(prog);
+        return prog ? new souffle_interface(prog) : nullptr;
     }
 
     void souffle_free(souffle_t *program)
     {
-        auto prog = reinterpret_cast<souffle::SouffleProgram *>(program);
-        assert(prog);
-        delete prog;
+        assert(program);
+        delete program;
     }
 
     void souffle_set_num_threads(souffle_t *program, size_t num_cores)
     {
-        auto prog = reinterpret_cast<souffle::SouffleProgram *>(program);
-        assert(prog);
-        prog->setNumThreads(num_cores);
+        assert(program);
+        program->m_prog->setNumThreads(num_cores);
     }
 
     size_t souffle_get_num_threads(souffle_t *program)
     {
-        auto prog = reinterpret_cast<souffle::SouffleProgram *>(program);
-        assert(prog);
-        return prog->getNumThreads();
+        assert(program);
+        return program->m_prog->getNumThreads();
     }
 
     void souffle_run(souffle_t *program)
     {
-        auto prog = reinterpret_cast<souffle::SouffleProgram *>(program);
-        assert(prog);
-        prog->run();
+        assert(program);
+        program->m_prog->run();
     }
 
     void souffle_load_all(souffle_t *program, const char *input_directory)
     {
-        auto prog = reinterpret_cast<souffle::SouffleProgram *>(program);
-        assert(prog);
+        assert(program);
         assert(input_directory);
-        prog->loadAll(input_directory);
+        program->m_prog->loadAll(input_directory);
     }
 
     void souffle_print_all(souffle_t *program, const char *output_directory)
     {
-        auto prog = reinterpret_cast<souffle::SouffleProgram *>(program);
-        assert(prog);
+        assert(program);
         assert(output_directory);
-        prog->printAll(output_directory);
+        program->m_prog->printAll(output_directory);
     }
 
     relation_t *souffle_relation(souffle_t *program, const char *relation_name)
     {
-        auto prog = reinterpret_cast<souffle::SouffleProgram *>(program);
-        assert(prog);
+        assert(program);
         assert(relation_name);
-        auto relation = prog->getRelation(relation_name);
+        auto relation = program->m_prog->getRelation(relation_name);
         assert(relation);
         return reinterpret_cast<relation_t *>(relation);
     }
@@ -440,20 +491,14 @@ extern "C"
         }
     }
 
-    byte_buf_t *souffle_tuple_pop_many(relation_t *rel)
+    byte_buf_t *souffle_tuple_pop_many(souffle_t *prog, relation_t *rel)
     {
         auto relation = reinterpret_cast<souffle::Relation*>(rel);
+        assert(prog && "Program is NULL in souffle_tuple_pop_many");
         assert(relation && "Relation is NULL in souffle_tuple_pop_many");
         auto& r = *relation;
         return helpers::relation_contains_strings(r)
-            ? helpers::serialize_slow(r)
-            : helpers::serialize_fast(r);
-    }
-
-    void souffle_byte_buf_free(byte_buf_t *buf)
-    {
-        auto data = reinterpret_cast<char*>(buf);
-        assert(data && "byte buf should not be NULL");
-        delete[] data;
+            ? helpers::serialize_slow(prog, r)
+            : helpers::serialize_fast(prog, r);
     }
 }

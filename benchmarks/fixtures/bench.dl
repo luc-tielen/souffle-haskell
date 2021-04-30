@@ -8,3 +8,17 @@
 .decl strings_fact(u: unsigned, s: symbol, n: number, f: float)
 .input strings_fact
 .output strings_fact
+
+.decl from_datalog_fact(u: unsigned)
+.output from_datalog_fact
+
+.decl from_datalog_string_fact(u: unsigned, s: symbol)
+.output from_datalog_string_fact
+
+from_datalog_fact(0).
+from_datalog_fact(x + 1) :-
+  from_datalog_fact(x),
+  x < 100.
+
+from_datalog_string_fact(x, "abcdef") :-
+  from_datalog_fact(x).
