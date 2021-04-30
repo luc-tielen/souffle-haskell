@@ -5,8 +5,7 @@
 module Language.Souffle.Internal.Bindings
   ( Souffle
   , Relation
-  , RelationIterator
-  , Tuple
+  , ByteBuf
   , init
   , free
   , setNumThreads
@@ -15,22 +14,9 @@ module Language.Souffle.Internal.Bindings
   , loadAll
   , printAll
   , getRelation
-  , getTupleCount
-  , getRelationIterator
-  , freeRelationIterator
-  , relationIteratorNext
-  , allocTuple
-  , freeTuple
-  , addTuple
+  , pushByteBuf
+  , popByteBuf
   , containsTuple
-  , tuplePushInt32
-  , tuplePushUInt32
-  , tuplePushString
-  , tuplePushFloat
-  , tuplePopInt32
-  , tuplePopUInt32
-  , tuplePopString
-  , tuplePopFloat
   ) where
 
 import Prelude hiding ( init )
@@ -46,13 +32,8 @@ data Souffle
 -- | A void type, used for tagging a pointer that points to a relation.
 data Relation
 
--- | A void type, used for tagging a pointer that points to an
---   iterator used for iterating over a relation.
-data RelationIterator
-
--- | A void type, used for tagging a pointer that points to a tuple
---   (term used in the Souffle compiler for a fact).
-data Tuple
+-- | A void type, used for tagging a pointer that points to a raw bytearray.
+data ByteBuf
 
 
 {- | Initializes a Souffle program.
@@ -128,187 +109,33 @@ foreign import ccall unsafe "souffle_print_all" printAll
 foreign import ccall unsafe "souffle_relation" getRelation
   :: Ptr Souffle -> CString -> IO (Ptr Relation)
 
-{-| Gets the amount of tuples found in a relation.
+{-| Checks if a relation contains a certain tuple.
 
-    You need to check if both passed pointers are not equal to 'nullPtr' before
-    passing it to this function. Not doing so results in undefined behavior (in C++).
+    You need to check if the passed pointers are non-NULL before passing it
+    to this function. Not doing so results in undefined behavior.
 
-    Returns the amount of tuples found in a relation.
--}
-foreign import ccall unsafe "souffle_relation_tuple_count" getTupleCount
-  :: Ptr Relation -> IO CSize
-
-{-| Create an iterator for iterating over the facts of a relation.
-
-    You need to check if the passed pointer is not equal to 'nullPtr' before
-    passing it to this function. Not doing so results in undefined behavior (in C++).
-
-    The returned pointer needs to be freed with 'freeRelationIterator'
-    after it is no longer needed.
--}
-foreign import ccall unsafe "souffle_relation_iterator" getRelationIterator
-  :: Ptr Relation -> IO (Ptr RelationIterator)
-
-{-| Frees a pointer previously allocated with 'getRelationIterator'.
-
-    You need to check if the passed pointer is not equal to 'nullPtr' before
-    passing it to this function. Not doing so results in undefined behavior (in C++).
--}
-foreign import ccall unsafe "&souffle_relation_iterator_free" freeRelationIterator
-  :: FunPtr (Ptr RelationIterator -> IO ())
-
-{-| Advances the relation iterator by 1 position.
-
-    You need to check if the passed pointer is not equal to 'nullPtr' before
-    passing it to this function. Not doing so results in undefined behavior (in C++).
-
-    Calling this function when there are no more tuples to be returned
-    will result in a crash.
-
-    Returns a pointer to the next tuple. This pointer is not allowed to be freed
-    as it is managed by the Souffle program already.
--}
-foreign import ccall unsafe "souffle_relation_iterator_next" relationIteratorNext
-  :: Ptr RelationIterator -> IO (Ptr Tuple)
-
-{-| Allocates memory for a tuple (fact) to be added to a relation.
-
-    You need to check if the passed pointer is not equal to 'nullPtr' before
-    passing it to this function. Not doing so results in undefined behavior (in C++).
-
-    Returns a pointer to a new tuple. Use 'freeTuple' when the tuple
-    is no longer required.
--}
-foreign import ccall unsafe "souffle_tuple_alloc" allocTuple
-  :: Ptr Relation -> IO (Ptr Tuple)
-
-{-| Frees memory of a tuple that was previously allocated (in Haskell).
-
-    You need to check if the passed pointer is not equal to 'nullPtr' before
-    passing it to this function. Not doing so results in undefined behavior (in C++).
--}
-foreign import ccall unsafe "&souffle_tuple_free" freeTuple
-  :: FunPtr (Ptr Tuple -> IO ())
-
-{-| Adds a tuple to a relation.
-
-    You need to check if both passed pointers are not equal to 'nullPtr' before
-    passing it to this function. Not doing so results in undefined behavior (in C++).
--}
-foreign import ccall unsafe "souffle_tuple_add" addTuple
-  :: Ptr Relation -> Ptr Tuple -> IO ()
-
-{- | Checks if a relation contains a certain tuple.
-
-     You need to check if the passed pointers are non-NULL before passing it
-     to this function. Not doing so results in undefined behavior.
-
-     Returns True if the tuple was found in the relation; otherwise False.
+    Returns True if the tuple was found in the relation; otherwise False.
 -}
 foreign import ccall unsafe "souffle_contains_tuple" containsTuple
-  :: Ptr Relation -> Ptr Tuple -> IO CBool
+  :: Ptr Relation -> Ptr ByteBuf -> IO CBool
 
-{-| Pushes a 32 bit signed integer value into a tuple.
+{-| Serializes many Datalog facts from Haskell to C++.
 
-    You need to check if the passed pointer is not equal to 'nullPtr' before
-    passing it to this function. Not doing so results in undefined behavior (in C++).
-
-    Pushing an integer value onto a tuple that expects another type results
-    in a crash. Pushing a value into a tuple when it already is "full"
-    also results in a crash.
+    You need to check if the passed pointers are non-NULL before passing it
+    to this function. Not doing so results in undefined behavior.
+    Passing in a different count of objects to what is actually inside the
+    byte buffer will crash.
 -}
-foreign import ccall unsafe "souffle_tuple_push_int32" tuplePushInt32
-  :: Ptr Tuple -> CInt -> IO ()
+foreign import ccall unsafe "souffle_tuple_push_many" pushByteBuf
+  :: Ptr Relation -> Ptr ByteBuf -> CSize -> IO ()
 
-{-| Pushes a 32 bit unsigned integer value into a tuple.
+{-| Serializes many Datalog facts from Datalog to Haskell
 
-    You need to check if the passed pointer is not equal to 'nullPtr' before
-    passing it to this function. Not doing so results in undefined behavior (in C++).
-
-    Pushing an integer value onto a tuple that expects another type results
-    in a crash. Pushing a value into a tuple when it already is "full"
-    also results in a crash.
--}
-foreign import ccall unsafe "souffle_tuple_push_uint32" tuplePushUInt32
-  :: Ptr Tuple -> CUInt -> IO ()
-
-{-| Pushes a float value into a tuple.
-
-    You need to check if the passed pointer is not equal to 'nullPtr' before
-    passing it to this function. Not doing so results in undefined behavior (in C++).
-
-    Pushing a float value onto a tuple that expects another type results
-    in a crash. Pushing a value into a tuple when it already is "full"
-    also results in a crash.
--}
-foreign import ccall unsafe "souffle_tuple_push_float" tuplePushFloat
-  :: Ptr Tuple -> CFloat -> IO ()
-
-{-| Pushes a string value into a tuple.
-
-    You need to check if the passed pointer is not equal to 'nullPtr' before
-    passing it to this function. Not doing so results in undefined behavior (in C++).
-
-    Pushing a string value onto a tuple that expects another type results
-    in a crash. Pushing a value into a tuple when it already is "full"
-    also results in a crash.
--}
-foreign import ccall unsafe "souffle_tuple_push_string" tuplePushString
-  :: Ptr Tuple -> CString -> IO ()
-
-{-| Extracts a 32 bit signed integer value from a tuple.
-
-    You need to check if the passed pointer is not equal to 'nullPtr' before passing it
+    You need to check if the passed pointers are non-NULL before passing it
     to this function. Not doing so results in undefined behavior.
 
-    Extracting an integer value from a tuple that expects another type results
-    in a crash. Extracting a value from a tuple when it is already "empty"
-    also results in a crash.
-
-    The popped integer will be stored in the pointer that is passed in.
+    Returns a pointer to a byte buffer that contains the serialized Datalog facts.
 -}
-foreign import ccall unsafe "souffle_tuple_pop_int32" tuplePopInt32
-  :: Ptr Tuple -> Ptr CInt -> IO ()
-
-{-| Extracts a 32 bit unsigned integer value from a tuple.
-
-    You need to check if the passed pointer is not equal to 'nullPtr' before passing it
-    to this function. Not doing so results in undefined behavior.
-
-    Extracting an integer value from a tuple that expects another type results
-    in a crash. Extracting a value from a tuple when it is already "empty"
-    also results in a crash.
-
-    The popped integer will be stored in the pointer that is passed in.
--}
-foreign import ccall unsafe "souffle_tuple_pop_uint32" tuplePopUInt32
-  :: Ptr Tuple -> Ptr CUInt -> IO ()
-
-{-| Extracts a float value from a tuple.
-
-    You need to check if the passed pointer is not equal to 'nullPtr' before passing it
-    to this function. Not doing so results in undefined behavior.
-
-    Extracting a float value from a tuple that expects another type results
-    in a crash. Extracting a value from a tuple when it is already "empty"
-    also results in a crash.
-
-    The popped float will be stored in the pointer that is passed in.
--}
-foreign import ccall unsafe "souffle_tuple_pop_float" tuplePopFloat
-  :: Ptr Tuple -> Ptr CFloat -> IO ()
-
-{-| Extracts a string value from a tuple.
-
-    You need to check if the passed pointer is not equal to 'nullPtr' before passing it
-    to this function. Not doing so results in undefined behavior.
-
-    Extracting a string value from a tuple that expects another type results
-    in a crash. Extracting a value from a tuple when it is already "empty"
-    also results in a crash.
-
-    The popped string will be stored in the result pointer.
--}
-foreign import ccall unsafe "souffle_tuple_pop_string" tuplePopString
-  :: Ptr Tuple -> Ptr CString -> IO ()
+foreign import ccall unsafe "souffle_tuple_pop_many" popByteBuf
+  :: Ptr Souffle -> Ptr Relation -> IO (Ptr ByteBuf)
 

@@ -13,10 +13,8 @@ extern "C"
     typedef struct souffle_interface souffle_t;
     // Opaque struct representing a Souffle relation
     typedef struct relation relation_t;
-    // Opaque struct representing an iterator to a Souffle relation
-    typedef struct relation_iterator relation_iterator_t;
-    // Opaque struct representing a Souffle tuple (fact).
-    typedef struct tuple tuple_t;
+    // Opaque struct representing a byte array filled with data.
+    typedef struct byte_buf byte_buf_t;
 
     /*
      * Initializes a Souffle program. The name of the program should be the
@@ -84,159 +82,33 @@ extern "C"
     relation_t *souffle_relation(souffle_t *program, const char *relation_name);
 
     /*
-     * Gets the amount of tuples found in a relation.
-     * You need to check if the passed pointer is non-NULL before passing it
-     * to this function. Not doing so results in undefined behavior.
-     *
-     * Returns the amount of tuples found in a relation.
-     */
-    size_t souffle_relation_tuple_count(relation_t *relation);
-
-    /*
-     * Create an iterator for iterating over the facts of a relation.
-     * You need to check if the passed pointer is non-NULL before passing it
-     * to this function. Not doing so results in undefined behavior.
-     *
-     * The returned pointer needs to be freed up with
-     * "souffle_relation_iterator_free" after it is no longer needed.
-     */
-    relation_iterator_t *souffle_relation_iterator(relation_t *relation);
-
-    /*
-     * Frees a relation_iterator pointer.
-     * You need to check if the passed pointer is non-NULL before passing it
-     * to this function. Not doing so results in undefined behavior.
-     */
-    void souffle_relation_iterator_free(relation_iterator_t *iterator);
-
-    /*
-     * Advances the relation iterator by 1 position.
-     * You need to check if the passed pointer is non-NULL before passing it
-     * to this function. Not doing so results in undefined behavior.
-     * Calling this function when there are no more tuples to be returned
-     * will result in a crash.
-     *
-     * Returns a pointer to the next record. This pointer is not allowed to be freed.
-     */
-    tuple_t *souffle_relation_iterator_next(relation_iterator_t *iterator);
-
-    /*
      * Checks if a relation contains a certain tuple.
      * You need to check if the passed pointers are non-NULL before passing it
      * to this function. Not doing so results in undefined behavior.
      *
      * Returns true if the tuple was found in the relation; otherwise false.
      */
-    bool souffle_contains_tuple(relation_t *relation, tuple_t *tuple);
+    bool souffle_contains_tuple(relation_t *relation, byte_buf_t *buf);
 
-    /*
-     * Allocates memory for a tuple to be added to a relation.
-     * You need to check if the passed pointer is non-NULL before passing it
+    /**
+     * Pushes many Datalog facts from Haskell to Datalog.
+     * You need to check if the passed pointers are non-NULL before passing it
+     * to this function. Not doing so results in undefined behavior.
+     * Passing in a different count of objects to what is actually inside the
+     * byte buffer will crash.
+     */
+    void souffle_tuple_push_many(relation_t *relation, byte_buf_t *buf, size_t size);
+
+    /**
+     * Pops many Datalog facts from Datalog to Haskell.
+     * You need to check if the passed pointers are non-NULL before passing it
      * to this function. Not doing so results in undefined behavior.
      *
-     * Returns a pointer to a new tuple. Use "souffle_tuple_free" when tuple
-     * is no longer required.
+     * Returns the byte buffer that contains the serialized Datalog facts.
+     * This byte buffer is automatically managed by the C++ side and does not
+     * need to be cleaned up.
      */
-    tuple_t *souffle_tuple_alloc(relation_t *relation);
-
-    /*
-     * Frees memory of a tuple that was previously allocated.
-     * You need to check if the passed pointer is non-NULL before passing it
-     * to this function. Not doing so results in undefined behavior.
-     */
-    void souffle_tuple_free(tuple_t *tuple);
-
-    /*
-     * Adds a tuple to a relation.
-     * You need to check if both passed pointers are non-NULL before passing it
-     * to this function. Not doing so results in undefined behavior.
-     */
-    void souffle_tuple_add(relation_t *relation, tuple_t *tuple);
-
-    /*
-     * Pushes a 32 bit signed integer value into a tuple.
-     * You need to check if the passed pointer is non-NULL before passing it
-     * to this function. Not doing so results in undefined behavior.
-     *
-     * Pushing an integer value onto a tuple that expects another type results
-     * in a crash.
-     */
-    void souffle_tuple_push_int32(tuple_t *tuple, int32_t value);
-
-    /*
-     * Pushes a 32 bit unsigned integer value into a tuple.
-     * You need to check if the passed pointer is non-NULL before passing it
-     * to this function. Not doing so results in undefined behavior.
-     *
-     * Pushing an integer value onto a tuple that expects another type results
-     * in a crash.
-     */
-    void souffle_tuple_push_uint32(tuple_t *tuple, uint32_t value);
-
-    /*
-     * Pushes a float value into a tuple.
-     * You need to check if the passed pointer is non-NULL before passing it
-     * to this function. Not doing so results in undefined behavior.
-     *
-     * Pushing a float value onto a tuple that expects another type results
-     * in a crash.
-     */
-    void souffle_tuple_push_float(tuple_t *tuple, float value);
-
-    /*
-     * Pushes a string value into a tuple.
-     * You need to check if the passed pointer is non-NULL before passing it
-     * to this function. Not doing so results in undefined behavior.
-     *
-     * Pushing a string value onto a tuple that expects another type results
-     * in a crash.
-     */
-    void souffle_tuple_push_string(tuple_t *tuple, const char *value);
-
-    /*
-     * Extracts a 32 bit signed integer value from a tuple.
-     * You need to check if the passed pointer is non-NULL before passing it
-     * to this function. Not doing so results in undefined behavior.
-     *
-     * Extracting an integer value from a tuple that expects another type results
-     * in a crash.
-     * The popped integer will be stored in the result pointer.
-     */
-    void souffle_tuple_pop_int32(tuple_t *tuple, int32_t *result);
-
-    /*
-     * Extracts a 32 bit unsigned integer value from a tuple.
-     * You need to check if the passed pointer is non-NULL before passing it
-     * to this function. Not doing so results in undefined behavior.
-     *
-     * Extracting an integer value from a tuple that expects another type results
-     * in a crash.
-     * The popped integer will be stored in the result pointer.
-     */
-    void souffle_tuple_pop_uint32(tuple_t *tuple, uint32_t *result);
-
-    /*
-     * Extracts a float value from a tuple.
-     * You need to check if the passed pointer is non-NULL before passing it
-     * to this function. Not doing so results in undefined behavior.
-     *
-     * Extracting a float value from a tuple that expects another type results
-     * in a crash.
-     * The popped integer will be stored in the result pointer.
-     */
-    void souffle_tuple_pop_float(tuple_t *tuple, float *result);
-
-    /*
-     * Extracts a string value from a tuple.
-     * You need to check if the passed pointer is non-NULL before passing it
-     * to this function. Not doing so results in undefined behavior.
-     *
-     * Extracting a string value from a tuple that expects another type results
-     * in a crash.
-     * The popped string will be stored in the result pointer.
-     */
-    void souffle_tuple_pop_string(tuple_t *tuple, char **result);
-
+    byte_buf_t *souffle_tuple_pop_many(souffle_t *program, relation_t *relation);
 #ifdef __cplusplus
 }
 #endif

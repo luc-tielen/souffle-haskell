@@ -16,6 +16,7 @@ import GHC.Generics
 import Data.Int
 import Data.Word
 import qualified Data.Text as T
+import qualified Data.Text.Short as TS
 import qualified Data.Text.Lazy as TL
 import qualified Language.Souffle.Internal.Constraints as C
 
@@ -34,6 +35,10 @@ class Monad m => MonadPush m where
   pushFloat :: Float -> m ()
   -- | Marshals a string to the datalog side.
   pushString :: String -> m ()
+  -- | Marshals a UTF8-encoded Text string to the datalog side.
+  pushText :: TS.ShortText -> m ()
+  -- | Marshals a UTF16-encoded Text string to the datalog side.
+  pushTextUtf16 :: T.Text -> m ()
 
 {- | A typeclass for serializing primitive values from Datalog to Haskell.
 
@@ -50,6 +55,10 @@ class Monad m => MonadPop m where
   popFloat :: m Float
   -- | Unmarshals a string from the datalog side.
   popString :: m String
+  -- | Unmarshals a Text string from the datalog side.
+  popText :: m TS.ShortText
+  -- | Unmarshals a UTF16-encoded Text string from the datalog side.
+  popTextUtf16 :: m T.Text
 
 {- | A typeclass for providing a uniform API to marshal/unmarshal values
      between Haskell and Souffle datalog.
@@ -111,16 +120,22 @@ instance Marshal String where
   pop = popString
   {-# INLINABLE pop #-}
 
-instance Marshal T.Text where
-  push = push . T.unpack
+instance Marshal TS.ShortText where
+  push = pushText
   {-# INLINABLE push #-}
-  pop = T.pack <$> pop
+  pop = popText
+  {-# INLINABLE pop #-}
+
+instance Marshal T.Text where
+  push = pushTextUtf16
+  {-# INLINABLE push #-}
+  pop = popTextUtf16
   {-# INLINABLE pop #-}
 
 instance Marshal TL.Text where
-  push = push . TL.unpack
+  push = push . TL.toStrict
   {-# INLINABLE push #-}
-  pop = TL.pack <$> pop
+  pop = TL.fromStrict <$> pop
   {-# INLINABLE pop #-}
 
 class GMarshal f where
