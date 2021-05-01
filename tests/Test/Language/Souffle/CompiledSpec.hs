@@ -54,6 +54,27 @@ spec = describe "Souffle API" $ parallel $ do
       isJust prog `shouldBe` True
 
   describe "getFacts" $ parallel $ do
+    it "doesn't crash if used as last action (lists)" $ do
+      edges <- Souffle.runSouffle Path $ \handle -> do
+        let prog = fromJust handle
+        Souffle.run prog
+        Souffle.getFacts prog
+      edges `shouldBe` [Edge "b" "c", Edge "a" "b"]
+
+    it "doesn't crash if used as last action (vectors)" $ do
+      edges <- Souffle.runSouffle Path $ \handle -> do
+        let prog = fromJust handle
+        Souffle.run prog
+        Souffle.getFacts prog
+      edges `shouldBe` V.fromList [Edge "a" "b", Edge "b" "c"]
+
+    it "doesn't crash if used as last action (arrays)" $ do
+      edges <- Souffle.runSouffle Path $ \handle -> do
+        let prog = fromJust handle
+        Souffle.run prog
+        Souffle.getFacts prog
+      edges `shouldBe` A.listArray (0 :: Int, 1) [Edge "a" "b", Edge "b" "c"]
+
     it "can retrieve facts as a list" $ do
       (edges, reachables) <- Souffle.runSouffle Path $ \handle -> do
         let prog = fromJust handle
