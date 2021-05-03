@@ -4,10 +4,10 @@ cabal-version: 2.2
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 76d34403cf0dcd94cf6a19531d16417aa0ca3eacfb02c87bf589968a8f156775
+-- hash: 7e179d1e2ce8ddd1c9a53631a6b4743b754065bf70a2130d654d738b83cec53a
 
 name:           souffle-haskell
-version:        2.1.0
+version:        3.0.0
 synopsis:       Souffle Datalog bindings for Haskell
 description:    Souffle Datalog bindings for Haskell.
 category:       Logic Programming, Foreign Binding, Bindings
@@ -239,8 +239,8 @@ benchmark souffle-haskell-benchmarks
   hs-source-dirs:
       benchmarks
   default-extensions: OverloadedStrings LambdaCase ScopedTypeVariables
-  ghc-options: -Wall -Weverything -Wno-safe -Wno-unsafe -Wno-implicit-prelude -Wno-missed-specializations -Wno-all-missed-specializations -Wno-missing-import-lists -Wno-type-defaults -Wno-missing-local-signatures -Wno-monomorphism-restriction -Wno-missing-deriving-strategies -Wno-prepositive-qualified-module -Wno-missing-safe-haskell-mode -optP-Wno-nonportable-include-path -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits -O2 +RTS -N1 -RTS
-  cxx-options: -std=c++17 -D__EMBEDDED_SOUFFLE__ -std=c++17 -O3 -march=native
+  ghc-options: -Wall -Weverything -Wno-safe -Wno-unsafe -Wno-implicit-prelude -Wno-missed-specializations -Wno-all-missed-specializations -Wno-missing-import-lists -Wno-type-defaults -Wno-missing-local-signatures -Wno-monomorphism-restriction -Wno-missing-deriving-strategies -Wno-prepositive-qualified-module -Wno-missing-safe-haskell-mode -optP-Wno-nonportable-include-path -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits +RTS -N1 -RTS
+  cxx-options: -std=c++17 -D__EMBEDDED_SOUFFLE__ -std=c++17 -march=native
   include-dirs:
       cbits
       cbits/souffle
