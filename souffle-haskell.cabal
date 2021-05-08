@@ -4,7 +4,7 @@ cabal-version: 2.2
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 7e179d1e2ce8ddd1c9a53631a6b4743b754065bf70a2130d654d738b83cec53a
+-- hash: 2209b0342b53cb7104498acfbfc7cc41f3f4d71952ff26d7e8dd8e31e804443f
 
 name:           souffle-haskell
 version:        3.0.0
@@ -205,6 +205,8 @@ test-suite souffle-haskell-test
       tests/fixtures/edge_cases.cpp
       tests/fixtures/path.cpp
       tests/fixtures/round_trip.cpp
+  build-tool-depends:
+      hspec-discover:hspec-discover ==2.*
   build-depends:
       array <=1.0
     , base >=4.12 && <5

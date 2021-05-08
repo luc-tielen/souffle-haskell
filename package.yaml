@@ -129,6 +129,8 @@ tests:
       - hedgehog == 1.*
       - neat-interpolation == 0.*
       - souffle-haskell
+    build-tools:
+      - hspec-discover == 2.*
     cxx-options:
       - -D__EMBEDDED_SOUFFLE__
 
