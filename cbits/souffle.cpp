@@ -149,6 +149,12 @@ static const serializer_map serializers_map = {
     {'f', serialize_value<float_t>}
 };
 
+inline std::string unknown_souffle_type(souffle_type ty)
+{
+    std::string base_message = "Found unknown Souffle primitive type: ";
+    return base_message + std::string(1, match->first));
+}
+
 inline auto types_to_deserializer(const std::vector<char>& types)
 {
     std::vector<deserializer_t> deserializers;
@@ -157,8 +163,7 @@ inline auto types_to_deserializer(const std::vector<char>& types)
     for (const auto& type: types)
     {
         const auto match = deserializers_map.find(type);
-        assert(match != deserializers_map.end() &&
-                ("Found unknown Souffle primitive type: " + match->first));
+        assert(match != deserializers_map.end() && unknown_souffle_type(match->first).c_str());
         deserializers.push_back(match->second);
     }
 
@@ -179,8 +184,7 @@ inline auto types_to_serializer(const std::vector<char>& types)
     for (const auto& type: types)
     {
         const auto match = serializers_map.find(type);
-        assert(match != serializers_map.end() &&
-                ("Found unknown Souffle primitive type: " + match->first));
+        assert(match != serializers_map.end() && unknown_souffle_type(match->first).c_str());
         serializers.push_back(match->second);
     }
 
@@ -257,8 +261,7 @@ public:
         for (const auto& type: m_types)
         {
             const auto match = serializers_map.find(type);
-            assert(match != serializers_map.end() &&
-                    ("Found unknown Souffle primitive type: " + match->first));
+            assert(match != serializers_map.end() && unknown_souffle_type(match->first).c_str());
             serializers.push_back(match->second);
         }
 
