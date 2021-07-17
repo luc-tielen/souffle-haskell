@@ -71,11 +71,13 @@ struct souffle_interface
 
 namespace helpers
 {
+using souffle_type = char;
+
 inline auto parse_signature(const souffle::Relation& relation)
 {
     const auto arity = relation.getArity();
 
-    std::vector<char> types;
+    std::vector<souffle_type> types;
     types.reserve(arity);
 
     for (size_t i = 0; i < arity; ++i)
@@ -131,7 +133,7 @@ inline void deserialize_symbol(souffle::tuple& tuple, char* buf, offset_t& offse
 }
 
 using deserializer_t = void(*)(souffle::tuple&, char*, offset_t&);
-using deserializer_map = std::unordered_map<char, deserializer_t>;
+using deserializer_map = std::unordered_map<souffle_type, deserializer_t>;
 
 static const deserializer_map deserializers_map = {
     {'s', deserialize_symbol},
@@ -141,7 +143,7 @@ static const deserializer_map deserializers_map = {
 };
 
 using serializer_t = void(*)(souffle::tuple&, char*, offset_t&);
-using serializer_map = std::unordered_map<char, serializer_t>;
+using serializer_map = std::unordered_map<souffle_type, serializer_t>;
 
 static const serializer_map serializers_map = {
     {'i', serialize_value<number_t>},
@@ -152,10 +154,10 @@ static const serializer_map serializers_map = {
 inline std::string unknown_souffle_type(souffle_type ty)
 {
     std::string base_message = "Found unknown Souffle primitive type: ";
-    return base_message + std::string(1, match->first));
+    return base_message + std::string(1, ty);
 }
 
-inline auto types_to_deserializer(const std::vector<char>& types)
+inline auto types_to_deserializer(const std::vector<souffle_type>& types)
 {
     std::vector<deserializer_t> deserializers;
     deserializers.reserve(types.size());
@@ -176,7 +178,7 @@ inline auto types_to_deserializer(const std::vector<char>& types)
     };
 }
 
-inline auto types_to_serializer(const std::vector<char>& types)
+inline auto types_to_serializer(const std::vector<souffle_type>& types)
 {
     std::vector<serializer_t> serializers;
     serializers.reserve(types.size());
@@ -197,7 +199,7 @@ inline auto types_to_serializer(const std::vector<char>& types)
     };
 }
 
-inline auto guess_tuple_size(const std::vector<char>& types)
+inline auto guess_tuple_size(const std::vector<souffle_type>& types)
 {
     size_t size = 0;
 
@@ -233,7 +235,7 @@ public:
     inline const Serializer& serialize()
     {
         using serializer_t = void(*)(Serializer*, souffle::tuple&);
-        using serializer_map_t = std::unordered_map<char, serializer_t>;
+        using serializer_map_t = std::unordered_map<souffle_type, serializer_t>;
 
         serializer_t do_serialize_symbol = [](auto s, auto& t) {
             s->serialize_symbol(t);
@@ -362,7 +364,7 @@ public:
 
 private:
     const souffle::Relation& m_relation;
-    std::vector<char> m_types;
+    std::vector<souffle_type> m_types;
     size_t m_fact_count;
     buf_data& m_buf;
     size_t m_num_bytes;
