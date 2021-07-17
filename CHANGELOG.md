@@ -3,6 +3,14 @@
 All notable changes to this project (as seen by library users) will be documented in this file.
 The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-haskell.git/CHANGELOG.md).
 
+
+## [3.0.1] - Unreleased
+
+### Fixed
+
+- Bug in some C++ assertions that caused the actual assertion message to be
+  wrongly computed.
+
 ## [3.0.0] - 2021-05-03
 
 ### Changed
