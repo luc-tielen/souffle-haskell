@@ -368,14 +368,14 @@ IOSystem::getInstance().getReader(directiveMap, symTable, recordTable)->readAll(
 } catch (std::exception& e) {std::cerr << "Error loading data: " << e.what() << '\n';}
 }
 SignalHandler::instance()->setMsg(R"_(edge("a","b").
-in file /Users/luc/personal/souffle-hs/tests/fixtures/path.dl [11:1-11:16])_");
+in file /home/luc/personal/souffle-haskell/tests/fixtures/path.dl [11:1-11:16])_");
 [&](){
 CREATE_OP_CONTEXT(rel_3_edge_op_ctxt,rel_3_edge->createContext());
 Tuple<RamDomain,2> tuple{{ramBitCast(RamSigned(0)),ramBitCast(RamSigned(1))}};
 rel_3_edge->insert(tuple,READ_OP_CONTEXT(rel_3_edge_op_ctxt));
 }
 ();SignalHandler::instance()->setMsg(R"_(edge("b","c").
-in file /Users/luc/personal/souffle-hs/tests/fixtures/path.dl [12:1-12:16])_");
+in file /home/luc/personal/souffle-haskell/tests/fixtures/path.dl [12:1-12:16])_");
 [&](){
 CREATE_OP_CONTEXT(rel_3_edge_op_ctxt,rel_3_edge->createContext());
 Tuple<RamDomain,2> tuple{{ramBitCast(RamSigned(1)),ramBitCast(RamSigned(2))}};
@@ -397,7 +397,7 @@ IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll
 void subroutine_1(const std::vector<RamDomain>& args, std::vector<RamDomain>& ret) {
 SignalHandler::instance()->setMsg(R"_(reachable(x,y) :- 
    edge(x,y).
-in file /Users/luc/personal/souffle-hs/tests/fixtures/path.dl [14:1-14:31])_");
+in file /home/luc/personal/souffle-haskell/tests/fixtures/path.dl [14:1-14:31])_");
 if(!(rel_3_edge->empty())) {
 [&](){
 CREATE_OP_CONTEXT(rel_3_edge_op_ctxt,rel_3_edge->createContext());
@@ -409,8 +409,8 @@ rel_4_reachable->insert(tuple,READ_OP_CONTEXT(rel_4_reachable_op_ctxt));
 }
 ();}
 [&](){
-CREATE_OP_CONTEXT(rel_4_reachable_op_ctxt,rel_4_reachable->createContext());
 CREATE_OP_CONTEXT(rel_1_delta_reachable_op_ctxt,rel_1_delta_reachable->createContext());
+CREATE_OP_CONTEXT(rel_4_reachable_op_ctxt,rel_4_reachable->createContext());
 for(const auto& env0 : *rel_4_reachable) {
 Tuple<RamDomain,2> tuple{{ramBitCast(env0[0]),ramBitCast(env0[1])}};
 rel_1_delta_reachable->insert(tuple,READ_OP_CONTEXT(rel_1_delta_reachable_op_ctxt));
@@ -421,13 +421,13 @@ for(;;) {
 SignalHandler::instance()->setMsg(R"_(reachable(x,z) :- 
    edge(x,y),
    reachable(y,z).
-in file /Users/luc/personal/souffle-hs/tests/fixtures/path.dl [15:1-15:48])_");
+in file /home/luc/personal/souffle-haskell/tests/fixtures/path.dl [15:1-15:48])_");
 if(!(rel_3_edge->empty()) && !(rel_1_delta_reachable->empty())) {
 [&](){
 CREATE_OP_CONTEXT(rel_3_edge_op_ctxt,rel_3_edge->createContext());
-CREATE_OP_CONTEXT(rel_4_reachable_op_ctxt,rel_4_reachable->createContext());
-CREATE_OP_CONTEXT(rel_1_delta_reachable_op_ctxt,rel_1_delta_reachable->createContext());
 CREATE_OP_CONTEXT(rel_2_new_reachable_op_ctxt,rel_2_new_reachable->createContext());
+CREATE_OP_CONTEXT(rel_1_delta_reachable_op_ctxt,rel_1_delta_reachable->createContext());
+CREATE_OP_CONTEXT(rel_4_reachable_op_ctxt,rel_4_reachable->createContext());
 for(const auto& env0 : *rel_3_edge) {
 auto range = rel_1_delta_reachable->lowerUpperRange_10(Tuple<RamDomain,2>{{ramBitCast(env0[1]), ramBitCast<RamDomain>(MIN_RAM_SIGNED)}},Tuple<RamDomain,2>{{ramBitCast(env0[1]), ramBitCast<RamDomain>(MAX_RAM_SIGNED)}},READ_OP_CONTEXT(rel_1_delta_reachable_op_ctxt));
 for(const auto& env1 : range) {
@@ -441,8 +441,8 @@ rel_2_new_reachable->insert(tuple,READ_OP_CONTEXT(rel_2_new_reachable_op_ctxt));
 ();}
 if(rel_2_new_reachable->empty()) break;
 [&](){
-CREATE_OP_CONTEXT(rel_4_reachable_op_ctxt,rel_4_reachable->createContext());
 CREATE_OP_CONTEXT(rel_2_new_reachable_op_ctxt,rel_2_new_reachable->createContext());
+CREATE_OP_CONTEXT(rel_4_reachable_op_ctxt,rel_4_reachable->createContext());
 for(const auto& env0 : *rel_2_new_reachable) {
 Tuple<RamDomain,2> tuple{{ramBitCast(env0[0]),ramBitCast(env0[1])}};
 rel_4_reachable->insert(tuple,READ_OP_CONTEXT(rel_4_reachable_op_ctxt));
@@ -461,8 +461,8 @@ if (!outputDirectory.empty()) {directiveMap["output-dir"] = outputDirectory;}
 IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll(*rel_4_reachable);
 } catch (std::exception& e) {std::cerr << e.what();exit(1);}
 }
-if (performIO) rel_4_reachable->purge();
 if (performIO) rel_3_edge->purge();
+if (performIO) rel_4_reachable->purge();
 }
 #ifdef _MSC_VER
 #pragma warning(default: 4100)

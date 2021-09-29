@@ -406,6 +406,10 @@ void runAll(std::string inputDirectoryArg = "", std::string outputDirectoryArg =
 }
 public:
 void printAll(std::string outputDirectoryArg = "") override {
+try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","x"},{"name","string_fact"},{"operation","output"},{"output-dir","."},{"params","{\"records\": {}, \"relation\": {\"arity\": 1, \"auxArity\": 0, \"params\": [\"x\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 1, \"auxArity\": 0, \"types\": [\"s:symbol\"]}}"}});
+if (!outputDirectoryArg.empty()) {directiveMap["output-dir"] = outputDirectoryArg;}
+IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll(*rel_3_string_fact);
+} catch (std::exception& e) {std::cerr << e.what();exit(1);}
 try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","x"},{"name","number_fact"},{"operation","output"},{"output-dir","."},{"params","{\"records\": {}, \"relation\": {\"arity\": 1, \"auxArity\": 0, \"params\": [\"x\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 1, \"auxArity\": 0, \"types\": [\"i:number\"]}}"}});
 if (!outputDirectoryArg.empty()) {directiveMap["output-dir"] = outputDirectoryArg;}
 IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll(*rel_2_number_fact);
@@ -414,10 +418,6 @@ try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeN
 if (!outputDirectoryArg.empty()) {directiveMap["output-dir"] = outputDirectoryArg;}
 IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll(*rel_4_unsigned_fact);
 } catch (std::exception& e) {std::cerr << e.what();exit(1);}
-try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","x"},{"name","string_fact"},{"operation","output"},{"output-dir","."},{"params","{\"records\": {}, \"relation\": {\"arity\": 1, \"auxArity\": 0, \"params\": [\"x\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 1, \"auxArity\": 0, \"types\": [\"s:symbol\"]}}"}});
-if (!outputDirectoryArg.empty()) {directiveMap["output-dir"] = outputDirectoryArg;}
-IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll(*rel_3_string_fact);
-} catch (std::exception& e) {std::cerr << e.what();exit(1);}
 try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","x"},{"name","float_fact"},{"operation","output"},{"output-dir","."},{"params","{\"records\": {}, \"relation\": {\"arity\": 1, \"auxArity\": 0, \"params\": [\"x\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 1, \"auxArity\": 0, \"types\": [\"f:float\"]}}"}});
 if (!outputDirectoryArg.empty()) {directiveMap["output-dir"] = outputDirectoryArg;}
 IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll(*rel_1_float_fact);
@@ -425,30 +425,30 @@ IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll
 }
 public:
 void loadAll(std::string inputDirectoryArg = "") override {
-try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","x"},{"fact-dir","."},{"name","float_fact"},{"operation","input"},{"params","{\"records\": {}, \"relation\": {\"arity\": 1, \"auxArity\": 0, \"params\": [\"x\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 1, \"auxArity\": 0, \"types\": [\"f:float\"]}}"}});
+try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","x"},{"fact-dir","."},{"name","string_fact"},{"operation","input"},{"params","{\"records\": {}, \"relation\": {\"arity\": 1, \"auxArity\": 0, \"params\": [\"x\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 1, \"auxArity\": 0, \"types\": [\"s:symbol\"]}}"}});
 if (!inputDirectoryArg.empty()) {directiveMap["fact-dir"] = inputDirectoryArg;}
-IOSystem::getInstance().getReader(directiveMap, symTable, recordTable)->readAll(*rel_1_float_fact);
+IOSystem::getInstance().getReader(directiveMap, symTable, recordTable)->readAll(*rel_3_string_fact);
 } catch (std::exception& e) {std::cerr << "Error loading data: " << e.what() << '\n';}
 try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","x"},{"fact-dir","."},{"name","number_fact"},{"operation","input"},{"params","{\"records\": {}, \"relation\": {\"arity\": 1, \"auxArity\": 0, \"params\": [\"x\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 1, \"auxArity\": 0, \"types\": [\"i:number\"]}}"}});
 if (!inputDirectoryArg.empty()) {directiveMap["fact-dir"] = inputDirectoryArg;}
 IOSystem::getInstance().getReader(directiveMap, symTable, recordTable)->readAll(*rel_2_number_fact);
 } catch (std::exception& e) {std::cerr << "Error loading data: " << e.what() << '\n';}
-try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","x"},{"fact-dir","."},{"name","string_fact"},{"operation","input"},{"params","{\"records\": {}, \"relation\": {\"arity\": 1, \"auxArity\": 0, \"params\": [\"x\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 1, \"auxArity\": 0, \"types\": [\"s:symbol\"]}}"}});
-if (!inputDirectoryArg.empty()) {directiveMap["fact-dir"] = inputDirectoryArg;}
-IOSystem::getInstance().getReader(directiveMap, symTable, recordTable)->readAll(*rel_3_string_fact);
-} catch (std::exception& e) {std::cerr << "Error loading data: " << e.what() << '\n';}
 try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","x"},{"fact-dir","."},{"name","unsigned_fact"},{"operation","input"},{"params","{\"records\": {}, \"relation\": {\"arity\": 1, \"auxArity\": 0, \"params\": [\"x\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 1, \"auxArity\": 0, \"types\": [\"u:unsigned\"]}}"}});
 if (!inputDirectoryArg.empty()) {directiveMap["fact-dir"] = inputDirectoryArg;}
 IOSystem::getInstance().getReader(directiveMap, symTable, recordTable)->readAll(*rel_4_unsigned_fact);
+} catch (std::exception& e) {std::cerr << "Error loading data: " << e.what() << '\n';}
+try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","x"},{"fact-dir","."},{"name","float_fact"},{"operation","input"},{"params","{\"records\": {}, \"relation\": {\"arity\": 1, \"auxArity\": 0, \"params\": [\"x\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 1, \"auxArity\": 0, \"types\": [\"f:float\"]}}"}});
+if (!inputDirectoryArg.empty()) {directiveMap["fact-dir"] = inputDirectoryArg;}
+IOSystem::getInstance().getReader(directiveMap, symTable, recordTable)->readAll(*rel_1_float_fact);
 } catch (std::exception& e) {std::cerr << "Error loading data: " << e.what() << '\n';}
 }
 public:
 void dumpInputs() override {
 try {std::map<std::string, std::string> rwOperation;
 rwOperation["IO"] = "stdout";
-rwOperation["name"] = "float_fact";
-rwOperation["types"] = "{\"relation\": {\"arity\": 1, \"auxArity\": 0, \"types\": [\"f:float\"]}}";
-IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(*rel_1_float_fact);
+rwOperation["name"] = "string_fact";
+rwOperation["types"] = "{\"relation\": {\"arity\": 1, \"auxArity\": 0, \"types\": [\"s:symbol\"]}}";
+IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(*rel_3_string_fact);
 } catch (std::exception& e) {std::cerr << e.what();exit(1);}
 try {std::map<std::string, std::string> rwOperation;
 rwOperation["IO"] = "stdout";
@@ -458,21 +458,27 @@ IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(
 } catch (std::exception& e) {std::cerr << e.what();exit(1);}
 try {std::map<std::string, std::string> rwOperation;
 rwOperation["IO"] = "stdout";
-rwOperation["name"] = "string_fact";
-rwOperation["types"] = "{\"relation\": {\"arity\": 1, \"auxArity\": 0, \"types\": [\"s:symbol\"]}}";
-IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(*rel_3_string_fact);
-} catch (std::exception& e) {std::cerr << e.what();exit(1);}
-try {std::map<std::string, std::string> rwOperation;
-rwOperation["IO"] = "stdout";
 rwOperation["name"] = "unsigned_fact";
 rwOperation["types"] = "{\"relation\": {\"arity\": 1, \"auxArity\": 0, \"types\": [\"u:unsigned\"]}}";
 IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(*rel_4_unsigned_fact);
+} catch (std::exception& e) {std::cerr << e.what();exit(1);}
+try {std::map<std::string, std::string> rwOperation;
+rwOperation["IO"] = "stdout";
+rwOperation["name"] = "float_fact";
+rwOperation["types"] = "{\"relation\": {\"arity\": 1, \"auxArity\": 0, \"types\": [\"f:float\"]}}";
+IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(*rel_1_float_fact);
 } catch (std::exception& e) {std::cerr << e.what();exit(1);}
 }
 public:
 void dumpOutputs() override {
 try {std::map<std::string, std::string> rwOperation;
 rwOperation["IO"] = "stdout";
+rwOperation["name"] = "string_fact";
+rwOperation["types"] = "{\"relation\": {\"arity\": 1, \"auxArity\": 0, \"types\": [\"s:symbol\"]}}";
+IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(*rel_3_string_fact);
+} catch (std::exception& e) {std::cerr << e.what();exit(1);}
+try {std::map<std::string, std::string> rwOperation;
+rwOperation["IO"] = "stdout";
 rwOperation["name"] = "number_fact";
 rwOperation["types"] = "{\"relation\": {\"arity\": 1, \"auxArity\": 0, \"types\": [\"i:number\"]}}";
 IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(*rel_2_number_fact);
@@ -482,12 +488,6 @@ rwOperation["IO"] = "stdout";
 rwOperation["name"] = "unsigned_fact";
 rwOperation["types"] = "{\"relation\": {\"arity\": 1, \"auxArity\": 0, \"types\": [\"u:unsigned\"]}}";
 IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(*rel_4_unsigned_fact);
-} catch (std::exception& e) {std::cerr << e.what();exit(1);}
-try {std::map<std::string, std::string> rwOperation;
-rwOperation["IO"] = "stdout";
-rwOperation["name"] = "string_fact";
-rwOperation["types"] = "{\"relation\": {\"arity\": 1, \"auxArity\": 0, \"types\": [\"s:symbol\"]}}";
-IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(*rel_3_string_fact);
 } catch (std::exception& e) {std::cerr << e.what();exit(1);}
 try {std::map<std::string, std::string> rwOperation;
 rwOperation["IO"] = "stdout";
