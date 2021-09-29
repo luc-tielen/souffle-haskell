@@ -14,12 +14,14 @@ function copy_license() {
 }
 
 function copy_headers() {
-  INCLUDE_PATHS=$(clang++ -MM -H ${SCRIPT_DIR}/analyze_headers.cpp 2>&1 | \
+  INCLUDE_PATHS=$(clang++ -MM -H ${SCRIPT_DIR}/analyze_headers.cpp -I $SCRIPT_DIR/../souffle/src/include 2>&1 | \
     grep souffle | \
-    awk '{ print $2; }')
-  INSTALL_HEADERS=$(clang++ -MM -H ${SCRIPT_DIR}/analyze_headers.cpp 2>&1 | \
+    awk '{ print $2; }' | \
+    grep -E "*.h$")
+  INSTALL_HEADERS=$(clang++ -MM -H ${SCRIPT_DIR}/analyze_headers.cpp -I $SCRIPT_DIR/../souffle/src/include 2>&1 | \
     grep souffle | \
-    awk -F 'include/' '{ print $2; }')
+    awk -F 'include/' '{ print $2; }' | \
+    grep -E "*.h$")
 
   echo "Copying over minimal set of required header files to cbits/souffle/"
   for HEADER in $INCLUDE_PATHS; do
