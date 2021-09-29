@@ -1,6 +1,6 @@
 /*
  * Souffle - A Datalog Compiler
- * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved
+ * Copyright (c) 2021, The Souffle Developers. All rights reserved
  * Licensed under the Universal Permissive License v 1.0 as shown at:
  * - https://opensource.org/licenses/UPL
  * - <souffle root>/licenses/SOUFFLE-UPL.txt
@@ -15,6 +15,7 @@
 #pragma once
 
 #include "souffle/RamTypes.h"
+#include "souffle/RecordTable.h"
 #include "souffle/SymbolTable.h"
 #include "souffle/io/ReadStream.h"
 #include "souffle/utility/ContainerUtil.h"
@@ -40,15 +41,21 @@
 #include <vector>
 
 namespace souffle {
-class RecordTable;
 
 class ReadStreamCSV : public ReadStream {
 public:
     ReadStreamCSV(std::istream& file, const std::map<std::string, std::string>& rwOperation,
             SymbolTable& symbolTable, RecordTable& recordTable)
             : ReadStream(rwOperation, symbolTable, recordTable),
-              delimiter(getOr(rwOperation, "delimiter", "\t")), file(file), lineNumber(0),
+              rfc4180(getOr(rwOperation, "rfc4180", "false") == std::string("true")),
+              delimiter(getOr(rwOperation, "delimiter", (rfc4180 ? "," : "\t"))), file(file), lineNumber(0),
               inputMap(getInputColumnMap(rwOperation, static_cast<unsigned int>(arity))) {
+        if (rfc4180 && delimiter.find('"') != std::string::npos) {
+            std::stringstream errorMessage;
+            errorMessage << "CSV delimiter cannot contain '\"' character when rfc4180 is enabled.";
+            throw std::invalid_argument(errorMessage.str());
+        }
+
         while (inputMap.size() < arity) {
             int size = static_cast<int>(inputMap.size());
             inputMap[size] = size;
@@ -67,7 +74,7 @@ protected:
             return nullptr;
         }
         std::string line;
-        Own<RamDomain[]> tuple = std::make_unique<RamDomain[]>(typeAttributes.size());
+        Own<RamDomain[]> tuple = mk<RamDomain[]>(typeAttributes.size());
 
         if (!getline(file, line)) {
             return nullptr;
@@ -78,12 +85,11 @@ protected:
         }
         ++lineNumber;
 
-        size_t start = 0;
-        size_t end = 0;
-        size_t columnsFilled = 0;
+        std::size_t start = 0;
+        std::size_t columnsFilled = 0;
         for (uint32_t column = 0; columnsFilled < arity; column++) {
-            size_t charactersRead = 0;
-            std::string element = nextElement(line, start, end);
+            std::size_t charactersRead = 0;
+            std::string element = nextElement(line, start);
             if (inputMap.count(column) == 0) {
                 continue;
             }
@@ -93,7 +99,7 @@ protected:
                 auto&& ty = typeAttributes.at(inputMap[column]);
                 switch (ty[0]) {
                     case 's': {
-                        tuple[inputMap[column]] = symbolTable.unsafeLookup(element);
+                        tuple[inputMap[column]] = symbolTable.encode(element);
                         charactersRead = element.size();
                         break;
                     }
@@ -139,7 +145,7 @@ protected:
      * Read an unsigned element. Possible bases are 2, 10, 16
      * Base is indicated by the first two chars.
      */
-    RamUnsigned readRamUnsigned(const std::string& element, size_t& charactersRead) {
+    RamUnsigned readRamUnsigned(const std::string& element, std::size_t& charactersRead) {
         // Sanity check
         assert(element.size() > 0);
 
@@ -156,13 +162,64 @@ protected:
         return value;
     }
 
-    std::string nextElement(const std::string& line, size_t& start, size_t& end) {
+    std::string nextElement(const std::string& line, std::size_t& start) {
         std::string element;
 
+        if (rfc4180) {
+            if (line[start] == '"') {
+                // quoted field
+                const std::size_t end = line.length();
+                std::size_t pos = start + 1;
+                bool foundEndQuote = false;
+                while (pos < end) {
+                    char c = line[pos++];
+                    if (c == '"' && (pos < end) && line[pos] == '"') {
+                        // two double-quote => one double-quote
+                        element.push_back('"');
+                        ++pos;
+                    } else if (c == '"') {
+                        foundEndQuote = true;
+                        break;
+                    } else {
+                        element.push_back(c);
+                    }
+                }
+
+                if (!foundEndQuote) {
+                    // missing closing quote
+                    std::stringstream errorMessage;
+                    errorMessage << "Unbalanced field quote in line " << lineNumber << "; ";
+                    throw std::invalid_argument(errorMessage.str());
+                }
+
+                // field must be immediately followed by delimiter or end of line
+                if (pos != line.length()) {
+                    std::size_t nextDelimiter = line.find(delimiter, pos);
+                    if (nextDelimiter != pos) {
+                        std::stringstream errorMessage;
+                        errorMessage << "Separator expected immediately after quoted field in line "
+                                     << lineNumber << "; ";
+                        throw std::invalid_argument(errorMessage.str());
+                    }
+                }
+
+                start = pos + delimiter.size();
+                return element;
+            } else {
+                // non-quoted field, span until next delimiter or end of line
+                const std::size_t end = std::min(line.find(delimiter, start), line.length());
+                element = line.substr(start, end - start);
+                start = end + delimiter.size();
+
+                return element;
+            }
+        }
+
+        std::size_t end = start;
         // Handle record/tuple delimiter coincidence.
         if (delimiter.find(',') != std::string::npos) {
             int record_parens = 0;
-            size_t next_delimiter = line.find(delimiter, start);
+            std::size_t next_delimiter = line.find(delimiter, start);
 
             // Find first delimiter after the record.
             while (end < std::min(next_delimiter, line.length()) || record_parens != 0) {
@@ -190,7 +247,7 @@ protected:
             // Handle the end-of-the-line case where parenthesis are unbalanced.
             if (record_parens != 0) {
                 std::stringstream errorMessage;
-                errorMessage << "Unbalanced record parenthesis " << lineNumber << "; ";
+                errorMessage << "Unbalanced record parenthesis in line " << lineNumber << "; ";
                 throw std::invalid_argument(errorMessage.str());
             }
         } else {
@@ -234,9 +291,10 @@ protected:
         return inputColumnMap;
     }
 
+    const bool rfc4180;
     const std::string delimiter;
     std::istream& file;
-    size_t lineNumber;
+    std::size_t lineNumber;
     std::map<int, int> inputMap;
 };
 
@@ -248,7 +306,10 @@ public:
               baseName(souffle::baseName(getFileName(rwOperation))),
               fileHandle(getFileName(rwOperation), std::ios::in | std::ios::binary) {
         if (!fileHandle.is_open()) {
-            throw std::invalid_argument("Cannot open fact file " + baseName + "\n");
+            // suppress error message in case file cannot be open when flag -w is set
+            if (getOr(rwOperation, "no-warn", "false") != "true") {
+                throw std::invalid_argument("Cannot open fact file " + baseName + "\n");
+            }
         }
         // Strip headers if we're using them
         if (getOr(rwOperation, "headers", "false") == "true") {

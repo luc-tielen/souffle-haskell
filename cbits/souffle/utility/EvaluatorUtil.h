@@ -16,9 +16,10 @@
 
 #pragma once
 
-#include "souffle/CompiledTuple.h"
 #include "souffle/RamTypes.h"
-#include "tinyformat.h"
+#include "souffle/utility/StringUtil.h"
+#include "souffle/utility/tinyformat.h"
+#include <csignal>
 
 namespace souffle::evaluator {
 
@@ -54,7 +55,10 @@ A symbol2numeric(const std::string& src) {
             return RamSignedFromString(src);
         } else if constexpr (std::is_same_v<RamUnsigned, A>) {
             return RamUnsignedFromString(src);
+        } else {
+            static_assert(sizeof(A) == 0, "Invalid type specified for symbol2Numeric");
         }
+
     } catch (...) {
         tfm::format(std::cerr, "error: wrong string provided by `to_number(\"%s\")` functor.\n", src);
         raise(SIGFPE);

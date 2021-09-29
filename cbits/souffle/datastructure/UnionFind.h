@@ -18,6 +18,7 @@
 
 #include "souffle/datastructure/LambdaBTree.h"
 #include "souffle/datastructure/PiggyList.h"
+#include "souffle/utility/MiscUtil.h"
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
@@ -67,7 +68,7 @@ public:
     /**
      * Return the number of elements in this disjoint set (not the number of pairs)
      */
-    inline size_t size() {
+    inline std::size_t size() {
         auto sz = a_blocks.size();
         return sz;
     };
@@ -191,7 +192,7 @@ public:
      */
     inline block_t makeNode() {
         // make node and find out where we've added it
-        size_t nodeDetails = a_blocks.createNode();
+        std::size_t nodeDetails = a_blocks.createNode();
 
         a_blocks.get(nodeDetails).store(pr2b(nodeDetails, 0));
 

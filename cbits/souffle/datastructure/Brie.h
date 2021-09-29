@@ -26,23 +26,27 @@
 
 #pragma once
 
-#include "souffle/CompiledTuple.h"
 #include "souffle/RamTypes.h"
 #include "souffle/utility/CacheUtil.h"
 #include "souffle/utility/ContainerUtil.h"
+#include "souffle/utility/MiscUtil.h"
 #include "souffle/utility/StreamUtil.h"
+#include "souffle/utility/span.h"
 #include <algorithm>
 #include <atomic>
 #include <bitset>
 #include <cassert>
+#include <climits>
 #include <cstdint>
 #include <cstring>
 #include <iostream>
 #include <iterator>
 #include <limits>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
+// TODO: replace intrinsics w/ std lib functions?
 #ifdef _WIN32
 /**
  * When compiling for windows, redefine the gcc builtins which are used to
@@ -55,7 +59,41 @@
 
 namespace souffle {
 
-namespace detail {
+template <unsigned Dim>
+class Trie;
+
+namespace detail::brie {
+
+// FIXME: These data structs should be parameterised/made agnostic to `RamDomain` type.
+using brie_element_type = RamDomain;
+
+using tcb::make_span;
+
+template <typename A>
+struct forward_non_output_iterator_traits {
+    using value_type = A;
+    using difference_type = ptrdiff_t;
+    using iterator_category = std::forward_iterator_tag;
+    using pointer = const value_type*;
+    using reference = const value_type&;
+};
+
+template <typename A, std::size_t arity>
+auto copy(span<A, arity> s) {
+    std::array<std::decay_t<A>, arity> cpy;
+    std::copy_n(s.begin(), arity, cpy.begin());
+    return cpy;
+}
+
+template <std::size_t offset, typename A, std::size_t arity>
+auto drop(span<A, arity> s) -> std::enable_if_t<offset <= arity, span<A, arity - offset>> {
+    return {s.begin() + offset, s.end()};
+}
+
+template <typename C>
+auto tail(C& s) {
+    return drop<1>(make_span(s));
+}
 
 /**
  * A templated functor to obtain default values for
@@ -94,12 +132,170 @@ struct default_merge {
     }
 };
 
-}  // end namespace detail
+/**
+ * Iterator type for `souffle::SparseArray`.
+ */
+template <typename SparseArray>
+struct SparseArrayIter {
+    using Node = typename SparseArray::Node;
+    using index_type = typename SparseArray::index_type;
+    using array_value_type = typename SparseArray::value_type;
+
+    using value_type = std::pair<index_type, array_value_type>;
+
+    SparseArrayIter() = default;  // default constructor -- creating an end-iterator
+    SparseArrayIter(const SparseArrayIter&) = default;
+    SparseArrayIter& operator=(const SparseArrayIter&) = default;
+
+    SparseArrayIter(const Node* node, value_type value) : node(node), value(std::move(value)) {}
+
+    SparseArrayIter(const Node* first, index_type firstOffset) : node(first), value(firstOffset, 0) {
+        // if the start is the end => we are done
+        if (!first) return;
+
+        // load the value
+        if (first->cell[0].value == array_value_type()) {
+            ++(*this);  // walk to first element
+        } else {
+            value.second = first->cell[0].value;
+        }
+    }
+
+    // the equality operator as required by the iterator concept
+    bool operator==(const SparseArrayIter& other) const {
+        // only equivalent if pointing to the end
+        return (node == nullptr && other.node == nullptr) ||
+               (node == other.node && value.first == other.value.first);
+    }
+
+    // the not-equality operator as required by the iterator concept
+    bool operator!=(const SparseArrayIter& other) const {
+        return !(*this == other);
+    }
+
+    // the deref operator as required by the iterator concept
+    const value_type& operator*() const {
+        return value;
+    }
+
+    // support for the pointer operator
+    const value_type* operator->() const {
+        return &value;
+    }
+
+    // the increment operator as required by the iterator concept
+    SparseArrayIter& operator++() {
+        assert(!isEnd());
+        // get current offset
+        index_type x = value.first & SparseArray::INDEX_MASK;
+
+        // go to next non-empty value in current node
+        do {
+            x++;
+        } while (x < SparseArray::NUM_CELLS && node->cell[x].value == array_value_type());
+
+        // check whether one has been found
+        if (x < SparseArray::NUM_CELLS) {
+            // update value and be done
+            value.first = (value.first & ~SparseArray::INDEX_MASK) | x;
+            value.second = node->cell[x].value;
+            return *this;  // done
+        }
+
+        // go to parent
+        node = node->parent;
+        int level = 1;
+
+        // get current index on this level
+        x = SparseArray::getIndex(brie_element_type(value.first), level);
+        x++;
+
+        while (level > 0 && node) {
+            // search for next child
+            while (x < SparseArray::NUM_CELLS) {
+                if (node->cell[x].ptr != nullptr) {
+                    break;
+                }
+                x++;
+            }
+
+            // pick next step
+            if (x < SparseArray::NUM_CELLS) {
+                // going down
+                node = node->cell[x].ptr;
+                value.first &= SparseArray::getLevelMask(level + 1);
+                value.first |= x << (SparseArray::BIT_PER_STEP * level);
+                level--;
+                x = 0;
+            } else {
+                // going up
+                node = node->parent;
+                level++;
+
+                // get current index on this level
+                x = SparseArray::getIndex(brie_element_type(value.first), level);
+                x++;  // go one step further
+            }
+        }
+
+        // check whether it is the end of range
+        if (node == nullptr) {
+            return *this;
+        }
+
+        // search the first value in this node
+        x = 0;
+        while (node->cell[x].value == array_value_type()) {
+            x++;
+        }
+
+        // update value
+        value.first |= x;
+        value.second = node->cell[x].value;
+
+        // done
+        return *this;
+    }
+
+    SparseArrayIter operator++(int) {
+        auto cpy = *this;
+        ++(*this);
+        return cpy;
+    }
+
+    // True if this iterator is passed the last element.
+    bool isEnd() const {
+        return node == nullptr;
+    }
+
+    // enables this iterator core to be printed (for debugging)
+    void print(std::ostream& out) const {
+        // `StreamUtil.h` defines an overload for `pair`, but we can't rely on it b/c
+        // it's disabled if `__EMBEDDED__` is defined.
+        out << "SparseArrayIter(" << node << " @ (" << value.first << ", " << value.second << "))";
+    }
+
+    friend std::ostream& operator<<(std::ostream& out, const SparseArrayIter& iter) {
+        iter.print(out);
+        return out;
+    }
+
+private:
+    // a pointer to the leaf node currently processed or null (end)
+    const Node* node{};
+
+    // the value currently pointed to
+    value_type value;
+};
+
+}  // namespace detail::brie
+
+using namespace detail::brie;
 
 /**
  * A sparse array simulates an array associating to every element
  * of uint32_t an element of a generic type T. Any non-defined element
- * will be default-initialized utilizing the detail::default_factory
+ * will be default-initialized utilizing the detail::brie::default_factory
  * functor.
  *
  * Internally the array is organized as a balanced tree. The leaf
@@ -123,9 +319,12 @@ struct default_merge {
  *              trie implementation to create a clone of each sub-tree instead
  *              of preserving the original pointer.
  */
-template <typename T, unsigned BITS = 6, typename merge_op = detail::default_merge<T>,
-        typename copy_op = detail::identity<T>>
+template <typename T, unsigned BITS = 6, typename merge_op = default_merge<T>, typename copy_op = identity<T>>
 class SparseArray {
+    template <typename A>
+    friend struct detail::brie::SparseArrayIter;
+
+    using this_t = SparseArray<T, BITS, merge_op, copy_op>;
     using key_type = uint64_t;
 
     // some internal constants
@@ -639,7 +838,7 @@ private:
         unsigned level = info.levels;
         while (level != 0) {
             // get X coordinate
-            auto x = getIndex(static_cast<RamDomain>(i), level);
+            auto x = getIndex(brie_element_type(i), level);
 
             // decrease level counter
             --level;
@@ -741,10 +940,10 @@ public:
      */
     value_type lookup(index_type i, op_context& ctxt) const {
         // check whether it is empty
-        if (!unsynced.root) return souffle::detail::default_factory<value_type>()();
+        if (!unsynced.root) return default_factory<value_type>()();
 
         // check boundaries
-        if (!inBoundaries(i)) return souffle::detail::default_factory<value_type>()();
+        if (!inBoundaries(i)) return default_factory<value_type>()();
 
         // check context
         if (ctxt.lastNode && ctxt.lastIndex == (i & ~INDEX_MASK)) {
@@ -756,7 +955,7 @@ public:
         unsigned level = unsynced.levels;
         while (level != 0) {
             // get X coordinate
-            auto x = getIndex(static_cast<RamDomain>(i), level);
+            auto x = getIndex(brie_element_type(i), level);
 
             // decrease level counter
             --level;
@@ -765,7 +964,7 @@ public:
             Node* next = node->cell[x].ptr;
 
             // check next step
-            if (!next) return souffle::detail::default_factory<value_type>()();
+            if (!next) return default_factory<value_type>()();
 
             // continue one level below
             node = next;
@@ -847,7 +1046,7 @@ public:
         Node** node = &unsynced.root;
         while (level > other.unsynced.levels) {
             // get X coordinate
-            auto x = getIndex(static_cast<RamDomain>(other.unsynced.offset), level);
+            auto x = getIndex(brie_element_type(other.unsynced.offset), level);
 
             // decrease level counter
             --level;
@@ -878,152 +1077,7 @@ public:
     //                           Iterator
     // ---------------------------------------------------------------------
 
-    /**
-     * The iterator type to be utilized to iterate over the non-default elements of this array.
-     */
-    class iterator {
-        using pair_type = std::pair<index_type, value_type>;
-
-        // a pointer to the leaf node currently processed or null (end)
-        const Node* node;
-
-        // the value currently pointed to
-        pair_type value;
-
-    public:
-        // default constructor -- creating an end-iterator
-        iterator() : node(nullptr) {}
-
-        iterator(const Node* node, pair_type value) : node(node), value(std::move(value)) {}
-
-        iterator(const Node* first, index_type firstOffset) : node(first), value(firstOffset, 0) {
-            // if the start is the end => we are done
-            if (!first) return;
-
-            // load the value
-            if (first->cell[0].value == value_type()) {
-                ++(*this);  // walk to first element
-            } else {
-                value.second = first->cell[0].value;
-            }
-        }
-
-        // a copy constructor
-        iterator(const iterator& other) = default;
-
-        // an assignment operator
-        iterator& operator=(const iterator& other) = default;
-
-        // the equality operator as required by the iterator concept
-        bool operator==(const iterator& other) const {
-            // only equivalent if pointing to the end
-            return (node == nullptr && other.node == nullptr) ||
-                   (node == other.node && value.first == other.value.first);
-        }
-
-        // the not-equality operator as required by the iterator concept
-        bool operator!=(const iterator& other) const {
-            return !(*this == other);
-        }
-
-        // the deref operator as required by the iterator concept
-        const pair_type& operator*() const {
-            return value;
-        }
-
-        // support for the pointer operator
-        const pair_type* operator->() const {
-            return &value;
-        }
-
-        // the increment operator as required by the iterator concept
-        iterator& operator++() {
-            // get current offset
-            index_type x = value.first & INDEX_MASK;
-
-            // go to next non-empty value in current node
-            do {
-                x++;
-            } while (x < NUM_CELLS && node->cell[x].value == value_type());
-
-            // check whether one has been found
-            if (x < NUM_CELLS) {
-                // update value and be done
-                value.first = (value.first & ~INDEX_MASK) | x;
-                value.second = node->cell[x].value;
-                return *this;  // done
-            }
-
-            // go to parent
-            node = node->parent;
-            int level = 1;
-
-            // get current index on this level
-            x = getIndex(static_cast<RamDomain>(value.first), level);
-            x++;
-
-            while (level > 0 && node) {
-                // search for next child
-                while (x < NUM_CELLS) {
-                    if (node->cell[x].ptr != nullptr) {
-                        break;
-                    }
-                    x++;
-                }
-
-                // pick next step
-                if (x < NUM_CELLS) {
-                    // going down
-                    node = node->cell[x].ptr;
-                    value.first &= getLevelMask(level + 1);
-                    value.first |= x << (BIT_PER_STEP * level);
-                    level--;
-                    x = 0;
-                } else {
-                    // going up
-                    node = node->parent;
-                    level++;
-
-                    // get current index on this level
-                    x = getIndex(static_cast<RamDomain>(value.first), level);
-                    x++;  // go one step further
-                }
-            }
-
-            // check whether it is the end of range
-            if (node == nullptr) {
-                return *this;
-            }
-
-            // search the first value in this node
-            x = 0;
-            while (node->cell[x].value == value_type()) {
-                x++;
-            }
-
-            // update value
-            value.first |= x;
-            value.second = node->cell[x].value;
-
-            // done
-            return *this;
-        }
-
-        // True if this iterator is passed the last element.
-        bool isEnd() const {
-            return node == nullptr;
-        }
-
-        // enables this iterator core to be printed (for debugging)
-        void print(std::ostream& out) const {
-            out << "SparseArrayIter(" << node << " @ " << value << ")";
-        }
-
-        friend std::ostream& operator<<(std::ostream& out, const iterator& iter) {
-            iter.print(out);
-            return out;
-        }
-    };
+    using iterator = SparseArrayIter<this_t>;
 
     /**
      * Obtains an iterator referencing the first non-default element or end in
@@ -1147,7 +1201,7 @@ public:
         unsigned level = unsynced.levels;
         while (true) {
             // get X coordinate
-            auto x = getIndex(static_cast<RamDomain>(i), level);
+            auto x = getIndex(brie_element_type(i), level);
 
             // check next node
             Node* next = node->cell[x].ptr;
@@ -1354,7 +1408,7 @@ private:
         node->parent = nullptr;
 
         // insert existing root as child
-        auto x = getIndex(static_cast<RamDomain>(unsynced.offset), unsynced.levels + 1);
+        auto x = getIndex(brie_element_type(unsynced.offset), unsynced.levels + 1);
         node->cell[x].ptr = unsynced.root;
 
         // swap the root
@@ -1381,7 +1435,7 @@ private:
         newRoot->parent = nullptr;
 
         // insert existing root as child
-        auto x = getIndex(static_cast<RamDomain>(info.offset), info.levels + 1);
+        auto x = getIndex(brie_element_type(info.offset), info.levels + 1);
         newRoot->cell[x].ptr = info.root;
 
         // exchange the root in the info struct
@@ -1425,7 +1479,7 @@ private:
      * Obtains the index within the arrays of cells of a given index on a given
      * level of the internally maintained tree.
      */
-    static index_type getIndex(RamDomain a, unsigned level) {
+    static index_type getIndex(brie_element_type a, unsigned level) {
         return (a & (INDEX_MASK << (level * BIT_PER_STEP))) >> (level * BIT_PER_STEP);
     }
 
@@ -1439,6 +1493,123 @@ private:
     }
 };
 
+namespace detail::brie {
+
+/**
+ * Iterator type for `souffle::SparseArray`. It enumerates the indices set to 1.
+ */
+template <typename SparseBitMap>
+class SparseBitMapIter {
+    using value_t = typename SparseBitMap::value_t;
+    using value_type = typename SparseBitMap::index_type;
+    using data_store_t = typename SparseBitMap::data_store_t;
+    using nested_iterator = typename data_store_t::iterator;
+
+    // the iterator through the underlying sparse data structure
+    nested_iterator iter;
+
+    // the currently consumed mask
+    uint64_t mask = 0;
+
+    // the value currently pointed to
+    value_type value{};
+
+public:
+    SparseBitMapIter() = default;  // default constructor -- creating an end-iterator
+    SparseBitMapIter(const SparseBitMapIter&) = default;
+    SparseBitMapIter& operator=(const SparseBitMapIter&) = default;
+
+    SparseBitMapIter(const nested_iterator& iter)
+            : iter(iter), mask(SparseBitMap::toMask(iter->second)),
+              value(iter->first << SparseBitMap::LEAF_INDEX_WIDTH) {
+        moveToNextInMask();
+    }
+
+    SparseBitMapIter(const nested_iterator& iter, uint64_t m, value_type value)
+            : iter(iter), mask(m), value(value) {}
+
+    // the equality operator as required by the iterator concept
+    bool operator==(const SparseBitMapIter& other) const {
+        // only equivalent if pointing to the end
+        return iter == other.iter && mask == other.mask;
+    }
+
+    // the not-equality operator as required by the iterator concept
+    bool operator!=(const SparseBitMapIter& other) const {
+        return !(*this == other);
+    }
+
+    // the deref operator as required by the iterator concept
+    const value_type& operator*() const {
+        return value;
+    }
+
+    // support for the pointer operator
+    const value_type* operator->() const {
+        return &value;
+    }
+
+    // the increment operator as required by the iterator concept
+    SparseBitMapIter& operator++() {
+        // progress in current mask
+        if (moveToNextInMask()) return *this;
+
+        // go to next entry
+        ++iter;
+
+        // update value
+        if (!iter.isEnd()) {
+            value = iter->first << SparseBitMap::LEAF_INDEX_WIDTH;
+            mask = SparseBitMap::toMask(iter->second);
+            moveToNextInMask();
+        }
+
+        // done
+        return *this;
+    }
+
+    SparseBitMapIter operator++(int) {
+        auto cpy = *this;
+        ++(*this);
+        return cpy;
+    }
+
+    bool isEnd() const {
+        return iter.isEnd();
+    }
+
+    void print(std::ostream& out) const {
+        out << "SparseBitMapIter(" << iter << " -> " << std::bitset<64>(mask) << " @ " << value << ")";
+    }
+
+    // enables this iterator core to be printed (for debugging)
+    friend std::ostream& operator<<(std::ostream& out, const SparseBitMapIter& iter) {
+        iter.print(out);
+        return out;
+    }
+
+private:
+    bool moveToNextInMask() {
+        // check if there is something left
+        if (mask == 0) return false;
+
+        // get position of leading 1
+        auto pos = __builtin_ctzll(mask);
+
+        // consume this bit
+        mask &= ~(1llu << pos);
+
+        // update value
+        value &= ~SparseBitMap::LEAF_INDEX_MASK;
+        value |= pos;
+
+        // done
+        return true;
+    }
+};
+
+}  // namespace detail::brie
+
 /**
  * A sparse bit-map is a bit map virtually assigning a bit value to every value if the
  * uint32_t domain. However, only 1-bits are stored utilizing a nested sparse array
@@ -1448,6 +1619,11 @@ private:
  */
 template <unsigned BITS = 4>
 class SparseBitMap {
+    template <typename A>
+    friend class detail::brie::SparseBitMapIter;
+
+    using this_t = SparseBitMap<BITS>;
+
     // the element type stored in the nested sparse array
     using value_t = uint64_t;
 
@@ -1463,9 +1639,14 @@ class SparseBitMap {
     using atomic_value_t = typename data_store_t::atomic_value_type;
 
     // some constants for manipulating stored values
-    static constexpr short BITS_PER_ENTRY = sizeof(value_t) * 8;
-    static constexpr short LEAF_INDEX_WIDTH = static_cast<short>(__builtin_ctz(BITS_PER_ENTRY));
+    static constexpr std::size_t BITS_PER_ENTRY = sizeof(value_t) * CHAR_BIT;
+    static constexpr std::size_t LEAF_INDEX_WIDTH = __builtin_ctz(BITS_PER_ENTRY);
     static constexpr uint64_t LEAF_INDEX_MASK = BITS_PER_ENTRY - 1;
+
+    static uint64_t toMask(const value_t& value) {
+        static_assert(sizeof(value_t) == sizeof(uint64_t), "Fixed for 64-bit compiler.");
+        return reinterpret_cast<const uint64_t&>(value);
+    }
 
 public:
     // the type to address individual entries
@@ -1610,123 +1791,7 @@ public:
     //                           Iterator
     // ---------------------------------------------------------------------
 
-    /**
-     * An iterator iterating over all indices set to 1.
-     */
-    class iterator {
-        using nested_iterator = typename data_store_t::iterator;
-
-        // the iterator through the underlying sparse data structure
-        nested_iterator iter;
-
-        // the currently consumed mask
-        uint64_t mask = 0;
-
-        // the value currently pointed to
-        index_type value{};
-
-    public:
-        typedef std::forward_iterator_tag iterator_category;
-        typedef index_type value_type;
-        typedef ptrdiff_t difference_type;
-        typedef value_type* pointer;
-        typedef value_type& reference;
-
-        // default constructor -- creating an end-iterator
-        iterator() = default;
-
-        iterator(const nested_iterator& iter)
-                : iter(iter), mask(toMask(iter->second)), value(iter->first << LEAF_INDEX_WIDTH) {
-            moveToNextInMask();
-        }
-
-        iterator(const nested_iterator& iter, uint64_t m, index_type value)
-                : iter(iter), mask(m), value(value) {}
-
-        // a copy constructor
-        iterator(const iterator& other) = default;
-
-        // an assignment operator
-        iterator& operator=(const iterator& other) = default;
-
-        // the equality operator as required by the iterator concept
-        bool operator==(const iterator& other) const {
-            // only equivalent if pointing to the end
-            return iter == other.iter && mask == other.mask;
-        }
-
-        // the not-equality operator as required by the iterator concept
-        bool operator!=(const iterator& other) const {
-            return !(*this == other);
-        }
-
-        // the deref operator as required by the iterator concept
-        const index_type& operator*() const {
-            return value;
-        }
-
-        // support for the pointer operator
-        const index_type* operator->() const {
-            return &value;
-        }
-
-        // the increment operator as required by the iterator concept
-        iterator& operator++() {
-            // progress in current mask
-            if (moveToNextInMask()) return *this;
-
-            // go to next entry
-            ++iter;
-
-            // update value
-            if (!iter.isEnd()) {
-                value = iter->first << LEAF_INDEX_WIDTH;
-                mask = toMask(iter->second);
-                moveToNextInMask();
-            }
-
-            // done
-            return *this;
-        }
-
-        bool isEnd() const {
-            return iter.isEnd();
-        }
-
-        void print(std::ostream& out) const {
-            out << "SparseBitMapIter(" << iter << " -> " << std::bitset<64>(mask) << " @ " << value << ")";
-        }
-
-        // enables this iterator core to be printed (for debugging)
-        friend std::ostream& operator<<(std::ostream& out, const iterator& iter) {
-            iter.print(out);
-            return out;
-        }
-
-        static uint64_t toMask(const value_t& value) {
-            static_assert(sizeof(value_t) == sizeof(uint64_t), "Fixed for 64-bit compiler.");
-            return reinterpret_cast<const uint64_t&>(value);
-        }
-
-    private:
-        bool moveToNextInMask() {
-            // check if there is something left
-            if (mask == 0) return false;
-
-            // get position of leading 1
-            auto pos = __builtin_ctzll(mask);
-
-            // consume this bit
-            mask &= ~(1llu << pos);
-
-            // update value
-            value &= ~LEAF_INDEX_MASK;
-            value |= pos;
-
-            // done
-            return true;
-        }
-    };
+    using iterator = SparseBitMapIter<this_t>;
 
     /**
      * Obtains an iterator pointing to the first index set to 1. If there
@@ -1765,7 +1830,7 @@ public:
         if (it.isEnd()) return end();
 
         // check bit-set part
-        uint64_t mask = iterator::toMask(it->second);
+        uint64_t mask = toMask(it->second);
         if (!(mask & (1llu << (i & LEAF_INDEX_MASK)))) return end();
 
         // OK, it is there => create iterator
@@ -1782,7 +1847,7 @@ public:
         if (it.isEnd()) return end();
 
         // check bit-set part
-        uint64_t mask = iterator::toMask(it->second);
+        uint64_t mask = toMask(it->second);
 
         // if there is no bit remaining in this mask, check next mask.
         if (!(mask & ((~uint64_t(0)) << (i & LEAF_INDEX_MASK)))) {
@@ -1839,7 +1904,105 @@ public:
 //                              TRIE
 // ---------------------------------------------------------------------
 
-namespace detail {
+namespace detail::brie {
+
+/**
+ * An iterator over the stored entries.
+ *
+ * Iterators for tries consist of a top-level iterator maintaining the
+ * master copy of a materialized tuple and a recursively nested iterator
+ * core -- one for each nested trie level.
+ */
+template <typename Value, typename IterCore>
+class TrieIterator {
+    template <unsigned Len, unsigned Pos, unsigned Dimensions>
+    friend struct fix_binding;
+
+    template <unsigned Dimensions>
+    friend struct fix_lower_bound;
+
+    template <unsigned Dimensions>
+    friend struct fix_upper_bound;
+
+    template <unsigned Pos, unsigned Dimensions>
+    friend struct fix_first;
+
+    template <unsigned Dimensions>
+    friend struct fix_first_nested;
+
+    template <typename A, typename B>
+    friend class TrieIterator;
+
+    // remove ref-qual (if any); this can happen if we're a iterator-view
+    using iter_core_arg_type = typename std::remove_reference_t<IterCore>::store_iter;
+
+    Value value;         // the value currently pointed to
+    IterCore iter_core;  // the wrapped iterator
+
+    // return an ephemeral nested iterator-view (view -> mutating us mutates our parent)
+    // NB: be careful that the lifetime of this iterator-view doesn't exceed that of its parent.
+    auto getNestedView() {
+        auto& nested_iter_ref = iter_core.getNested();  // by ref (this is critical, we're a view, not a copy)
+        auto nested_val = tail(value);
+        return TrieIterator<decltype(nested_val), decltype(nested_iter_ref)>(
+                std::move(nested_val), nested_iter_ref);
+    }
+
+    // special constructor for iterator-views (see `getNestedView`)
+    explicit TrieIterator(Value value, IterCore iter_core) : value(std::move(value)), iter_core(iter_core) {}
+
+public:
+    TrieIterator() = default;  // default constructor -- creating an end-iterator
+    TrieIterator(const TrieIterator&) = default;
+    TrieIterator(TrieIterator&&) = default;
+    TrieIterator& operator=(const TrieIterator&) = default;
+    TrieIterator& operator=(TrieIterator&&) = default;
+
+    explicit TrieIterator(iter_core_arg_type param) : iter_core(std::move(param), value) {}
+
+    // the equality operator as required by the iterator concept
+    bool operator==(const TrieIterator& other) const {
+        // equivalent if pointing to the same value
+        return iter_core == other.iter_core;
+    }
+
+    // the not-equality operator as required by the iterator concept
+    bool operator!=(const TrieIterator& other) const {
+        return !(*this == other);
+    }
+
+    const Value& operator*() const {
+        return value;
+    }
+
+    const Value* operator->() const {
+        return &value;
+    }
+
+    TrieIterator& operator++() {
+        iter_core.inc(value);
+        return *this;
+    }
+
+    TrieIterator operator++(int) {
+        auto cpy = *this;
+        ++(*this);
+        return cpy;
+    }
+
+    // enables this iterator to be printed (for debugging)
+    void print(std::ostream& out) const {
+        out << "iter(" << iter_core << " -> " << value << ")";
+    }
+
+    friend std::ostream& operator<<(std::ostream& out, const TrieIterator& iter) {
+        iter.print(out);
+        return out;
+    }
+};
+
+template <unsigned Dim>
+struct TrieTypes;
 
 /**
  * A base class for the Trie implementation allowing various
@@ -1850,122 +2013,124 @@ namespace detail {
  */
 template <unsigned Dim, typename Derived>
 class TrieBase {
+    Derived& impl() {
+        return static_cast<Derived&>(*this);
+    }
+
+    const Derived& impl() const {
+        return static_cast<const Derived&>(*this);
+    }
+
+protected:
+    using types = TrieTypes<Dim>;
+    using store_type = typename types::store_type;
+
+    store_type store;
+
 public:
+    using const_entry_span_type = typename types::const_entry_span_type;
+    using entry_span_type = typename types::entry_span_type;
+    using entry_type = typename types::entry_type;
+    using iterator = typename types::iterator;
+    using iterator_core = typename types::iterator_core;
+    using op_context = typename types::op_context;
+
     /**
-     * The type of the stored entries / tuples.
+     * Inserts all tuples stored within the given trie into this trie.
+     * This operation is considerably more efficient than the consecutive
+     * insertion of the elements in other into this trie.
+     *
+     * @param other the elements to be inserted into this trie
      */
-    using entry_type = typename souffle::Tuple<RamDomain, Dim>;
+    void insertAll(const TrieBase& other) {
+        store.addAll(other.store);
+    }
+
+    /**
+     * Provides protected access to the internally maintained store.
+     */
+    const store_type& getStore() const {
+        return store;
+    }
+
+    /**
+     * Determines whether this trie is empty or not.
+     */
+    bool empty() const {
+        return store.empty();
+    }
+
+    /**
+     * Obtains an iterator referencing the first element stored within this trie.
+     */
+    iterator begin() const {
+        return empty() ? end() : iterator(store.begin());
+    }
+
+    /**
+     * Obtains an iterator referencing the position after the last element stored
+     * within this trie.
+     */
+    iterator end() const {
+        return iterator();
+    }
+
+    iterator find(const_entry_span_type entry, op_context& ctxt) const {
+        auto range = impl().template getBoundaries<Dim>(entry, ctxt);
+        return range.empty() ? range.end() : range.begin();
+    }
+
+    // implemented by `Derived`:
+    //      bool insert(const entry_type& tuple, op_context& ctxt);
+    //      bool contains(const_entry_span_type tuple, op_context& ctxt) const;
+    //      bool lower_bound(const_entry_span_type tuple, op_context& ctxt) const;
+    //      bool upper_bound(const_entry_span_type tuple, op_context& ctxt) const;
+    //      template <unsigned levels>
+    //      range<iterator> getBoundaries(const_entry_span_type, op_context&) const;
 
     // -- operation wrappers --
 
-    /**
-     * A generic function enabling the insertion of tuple values in a user-friendly way.
-     */
-    template <typename... Values>
-    bool insert(Values... values) {
-        return static_cast<Derived&>(*this).insert(entry_type{{RamDomain(values)...}});
+    template <unsigned levels>
+    range<iterator> getBoundaries(const_entry_span_type entry) const {
+        op_context ctxt;
+        return impl().template getBoundaries<levels>(entry, ctxt);
     }
 
-    /**
-     * A generic function enabling the convenient conduction of a membership check.
-     */
-    template <typename... Values>
-    bool contains(Values... values) const {
-        return static_cast<const Derived&>(*this).contains(entry_type{{RamDomain(values)...}});
+    template <unsigned levels>
+    range<iterator> getBoundaries(const entry_type& entry, op_context& ctxt) const {
+        return impl().template getBoundaries<levels>(const_entry_span_type(entry), ctxt);
     }
 
-    // ---------------------------------------------------------------------
-    //                           Iterator
-    // ---------------------------------------------------------------------
+    template <unsigned levels>
+    range<iterator> getBoundaries(const entry_type& entry) const {
+        return impl().template getBoundaries<levels>(const_entry_span_type(entry));
+    }
 
-    /**
-     * An iterator over the stored entries.
-     *
-     * Iterators for tries consist of a top-level iterator maintaining the
-     * master copy of a materialized tuple and a recursively nested iterator
-     * core -- one for each nested trie level.
-     */
-    template <template <unsigned D> class IterCore>
-    class iterator {
-        template <unsigned Len, unsigned Pos, unsigned Dimensions>
-        friend struct fix_binding;
+    template <unsigned levels, typename... Values, typename = std::enable_if_t<(isRamType<Values> && ...)>>
+    range<iterator> getBoundaries(Values... values) const {
+        return impl().template getBoundaries<levels>(entry_type{ramBitCast(values)...});
+    }
 
-        template <unsigned Pos, unsigned Dimensions>
-        friend struct fix_lower_bound;
+// declare a initialiser-list compatible overload for a given function
+#define BRIE_OVERLOAD_INIT_LIST(fn, constness)                     \
+    auto fn(const_entry_span_type entry) constness {               \
+        op_context ctxt;                                           \
+        return impl().fn(entry, ctxt);                             \
+    }                                                              \
+    auto fn(const entry_type& entry, op_context& ctxt) constness { \
+        return impl().fn(const_entry_span_type(entry), ctxt);      \
+    }                                                              \
+    auto fn(const entry_type& entry) constness {                   \
+        return impl().fn(const_entry_span_type(entry));            \
+    }
 
-        template <unsigned Pos, unsigned Dimensions>
-        friend struct fix_upper_bound;
+    BRIE_OVERLOAD_INIT_LIST(insert, )
+    BRIE_OVERLOAD_INIT_LIST(find, const)
+    BRIE_OVERLOAD_INIT_LIST(contains, const)
+    BRIE_OVERLOAD_INIT_LIST(lower_bound, const)
+    BRIE_OVERLOAD_INIT_LIST(upper_bound, const)
 
-        template <unsigned Pos, unsigned Dimensions>
-        friend struct fix_first;
-
-        // the iterator core of this level
-        using iter_core_t = IterCore<0>;
-
-        // the wrapped iterator
-        iter_core_t iter_core;
-
-        // the value currently pointed to
-        entry_type value;
-
-    public:
-        typedef std::forward_iterator_tag iterator_category;
-        typedef entry_type value_type;
-        typedef ptrdiff_t difference_type;
-        typedef value_type* pointer;
-        typedef value_type& reference;
-
-        // default constructor -- creating an end-iterator
-        iterator() = default;
-
-        // a copy constructor
-        iterator(const iterator& other) = default;
-
-        iterator(iterator&& other) = default;
-
-        template <typename Param>
-        explicit iterator(const Param& param) : iter_core(param, value) {}
-
-        // an assignment operator
-        iterator& operator=(const iterator& other) = default;
-
-        // the equality operator as required by the iterator concept
-        bool operator==(const iterator& other) const {
-            // equivalent if pointing to the same value
-            return iter_core == other.iter_core;
-        }
-
-        // the not-equality operator as required by the iterator concept
-        bool operator!=(const iterator& other) const {
-            return !(*this == other);
-        }
-
-        // the deref operator as required by the iterator concept
-        const entry_type& operator*() const {
-            return value;
-        }
-
-        // support for the pointer operator
-        const entry_type* operator->() const {
-            return &value;
-        }
-
-        // the increment operator as required by the iterator concept
-        iterator& operator++() {
-            iter_core.inc(value);
-            return *this;
-        }
-
-        // enables this iterator to be printed (for debugging)
-        void print(std::ostream& out) const {
-            out << "iter(" << iter_core << " -> " << value << ")";
-        }
-
-        friend std::ostream& operator<<(std::ostream& out, const iterator& iter) {
-            iter.print(out);
-            return out;
-        }
-    };
+#undef BRIE_OVERLOAD_INIT_LIST
 
     /* -------------- operator hint statistics ----------------- */
 
@@ -1999,6 +2164,10 @@ public:
     }
 };
 
+template <unsigned Dim>
+struct TrieTypes;
+
+// FIXME: THIS KILLS COMPILE PERF - O(n^2)
 /**
  * A functor extracting a reference to a nested iterator core from an enclosing
  * iterator core.
@@ -2019,6 +2188,7 @@ struct get_nested_iter_core<0> {
     }
 };
 
+// FIXME: THIS KILLS COMPILE PERF - O(n^2)
 /**
  * A functor initializing an iterator upon creation to reference the first
  * element in the associated Trie.
@@ -2052,6 +2222,28 @@ struct fix_first<Dim, Dim> {
     }
 };
 
+template <unsigned Dim>
+struct fix_first_nested {
+    template <unsigned bits, typename iterator>
+    void operator()(const SparseBitMap<bits>& store, iterator&& iter) const {
+        // set iterator to first in store
+        auto first = store.begin();
+        iter.value[0] = *first;
+        iter.iter_core.setIterator(std::move(first));
+    }
+
+    template <typename Store, typename iterator>
+    void operator()(const Store& store, iterator&& iter) const {
+        // set iterator to first in store
+        auto first = store.begin();
+        iter.value[0] = first->first;
+        iter.iter_core.setIterator(std::move(first));
+        // and continue recursively
+        fix_first_nested<Dim - 1>()(first->second->getStore(), iter.getNestedView());
+    }
+};
+
+// TODO: rewrite to erase `Pos` and `Len` arguments. this can cause a template instance explosion
 /**
  * A functor initializing an iterator upon creation to reference the first element
  * exhibiting a given prefix within a given Trie.
@@ -2150,59 +2342,49 @@ struct fix_binding<0, Dim, Dim> {
  * A functor initializing an iterator upon creation to reference the first element
  * within a given Trie being not less than a given value .
  */
-template <unsigned Pos, unsigned Dim>
+template <unsigned Dim>
 struct fix_lower_bound {
-    template <unsigned bits, typename iterator, typename entry_type>
-    bool operator()(const SparseBitMap<bits>& store, iterator& iter, const entry_type& entry) const {
-        // search in current level
-        auto cur = store.lower_bound(entry[Pos]);
+    using types = TrieTypes<Dim>;
+    using const_entry_span_type = typename types::const_entry_span_type;
 
+    template <unsigned bits, typename iterator>
+    bool operator()(const SparseBitMap<bits>& store, iterator&& iter, const_entry_span_type entry) const {
+        auto cur = store.lower_bound(entry[0]);
         if (cur == store.end()) return false;
+        assert(entry[0] <= brie_element_type(*cur));
 
-        get_nested_iter_core<Pos>()(iter.iter_core).setIterator(cur);
-
-        assert(entry[Pos] <= RamDomain(*cur));
-        iter.value[Pos] = *cur;
-
-        // no more remaining levels to fix
+        iter.iter_core.setIterator(cur);
+        iter.value[0] = *cur;
         return true;
     }
 
-    template <typename Store, typename iterator, typename entry_type>
-    bool operator()(const Store& store, iterator& iter, const entry_type& entry) const {
-        // search in current level
-        auto cur = store.lowerBound(entry[Pos]);
-
-        // if no lower boundary is found, be done
-        if (cur == store.end()) return false;
-        assert(RamDomain(cur->first) >= entry[Pos]);
+    template <typename Store, typename iterator>
+    bool operator()(const Store& store, iterator&& iter, const_entry_span_type entry) const {
+        auto cur = store.lowerBound(entry[0]);  // search in current level
+        if (cur == store.end()) return false;   // if no lower boundary is found, be done
+        assert(brie_element_type(cur->first) >= entry[0]);
 
         // if the lower bound is higher than the requested value, go to first in subtree
-        if (RamDomain(cur->first) > entry[Pos]) {
-            get_nested_iter_core<Pos>()(iter.iter_core).setIterator(cur);
-            iter.value[Pos] = cur->first;
-            fix_first<Pos + 1, Dim>()(cur->second->getStore(), iter);
+        if (brie_element_type(cur->first) > entry[0]) {
+            iter.iter_core.setIterator(cur);
+            iter.value[0] = cur->first;
+            fix_first_nested<Dim - 1>()(cur->second->getStore(), iter.getNestedView());
             return true;
         }
 
         // attempt to fix the rest
-        if (!fix_lower_bound<Pos + 1, Dim>()(cur->second->getStore(), iter, entry)) {
+        if (!fix_lower_bound<Dim - 1>()(cur->second->getStore(), iter.getNestedView(), tail(entry))) {
             // if it does not work, since there are no matching elements in this branch, go to next
-            entry_type sub = entry;
-            sub[Pos] += 1;
-            for (size_t i = Pos + 1; i < Dim; ++i) {
+            auto sub = copy(entry);
+            sub[0] += 1;
+            for (std::size_t i = 1; i < Dim; ++i)
                 sub[i] = 0;
-            }
+
             return (*this)(store, iter, sub);
         }
 
-        // remember result
-        get_nested_iter_core<Pos>()(iter.iter_core).setIterator(cur);
-
-        // update iterator value
-        iter.value[Pos] = cur->first;
-
-        // done!
+        iter.iter_core.setIterator(cur);  // remember result
+        iter.value[0] = cur->first;       // update iterator value
         return true;
     }
 };
@@ -2211,83 +2393,58 @@ struct fix_lower_bound {
  * A functor initializing an iterator upon creation to reference the first element
  * within a given Trie being greater than a given value .
  */
-template <unsigned Pos, unsigned Dim>
+template <unsigned Dim>
 struct fix_upper_bound {
-    template <unsigned bits, typename iterator, typename entry_type>
-    bool operator()(const SparseBitMap<bits>& store, iterator& iter, const entry_type& entry) const {
-        // search in current level
-        auto cur = store.upper_bound(entry[Pos]);
+    using types = TrieTypes<Dim>;
+    using const_entry_span_type = typename types::const_entry_span_type;
 
-        if (cur == store.end()) {
-            return false;
-        }
+    template <unsigned bits, typename iterator>
+    bool operator()(const SparseBitMap<bits>& store, iterator&& iter, const_entry_span_type entry) const {
+        auto cur = store.upper_bound(entry[0]);
+        if (cur == store.end()) return false;
+        assert(entry[0] <= brie_element_type(*cur));
 
-        get_nested_iter_core<Pos>()(iter.iter_core).setIterator(cur);
-
-        assert(entry[Pos] <= RamDomain(*cur));
-        iter.value[Pos] = *cur;
-
-        // no more remaining levels to fix
-        return true;
+        iter.iter_core.setIterator(cur);
+        iter.value[0] = *cur;
+        return true;  // no more remaining levels to fix
     }
 
-    template <typename Store, typename iterator, typename entry_type>
-    bool operator()(const Store& store, iterator& iter, const entry_type& entry) const {
-        // search in current level (if it is not the last level, we need a lower bound)
-        auto cur = store.lowerBound(entry[Pos]);
-
-        // if no lower boundary is found, be done
-        if (cur == store.end()) {
-            return false;
-        }
-        assert(RamDomain(cur->first) >= entry[Pos]);
+    template <typename Store, typename iterator>
+    bool operator()(const Store& store, iterator&& iter, const_entry_span_type entry) const {
+        auto cur = store.lowerBound(entry[0]);  // search in current level
+        if (cur == store.end()) return false;   // if no upper boundary is found, be done
+        assert(brie_element_type(cur->first) >= entry[0]);
 
         // if the lower bound is higher than the requested value, go to first in subtree
-        if (RamDomain(cur->first) > entry[Pos]) {
-            get_nested_iter_core<Pos>()(iter.iter_core).setIterator(cur);
-            iter.value[Pos] = cur->first;
-            fix_first<Pos + 1, Dim>()(cur->second->getStore(), iter);
+        if (brie_element_type(cur->first) > entry[0]) {
+            iter.iter_core.setIterator(cur);
+            iter.value[0] = cur->first;
+            fix_first_nested<Dim - 1>()(cur->second->getStore(), iter.getNestedView());
             return true;
         }
 
         // attempt to fix the rest
-        if (!fix_upper_bound<Pos + 1, Dim>()(cur->second->getStore(), iter, entry)) {
+        if (!fix_upper_bound<Dim - 1>()(cur->second->getStore(), iter.getNestedView(), tail(entry))) {
             // if it does not work, since there are no matching elements in this branch, go to next
-            entry_type sub = entry;
-            sub[Pos] += 1;
-            for (size_t i = Pos + 1; i < Dim; ++i) {
+            auto sub = copy(entry);
+            sub[0] += 1;
+            for (std::size_t i = 1; i < Dim; ++i)
                 sub[i] = 0;
-            }
+
             return (*this)(store, iter, sub);
         }
 
-        // remember result
-        get_nested_iter_core<Pos>()(iter.iter_core).setIterator(cur);
-
-        // update iterator value
-        iter.value[Pos] = cur->first;
-
-        // done!
+        iter.iter_core.setIterator(cur);  // remember result
+        iter.value[0] = cur->first;       // update iterator value
         return true;
     }
 };
 
-}  // namespace detail
-
-/**
- * The most generic implementation of a Trie forming the top-level of any
- * Trie storing tuples of arity > 1.
- */
 template <unsigned Dim>
-class Trie : public souffle::detail::TrieBase<Dim, Trie<Dim>> {
-    template <unsigned D>
-    friend class Trie;
-
-    template <unsigned D, typename Derived>
-    friend class TrieBase;
-
-    // a shortcut for the common base class type
-    using base = typename souffle::detail::TrieBase<Dim, Trie<Dim>>;
+struct TrieTypes {
+    using entry_type = std::array<brie_element_type, Dim>;
+    using entry_span_type = span<brie_element_type, Dim>;
+    using const_entry_span_type = span<const brie_element_type, Dim>;
 
     // the type of the nested tries (1 dimension less)
     using nested_trie_type = Trie<Dim - 1>;
@@ -2315,58 +2472,39 @@ class Trie : public souffle::detail::TrieBase<Dim, Trie<Dim>> {
             6,  // = 2^6 entries per block
             nested_trie_merger, nested_trie_cloner>;
 
-    // the actual data store
-    store_type store;
+    // The iterator core for trie iterators involving this level.
+    struct iterator_core {
+        using store_iter = typename store_type::iterator;  // the iterator for the current level
+        using nested_core_iter = typename nested_trie_type::iterator_core;  // the type of the nested iterator
 
-public:
-    using entry_type = typename souffle::Tuple<RamDomain, Dim>;
-    using element_type = entry_type;
-
-    // ---------------------------------------------------------------------
-    //                           Iterator
-    // ---------------------------------------------------------------------
-
-    /**
-     * The iterator core for trie iterators involving this level.
-     */
-    template <unsigned I = 0>
-    class iterator_core {
-        // the iterator for the current level
-        using store_iter_t = typename store_type::iterator;
-
-        // the type of the nested iterator
-        using nested_iter_core = typename Trie<Dim - 1>::template iterator_core<I + 1>;
-
-        store_iter_t iter;
-
-        nested_iter_core nested;
+    private:
+        store_iter iter;
+        nested_core_iter nested;
 
     public:
-        /** default end-iterator constructor */
-        iterator_core() = default;
+        iterator_core() = default;  // default -> end iterator
 
-        template <typename Tuple>
-        iterator_core(const store_iter_t& iter, Tuple& entry) : iter(iter) {
-            entry[I] = iter->first;
-            nested = iter->second->template getBeginCoreIterator<I + 1>(entry);
+        iterator_core(store_iter store_iter, entry_span_type entry) : iter(std::move(store_iter)) {
+            entry[0] = iter->first;
+            nested = {iter->second->getStore().begin(), tail(entry)};
         }
 
-        void setIterator(const store_iter_t& iter) {
-            this->iter = iter;
+        void setIterator(store_iter store_iter) {
+            iter = std::move(store_iter);
         }
 
-        store_iter_t& getIterator() {
-            return this->iter;
+        store_iter& getIterator() {
+            return iter;
         }
 
-        nested_iter_core& getNested() {
+        nested_core_iter& getNested() {
             return nested;
         }
 
-        template <typename Tuple>
-        bool inc(Tuple& entry) {
+        bool inc(entry_span_type entry) {
             // increment nested iterator
-            if (nested.inc(entry)) return true;
+            auto nested_entry = tail(entry);
+            if (nested.inc(nested_entry)) return true;
 
             // increment the iterator on this level
             ++iter;
@@ -2375,10 +2513,10 @@ public:
             if (iter.isEnd()) return false;
 
             // otherwise update entry value
-            entry[I] = iter->first;
+            entry[0] = iter->first;
 
             // and restart nested
-            nested = iter->second->template getBeginCoreIterator<I + 1>(entry);
+            nested = {iter->second->getStore().begin(), nested_entry};
             return true;
         }
 
@@ -2401,8 +2539,7 @@ public:
         }
     };
 
-    // the type of iterator to be utilized when iterating of instances of this trie
-    using iterator = typename base::template iterator<iterator_core>;
+    using iterator = TrieIterator<entry_type, iterator_core>;
 
     // the operation context aggregating all operation contexts of nested structures
     struct op_context {
@@ -2411,7 +2548,7 @@ public:
 
         // for insert and contain
         local_ctxt local{};
-        RamDomain lastQuery{};
+        brie_element_type lastQuery{};
         nested_trie_type* lastNested{nullptr};
         nested_ctxt nestedCtxt{};
 
@@ -2419,29 +2556,120 @@ public:
         unsigned lastBoundaryLevels{Dim + 1};
         entry_type lastBoundaryRequest{};
         range<iterator> lastBoundaries{iterator(), iterator()};
+    };
+};
 
-        op_context() = default;
+template <>
+struct TrieTypes<1u> {
+    using entry_type = std::array<brie_element_type, 1>;
+    using entry_span_type = span<brie_element_type, 1>;
+    using const_entry_span_type = span<const brie_element_type, 1>;
+
+    // the map type utilized internally
+    using store_type = SparseBitMap<>;
+    using op_context = store_type::op_context;
+
+    /**
+     * The iterator core of this level contributing to the construction of
+     * a composed trie iterator.
+     */
+    struct iterator_core {
+        using store_iter = typename store_type::iterator;
+
+    private:
+        store_iter iter;
+
+    public:
+        iterator_core() = default;  // default end-iterator constructor
+
+        iterator_core(store_iter store_iter, entry_span_type entry)
+                : iter(std::move(store_iter))  // NOLINT : mistaken warning -`store_iter` is not const-qual
+        {
+            entry[0] = brie_element_type(*iter);
+        }
+
+        void setIterator(store_iter store_iter) {
+            iter = std::move(store_iter);  // NOLINT : mistaken warning - `store_iter` is not const-qual
+        }
+
+        store_iter& getIterator() {
+            return iter;
+        }
+
+        bool inc(entry_span_type entry) {
+            // increment the iterator on this level
+            ++iter;
+
+            // check whether the end has been reached
+            if (iter.isEnd()) return false;
+
+            // otherwise update entry value
+            entry[0] = brie_element_type(*iter);
+            return true;
+        }
+
+        bool operator==(const iterator_core& other) const {
+            return iter == other.iter;
+        }
+
+        bool operator!=(const iterator_core& other) const {
+            return !(*this == other);
+        }
+
+        // enables this iterator core to be printed (for debugging)
+        void print(std::ostream& out) const {
+            out << iter;
+        }
+
+        friend std::ostream& operator<<(std::ostream& out, const iterator_core& iter) {
+            iter.print(out);
+            return out;
+        }
     };
 
+    using iterator = TrieIterator<entry_type, iterator_core>;
+};
+
+}  // namespace detail::brie
+
+// use an inner class so `TrieN` is fully defined before the recursion, allowing us to use
+// `op_context` in `TrieBase`
+template <unsigned Dim>
+class Trie : public TrieBase<Dim, Trie<Dim>> {
+    template <unsigned N>
+    friend class Trie;
+
+    // a shortcut for the common base class type
+    using base = TrieBase<Dim, Trie<Dim>>;
+    using types = TrieTypes<Dim>;
+    using nested_trie_type = typename types::nested_trie_type;
+    using store_type = typename types::store_type;
+
+    using base::store;
+
+public:
+    using const_entry_span_type = typename types::const_entry_span_type;
+    using entry_span_type = typename types::entry_span_type;
+    using entry_type = typename types::entry_type;
+    using iterator = typename types::iterator;
+    using iterator_core = typename types::iterator_core;
+    using op_context = typename types::op_context;
+    // type aliases for compatibility with `BTree` and others
     using operation_hints = op_context;
+    using element_type = entry_type;
 
+    using base::begin;
     using base::contains;
+    using base::empty;
+    using base::end;
+    using base::find;
+    using base::getBoundaries;
     using base::insert;
+    using base::lower_bound;
+    using base::upper_bound;
 
-    /**
-     * A simple destructore.
-     */
     ~Trie() {
-        for (auto& cur : store) {
-            delete cur.second;  // clears all nested tries
-        }
-    }
-
-    /**
-     * Determines whether this trie is empty or not.
-     */
-    bool empty() const {
-        return store.empty();
+        clear();
     }
 
     /**
@@ -2450,9 +2678,9 @@ public:
     std::size_t size() const {
         // the number of elements is lazy-evaluated
         std::size_t res = 0;
-        for (const auto& cur : store) {
-            res += cur.second->size();
-        }
+        for (auto&& [_, v] : store)
+            res += v->size();
+
         return res;
     }
 
@@ -2461,14 +2689,10 @@ public:
      */
     std::size_t getMemoryUsage() const {
         // compute the total memory usage of this level
-        std::size_t res = sizeof(*this) - sizeof(store) + store.getMemoryUsage();
+        auto res = sizeof(*this) - sizeof(store) + store.getMemoryUsage();
+        for (auto&& [_, v] : store)
+            res += v->getMemoryUsage();  // add the memory usage of sub-levels
 
-        // add the memory usage of sub-levels
-        for (const auto& cur : store) {
-            res += cur.second->getMemoryUsage();
-        }
-
-        // done
         return res;
     }
 
@@ -2476,24 +2700,13 @@ public:
      * Removes all entries within this trie.
      */
     void clear() {
-        // delete lower levels
-        for (auto& cur : store) {
+        // delete lower levels manually
+        // (can't use `Own` b/c we need `atomic` instances and those require trivial assignment)
+        for (auto& cur : store)
             delete cur.second;
-        }
 
         // clear store
         store.clear();
-    }
-
-    /**
-     * Inserts a new entry.
-     *
-     * @param tuple the entry to be added
-     * @return true if the same tuple hasn't been present before, false otherwise
-     */
-    bool insert(const entry_type& tuple) {
-        op_context ctxt;
-        return insert(tuple, ctxt);
     }
 
     /**
@@ -2504,83 +2717,69 @@ public:
      * @param ctxt the operation context to be utilized
      * @return true if the same tuple hasn't been present before, false otherwise
      */
-    bool insert(const entry_type& tuple, op_context& ctxt) {
-        return insert_internal<0>(tuple, ctxt);
+    bool insert(const_entry_span_type tuple, op_context& ctxt) {
+        using value_t = typename store_type::value_type;
+        using atomic_value_t = typename store_type::atomic_value_type;
+
+        // check context
+        if (ctxt.lastNested && ctxt.lastQuery == tuple[0]) {
+            base::hint_stats.inserts.addHit();
+            return ctxt.lastNested->insert(tail(tuple), ctxt.nestedCtxt);
+        }
+
+        base::hint_stats.inserts.addMiss();
+
+        // lookup nested
+        atomic_value_t& next = store.getAtomic(tuple[0], ctxt.local);
+
+        // get pure pointer to next level
+        value_t nextPtr = next;
+
+        // conduct a lock-free lazy-creation of nested trees
+        if (!nextPtr) {
+            // create a sub-tree && register it atomically
+            auto newNested = mk<nested_trie_type>();
+            if (next.compare_exchange_weak(nextPtr, newNested.get())) {
+                nextPtr = newNested.release();  // worked, ownership is acquired by `store`
+            }
+            // otherwise some other thread was faster => use its version
+        }
+
+        // make sure a next has been established
+        assert(nextPtr);
+
+        // clear context if necessary
+        if (nextPtr != ctxt.lastNested) {
+            ctxt.lastQuery = tuple[0];
+            ctxt.lastNested = nextPtr;
+            ctxt.nestedCtxt = {};
+        }
+
+        // conduct recursive step
+        return nextPtr->insert(tail(tuple), ctxt.nestedCtxt);
     }
 
-    /**
-     * Determines whether a given tuple is present within the set specified
-     * by this trie.
-     *
-     * @param tuple the tuple to be tested
-     * @return true if present, false otherwise
-     */
-    bool contains(const entry_type& tuple) const {
-        op_context ctxt;
-        return contains(tuple, ctxt);
-    }
+    bool contains(const_entry_span_type tuple, op_context& ctxt) const {
+        // check context
+        if (ctxt.lastNested && ctxt.lastQuery == tuple[0]) {
+            base::hint_stats.contains.addHit();
+            return ctxt.lastNested->contains(tail(tuple), ctxt.nestedCtxt);
+        }
 
-    /**
-     * Determines whether a given tuple is present within the set specified
-     * by this trie. A operation context may be provided to exploit temporal
-     * locality.
-     *
-     * @param tuple the entry to be added
-     * @param ctxt the operation context to be utilized
-     * @return true if the same tuple hasn't been present before, false otherwise
-     */
-    bool contains(const entry_type& tuple, op_context& ctxt) const {
-        return contains_internal<0>(tuple, ctxt);
-    }
+        base::hint_stats.contains.addMiss();
 
-    /**
-     * Inserts all elements stored within the given trie into this trie.
-     *
-     * @param other the elements to be inserted into this trie
-     */
-    void insertAll(const Trie& other) {
-        store.addAll(other.store);
-    }
+        // lookup next step
+        auto next = store.lookup(tuple[0], ctxt.local);
 
-    /**
-     * Obtains an iterator referencing the first element stored within this trie.
-     */
-    iterator begin() const {
-        auto it = store.begin();
-        if (it.isEnd()) return end();
-        return iterator(it);
-    }
+        // clear context if necessary
+        if (next != ctxt.lastNested) {
+            ctxt.lastQuery = tuple[0];
+            ctxt.lastNested = next;
+            ctxt.nestedCtxt = {};
+        }
 
-    /**
-     * Obtains an iterator referencing the position after the last element stored
-     * within this trie.
-     */
-    iterator end() const {
-        return iterator();
-    }
-
-    iterator find(const entry_type& entry) const {
-        op_context ctxt;
-        return find(entry, ctxt);
-    }
-
-    iterator find(const entry_type& entry, op_context& ctxt) const {
-        auto range = getBoundaries<Dim>(entry, ctxt);
-        return (!range.empty()) ? range.begin() : end();
-    }
-
-    /**
-     * Obtains a range of elements matching the prefix of the given entry up to
-     * levels elements.
-     *
-     * @tparam levels the length of the requested matching prefix
-     * @param entry the entry to be looking for
-     * @return the corresponding range of matching elements
-     */
-    template <unsigned levels>
-    range<iterator> getBoundaries(const entry_type& entry) const {
-        op_context ctxt;
-        return getBoundaries<levels>(entry, ctxt);
+        // conduct recursive step
+        return next && next->contains(tail(tuple), ctxt.nestedCtxt);
     }
 
     /**
@@ -2594,9 +2793,9 @@ public:
      * @return the corresponding range of matching elements
      */
     template <unsigned levels>
-    range<iterator> getBoundaries(const entry_type& entry, op_context& ctxt) const {
+    range<iterator> getBoundaries(const_entry_span_type entry, op_context& ctxt) const {
         // if nothing is bound => just use begin and end
-        if (levels == 0) return make_range(begin(), end());
+        if constexpr (levels == 0) return make_range(begin(), end());
 
         // check context
         if (ctxt.lastBoundaryLevels == levels) {
@@ -2620,12 +2819,14 @@ public:
         iterator end{};
 
         // adapt them level by level
-        auto found = souffle::detail::fix_binding<levels, 0, Dim>()(store, begin, end, entry);
+        auto found = fix_binding<levels, 0, Dim>()(store, begin, end, entry);
         if (!found) return make_range(iterator(), iterator());
 
         // update context
+        static_assert(std::tuple_size_v<decltype(ctxt.lastBoundaryRequest)> == Dim);
+        static_assert(std::tuple_size_v<decltype(entry)> == Dim);
         ctxt.lastBoundaryLevels = levels;
-        ctxt.lastBoundaryRequest = entry;
+        std::copy_n(entry.begin(), Dim, ctxt.lastBoundaryRequest.begin());
         ctxt.lastBoundaries = make_range(begin, end);
 
         // use the result
@@ -2639,57 +2840,34 @@ public:
      * @param ctxt the operation context to be utilized
      * @return an iterator addressing the first element in this structure not less than the given value
      */
-    iterator lower_bound(const entry_type& entry, op_context& /* ctxt */) const {
+    iterator lower_bound(const_entry_span_type entry, op_context& /* ctxt */) const {
         // start with a default-initialized iterator
         iterator res;
 
         // adapt it level by level
-        bool found = detail::fix_lower_bound<0, Dim>()(store, res, entry);
+        bool found = fix_lower_bound<Dim>()(store, res, entry);
 
         // use the result
         return found ? res : end();
     }
 
     /**
-     * Obtains an iterator to the first element not less than the given entry value.
-     *
-     * @param entry the lower bound for this search
-     * @return an iterator addressing the first element in this structure not less than the given value
-     */
-    iterator lower_bound(const entry_type& entry) const {
-        op_context ctxt;
-        return lower_bound(entry, ctxt);
-    }
-
-    /**
-     * Obtains an iterator to the first element greater than the given entry value, or end if there is no such
-     * element.
+     * Obtains an iterator to the first element greater than the given entry value, or end if there is no
+     * such element.
      *
      * @param entry the upper bound for this search
      * @param ctxt the operation context to be utilized
      * @return an iterator addressing the first element in this structure greater than the given value
      */
-    iterator upper_bound(const entry_type& entry, op_context& /* ctxt */) const {
+    iterator upper_bound(const_entry_span_type entry, op_context& /* ctxt */) const {
         // start with a default-initialized iterator
         iterator res;
 
         // adapt it level by level
-        bool found = detail::fix_upper_bound<0, Dim>()(store, res, entry);
+        bool found = fix_upper_bound<Dim>()(store, res, entry);
 
         // use the result
         return found ? res : end();
-    }
-
-    /**
-     * Obtains an iterator to the first element greater than the given entry value, or end if there is no such
-     * element.
-     *
-     * @param entry the upper bound for this search
-     * @return an iterator addressing the first element in this structure greater than the given value
-     */
-    iterator upper_bound(const entry_type& entry) const {
-        op_context ctxt;
-        return upper_bound(entry, ctxt);
     }
 
     /**
@@ -2707,7 +2885,122 @@ public:
         if (this->empty()) return res;
 
         // use top-level elements for partitioning
-        int step = std::max(store.size() / chunks, size_t(1));
+        int step = std::max(store.size() / chunks, std::size_t(1));
+
+        int c = 1;
+        auto priv = begin();
+        for (auto it = store.begin(); it != store.end(); ++it, c++) {
+            if (c % step != 0 || c == 1) {
+                continue;
+            }
+            auto cur = iterator(it);
+            res.push_back(make_range(priv, cur));
+            priv = cur;
+        }
+        // add final chunk
+        res.push_back(make_range(priv, end()));
+        return res;
+    }
+};
+
+/**
+ * A template specialization for tries representing a set.
+ * For improved memory efficiency, this level is the leaf-node level
+ * of all tries exhibiting an arity >= 1. Internally, values are stored utilizing
+ * sparse bit maps.
+ */
+template <>
+class Trie<1u> : public TrieBase<1u, Trie<1u>> {
+    using base = TrieBase<1u, Trie<1u>>;
+    using types = TrieTypes<1u>;
+    using store_type = typename types::store_type;
+
+    using base::store;
+
+public:
+    using const_entry_span_type = typename types::const_entry_span_type;
+    using entry_span_type = typename types::entry_span_type;
+    using entry_type = typename types::entry_type;
+    using iterator = typename types::iterator;
+    using iterator_core = typename types::iterator_core;
+    using op_context = typename types::op_context;
+    // type aliases for compatibility with `BTree` and others
+    using operation_hints = op_context;
+    using element_type = entry_type;
+
+    using base::begin;
+    using base::contains;
+    using base::empty;
+    using base::end;
+    using base::find;
+    using base::getBoundaries;
+    using base::insert;
+    using base::lower_bound;
+    using base::upper_bound;
+
+    /**
+     * Determines the number of entries in this trie.
+     */
+    std::size_t size() const {
+        return store.size();
+    }
+
+    /**
+     * Computes the total memory usage of this data structure.
+     */
+    std::size_t getMemoryUsage() const {
+        // compute the total memory usage
+        return sizeof(*this) - sizeof(store) + store.getMemoryUsage();
+    }
+
+    /**
+     * Removes all elements form this trie.
+     */
+    void clear() {
+        store.clear();
+    }
+
+    /**
+     * Inserts the given tuple into this trie.
+     * An operation context can be provided to exploit temporal locality.
+     *
+     * @param tuple the tuple to be inserted
+     * @param ctxt an operation context for exploiting temporal locality
+     * @return true if the tuple has not been present before, false otherwise
+     */
+    bool insert(const_entry_span_type tuple, op_context& ctxt) {
+        return store.set(tuple[0], ctxt);
+    }
+
+    /**
+     * Determines whether the given tuple is present in this trie or not.
+     * An operation context can be provided to exploit temporal locality.
+     *
+     * @param tuple the tuple to be tested
+     * @param ctxt an operation context for exploiting temporal locality
+     * @return true if present, false otherwise
+     */
+    bool contains(const_entry_span_type tuple, op_context& ctxt) const {
+        return store.test(tuple[0], ctxt);
+    }
+
+    // ---------------------------------------------------------------------
+    //                           Iterator
+    // ---------------------------------------------------------------------
+
+    /**
+     * Obtains a partition of this tire such that the resulting list of ranges
+     * cover disjoint subsets of the elements stored in this trie. Their union
+     * is equivalent to the content of this trie.
+     */
+    std::vector<range<iterator>> partition(unsigned chunks = 500) const {
+        std::vector<range<iterator>> res;
+
+        // shortcut for empty trie
+        if (this->empty()) return res;
+
+        // use top-level elements for partitioning
+        int step = static_cast<int>(std::max(store.size() / chunks, std::size_t(1)));
 
         int c = 1;
         auto priv = begin();
@@ -2725,362 +3018,6 @@ public:
     }
 
     /**
-     * Provides a protected access to the internally maintained store.
-     */
-    const store_type& getStore() const {
-        return store;
-    }
-
-private:
-    /**
-     * Creates a core iterator for this trie level and updates component
-     * I of the given entry to exhibit the corresponding first value.
-     *
-     * @tparam I the index of the tuple to be processed by the resulting iterator core
-     * @tparam Tuple the type of the tuple to be processed by the resulting iterator core
-     * @param entry a reference to the tuple to be updated to the first value
-     * @return the requested iterator core instance
-     */
-    template <unsigned I, typename Tuple>
-    iterator_core<I> getBeginCoreIterator(Tuple& entry) const {
-        return iterator_core<I>(store.begin(), entry);
-    }
-
-    /**
-     * The internally utilized implementation of the insert operation inserting
-     * a given tuple into this sub-trie.
-     *
-     * @tparam I the component index associated to this level
-     * @tparam Tuple the tuple type to be inserted
-     * @param tuple the tuple to be inserted
-     * @param ctxt a operation context to exploit temporal locality
-     * @return true if this tuple wasn't contained before, false otherwise
-     */
-    template <unsigned I, typename Tuple>
-    bool insert_internal(const Tuple& tuple, op_context& ctxt) {
-        using value_t = typename store_type::value_type;
-        using atomic_value_t = typename store_type::atomic_value_type;
-
-        // check context
-        if (ctxt.lastNested && ctxt.lastQuery == tuple[I]) {
-            base::hint_stats.inserts.addHit();
-            return ctxt.lastNested->template insert_internal<I + 1>(tuple, ctxt.nestedCtxt);
-        } else {
-            base::hint_stats.inserts.addMiss();
-        }
-
-        // lookup nested
-        atomic_value_t& next = store.getAtomic(tuple[I], ctxt.local);
-
-        // get pure pointer to next level
-        value_t nextPtr = next;
-
-        // conduct a lock-free lazy-creation of nested trees
-        if (!nextPtr) {
-            // create a new sub-tree
-            auto newNested = new nested_trie_type();
-
-            // register new sub-tree atomically
-            if (next.compare_exchange_weak(nextPtr, newNested)) {
-                nextPtr = newNested;  // worked
-            } else {
-                delete newNested;  // some other thread was faster => use its version
-            }
-        }
-
-        // make sure a next has been established
-        assert(nextPtr);
-
-        // clear context if necessary
-        if (nextPtr != ctxt.lastNested) {
-            ctxt.lastQuery = tuple[I];
-            ctxt.lastNested = nextPtr;
-            ctxt.nestedCtxt = typename op_context::nested_ctxt();
-        }
-
-        // conduct recursive step
-        return nextPtr->template insert_internal<I + 1>(tuple, ctxt.nestedCtxt);
-    }
-
-    /**
-     * An internal implementation of the contains member function determining
-     * whether a given tuple is present within this sub-trie or not.
-     *
-     * @tparam I the component index associated to this level
-     * @tparam Tuple the tuple type to be checked
-     * @param tuple the tuple to be checked
-     * @param ctxt a operation context to exploit temporal locality
-     * @return true if this tuple is present, false otherwise
-     */
-    template <unsigned I, typename Tuple>
-    bool contains_internal(const Tuple& tuple, op_context& ctxt) const {
-        // check context
-        if (ctxt.lastNested && ctxt.lastQuery == tuple[I]) {
-            base::hint_stats.contains.addHit();
-            return ctxt.lastNested->template contains_internal<I + 1>(tuple, ctxt.nestedCtxt);
-        } else {
-            base::hint_stats.contains.addMiss();
-        }
-
-        // lookup next step
-        auto next = store.lookup(tuple[I], ctxt.local);
-
-        // clear context if necessary
-        if (next != ctxt.lastNested) {
-            ctxt.lastQuery = tuple[I];
-            ctxt.lastNested = next;
-            ctxt.nestedCtxt = typename op_context::nested_ctxt();
-        }
-
-        // conduct recursive step
-        return next && next->template contains_internal<I + 1>(tuple, ctxt.nestedCtxt);
-    }
-};
-
-/**
- * A template specialization for tries representing a set.
- * For improved memory efficiency, this level is the leaf-node level
- * of all tries exhibiting an arity >= 1. Internally, values are stored utilizing
- * sparse bit maps.
- */
-template <>
-class Trie<1u> : public detail::TrieBase<1u, Trie<1u>> {
-    template <unsigned Dim>
-    friend class Trie;
-
-    template <unsigned Dim, typename Derived>
-    friend class detail::TrieBase;
-
-    // a shortcut for the base type
-    using base = typename detail::TrieBase<1u, Trie<1u>>;
-
-    // the map type utilized internally
-    using map_type = SparseBitMap<>;
-
-    // the internal data store
-    map_type map;
-
-public:
-    using element_type = entry_type;
-    using op_context = typename map_type::op_context;
-    using operation_hints = op_context;
-
-    using base::contains;
-    using base::insert;
-
-    /**
-     * Determines whether this trie is empty or not.
-     */
-    bool empty() const {
-        return map.empty();
-    }
-
-    /**
-     * Determines the number of elements stored in this trie.
-     */
-    std::size_t size() const {
-        return map.size();
-    }
-
-    /**
-     * Computes the total memory usage of this data structure.
-     */
-    std::size_t getMemoryUsage() const {
-        // compute the total memory usage
-        return sizeof(*this) - sizeof(map_type) + map.getMemoryUsage();
-    }
-
-    /**
-     * Removes all elements form this trie.
-     */
-    void clear() {
-        map.clear();
-    }
-
-    /**
-     * Inserts the given tuple into this trie.
-     *
-     * @param tuple the tuple to be inserted
-     * @return true if the tuple has not been present before, false otherwise
-     */
-    bool insert(const entry_type& tuple) {
-        op_context ctxt;
-        return insert(tuple, ctxt);
-    }
-
-    /**
-     * Inserts the given tuple into this trie.
-     * An operation context can be provided to exploit temporal locality.
-     *
-     * @param tuple the tuple to be inserted
-     * @param ctxt an operation context for exploiting temporal locality
-     * @return true if the tuple has not been present before, false otherwise
-     */
-    bool insert(const entry_type& tuple, op_context& ctxt) {
-        return insert_internal<0>(tuple, ctxt);
-    }
-
-    /**
-     * Determines whether the given tuple is present in this trie or not.
-     *
-     * @param tuple the tuple to be tested
-     * @return true if present, false otherwise
-     */
-    bool contains(const entry_type& tuple) const {
-        op_context ctxt;
-        return contains(tuple, ctxt);
-    }
-
-    /**
-     * Determines whether the given tuple is present in this trie or not.
-     * An operation context can be provided to exploit temporal locality.
-     *
-     * @param tuple the tuple to be tested
-     * @param ctxt an operation context for exploiting temporal locality
-     * @return true if present, false otherwise
-     */
-    bool contains(const entry_type& tuple, op_context& ctxt) const {
-        return contains_internal<0>(tuple, ctxt);
-    }
-
-    /**
-     * Inserts all tuples stored within the given trie into this trie.
-     * This operation is considerably more efficient than the consecutive
-     * insertion of the elements in other into this trie.
-     */
-    void insertAll(const Trie& other) {
-        map.addAll(other.map);
-    }
-
-    // ---------------------------------------------------------------------
-    //                           Iterator
-    // ---------------------------------------------------------------------
-
-    /**
-     * The iterator core of this level contributing to the construction of
-     * a composed trie iterator.
-     */
-    template <unsigned I = 0>
-    class iterator_core {
-        // the iterator for this level
-        using iter_type = typename map_type::iterator;
-
-        // the referenced bit-map iterator
-        iter_type iter;
-
-    public:
-        /** default end-iterator constructor */
-        iterator_core() = default;
-
-        template <typename Tuple>
-        iterator_core(const iter_type& iter, Tuple& entry) : iter(iter) {
-            entry[I] = static_cast<RamDomain>(*iter);
-        }
-
-        void setIterator(const iter_type& iter) {
-            this->iter = iter;
-        }
-
-        iter_type& getIterator() {
-            return this->iter;
-        }
-
-        template <typename Tuple>
-        bool inc(Tuple& entry) {
-            // increment the iterator on this level
-            ++iter;
-
-            // check whether the end has been reached
-            if (iter.isEnd()) return false;
-
-            // otherwise update entry value
-            entry[I] = *iter;
-            return true;
-        }
-
-        bool operator==(const iterator_core& other) const {
-            return iter == other.iter;
-        }
-
-        bool operator!=(const iterator_core& other) const {
-            return !(*this == other);
-        }
-
-        // enables this iterator core to be printed (for debugging)
-        void print(std::ostream& out) const {
-            out << iter;
-        }
-
-        friend std::ostream& operator<<(std::ostream& out, const iterator_core& iter) {
-            iter.print(out);
-            return out;
-        }
-    };
-
-    // the iterator type utilized by this trie type
-    using iterator = typename base::template iterator<iterator_core>;
-
-    /**
-     * Obtains an iterator referencing the first element stored within this trie
-     * or end() if this trie is empty.
-     */
-    iterator begin() const {
-        if (map.empty()) return end();
-        return iterator(map.begin());
-    }
-
-    /**
-     * Obtains an iterator referencing the first position after the last element
-     * within this trie.
-     */
-    iterator end() const {
-        return iterator();
-    }
-
-    /**
-     * Obtains a partition of this tire such that the resulting list of ranges
-     * cover disjoint subsets of the elements stored in this trie. Their union
-     * is equivalent to the content of this trie.
-     */
-    std::vector<range<iterator>> partition(unsigned chunks = 500) const {
-        std::vector<range<iterator>> res;
-
-        // shortcut for empty trie
-        if (this->empty()) return res;
-
-        // use top-level elements for partitioning
-        int step = static_cast<int>(std::max(map.size() / chunks, size_t(1)));
-
-        int c = 1;
-        auto priv = begin();
-        for (auto it = map.begin(); it != map.end(); ++it, c++) {
-            if (c % step != 0 || c == 1) {
-                continue;
-            }
-            auto cur = iterator(it);
-            res.push_back(make_range(priv, cur));
-            priv = cur;
-        }
-        // add final chunk
-        res.push_back(make_range(priv, end()));
-        return res;
-    }
-
-    /**
-     * Obtains a range of elements matching the prefix of the given entry up to
-     * levels elements.
-     *
-     * @tparam levels the length of the requested matching prefix
-     * @param entry the entry to be looking for
-     * @return the corresponding range of matching elements
-     */
-    template <unsigned levels>
-    range<iterator> getBoundaries(const entry_type& entry) const {
-        op_context ctxt;
-        return getBoundaries<levels>(entry, ctxt);
-    }
-
-    /**
      * Obtains a range of elements matching the prefix of the given entry up to
      * levels elements. A operation context may be provided to exploit temporal
      * locality.
@@ -3091,86 +3028,46 @@ public:
      * @return the corresponding range of matching elements
      */
     template <unsigned levels>
-    range<iterator> getBoundaries(const entry_type& entry, op_context& ctxt) const {
+    range<iterator> getBoundaries(const_entry_span_type entry, op_context& ctxt) const {
         // for levels = 0
         if (levels == 0) return make_range(begin(), end());
         // for levels = 1
-        auto pos = map.find(entry[0], ctxt);
-        if (pos == map.end()) return make_range(end(), end());
+        auto pos = store.find(entry[0], ctxt);
+        if (pos == store.end()) return make_range(end(), end());
         auto next = pos;
         ++next;
         return make_range(iterator(pos), iterator(next));
     }
 
-    iterator lower_bound(const entry_type& entry, op_context&) const {
-        return iterator(map.lower_bound(entry[0]));
+    iterator lower_bound(const_entry_span_type entry, op_context&) const {
+        return iterator(store.lower_bound(entry[0]));
     }
 
-    iterator lower_bound(const entry_type& entry) const {
-        op_context ctxt;
-        return lower_bound(entry, ctxt);
-    }
-
-    iterator upper_bound(const entry_type& entry, op_context&) const {
-        return iterator(map.upper_bound(entry[0]));
-    }
-
-    iterator upper_bound(const entry_type& entry) const {
-        op_context ctxt;
-        return upper_bound(entry, ctxt);
-    }
-
-    /**
-     * Provides protected access to the internally maintained store.
-     */
-    const map_type& getStore() const {
-        return map;
-    }
-
-private:
-    /**
-     * Creates a core iterator for this trie level and updates component
-     * I of the given entry to exhibit the corresponding first value.
-     *
-     * @tparam I the index of the tuple to be processed by the resulting iterator core
-     * @tparam Tuple the type of the tuple to be processed by the resulting iterator core
-     * @param entry a reference to the tuple to be updated to the first value
-     * @return the requested iterator core instance
-     */
-    template <unsigned I, typename Tuple>
-    iterator_core<I> getBeginCoreIterator(Tuple& entry) const {
-        return iterator_core<I>(map.begin(), entry);
-    }
-
-    /**
-     * The internally utilized implementation of the insert operation inserting
-     * a given tuple into this sub-trie.
-     *
-     * @tparam I the component index associated to this level
-     * @tparam Tuple the tuple type to be inserted
-     * @param tuple the tuple to be inserted
-     * @param ctxt a operation context to exploit temporal locality
-     * @return true if this tuple wasn't contained before, false otherwise
-     */
-    template <unsigned I, typename Tuple>
-    bool insert_internal(const Tuple& tuple, op_context& ctxt) {
-        return map.set(tuple[I], ctxt);
-    }
-
-    /**
-     * An internal implementation of the contains member function determining
-     * whether a given tuple is present within this sub-trie or not.
-     *
-     * @tparam I the component index associated to this level
-     * @tparam Tuple the tuple type to be checked
-     * @param tuple the tuple to be checked
-     * @param ctxt a operation context to exploit temporal locality
-     * @return true if this tuple is present, false otherwise
-     */
-    template <unsigned I, typename Tuple>
-    bool contains_internal(const Tuple& tuple, op_context& ctxt) const {
-        return map.test(tuple[I], ctxt);
+    iterator upper_bound(const_entry_span_type entry, op_context&) const {
+        return iterator(store.upper_bound(entry[0]));
     }
 };
 
 }  // end namespace souffle
+
+namespace std {
+
+using namespace ::souffle::detail::brie;
+
+template <typename A>
+struct iterator_traits<SparseArrayIter<A>>
+        : forward_non_output_iterator_traits<typename SparseArrayIter<A>::value_type> {};
+
+template <typename A>
+struct iterator_traits<SparseBitMapIter<A>>
+        : forward_non_output_iterator_traits<typename SparseBitMapIter<A>::value_type> {};
+
+template <typename A, typename IterCore>
+struct iterator_traits<TrieIterator<A, IterCore>> : forward_non_output_iterator_traits<A> {};
+
+}  // namespace std
+
+#ifdef _WIN32
+#undef __sync_synchronize
+#undef __sync_bool_compare_and_swap
+#endif

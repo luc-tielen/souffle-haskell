@@ -19,6 +19,7 @@
 
 #include "souffle/utility/CacheUtil.h"
 #include "souffle/utility/ContainerUtil.h"
+#include "souffle/utility/MiscUtil.h"
 #include "souffle/utility/ParallelUtil.h"
 #include <algorithm>
 #include <cassert>
@@ -367,13 +368,13 @@ protected:
         /**
          * The number of keys/node desired by the user.
          */
-        static constexpr size_t desiredNumKeys =
+        static constexpr std::size_t desiredNumKeys =
                 ((blockSize > sizeof(base)) ? blockSize - sizeof(base) : 0) / sizeof(Key);
 
         /**
          * The actual number of keys/node corrected by functional requirements.
          */
-        static constexpr size_t maxKeys = (desiredNumKeys > 3) ? desiredNumKeys : 3;
+        static constexpr std::size_t maxKeys = (desiredNumKeys > 3) ? desiredNumKeys : 3;
 
         // the keys stored in this node
         Key keys[maxKeys];
@@ -1105,11 +1106,11 @@ public:
         field_index_type pos = 0;
 
     public:
-        typedef std::forward_iterator_tag iterator_category;
-        typedef Key value_type;
-        typedef ptrdiff_t difference_type;
-        typedef value_type* pointer;
-        typedef value_type& reference;
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = Key;
+        using difference_type = ptrdiff_t;
+        using pointer = value_type*;
+        using reference = value_type&;
 
         // default constructor -- creating an end-iterator
         iterator() : cur(nullptr) {}
@@ -1256,7 +1257,7 @@ protected:
 
 public:
     // the maximum number of keys stored per node
-    static constexpr size_t max_keys_per_node = node::maxKeys;
+    static constexpr std::size_t max_keys_per_node = node::maxKeys;
 
     // -- ctors / dtors --
 

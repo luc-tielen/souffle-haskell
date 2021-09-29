@@ -1,6 +1,6 @@
 /*
  * Souffle - A Datalog Compiler
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved
+ * Copyright (c) 2021, The Souffle Developers. All rights reserved
  * Licensed under the Universal Permissive License v 1.0 as shown at:
  * - https://opensource.org/licenses/UPL
  * - <souffle root>/licenses/SOUFFLE-UPL.txt
@@ -127,12 +127,12 @@ inline std::string dirName(const std::string& name) {
     if (name.empty()) {
         return ".";
     }
-    size_t lastNotSlash = name.find_last_not_of('/');
+    std::size_t lastNotSlash = name.find_last_not_of('/');
     // All '/'
     if (lastNotSlash == std::string::npos) {
         return "/";
     }
-    size_t leadingSlash = name.find_last_of('/', lastNotSlash);
+    std::size_t leadingSlash = name.find_last_of('/', lastNotSlash);
     // No '/'
     if (leadingSlash == std::string::npos) {
         return ".";
@@ -195,14 +195,14 @@ inline std::string baseName(const std::string& filename) {
         return ".";
     }
 
-    size_t lastNotSlash = filename.find_last_not_of('/');
+    std::size_t lastNotSlash = filename.find_last_not_of('/');
     if (lastNotSlash == std::string::npos) {
         return "/";
     }
 
-    size_t lastSlashBeforeBasename = filename.find_last_of('/', lastNotSlash - 1);
+    std::size_t lastSlashBeforeBasename = filename.find_last_of('/', lastNotSlash - 1);
     if (lastSlashBeforeBasename == std::string::npos) {
-        lastSlashBeforeBasename = static_cast<size_t>(-1);
+        lastSlashBeforeBasename = static_cast<std::size_t>(-1);
     }
     return filename.substr(lastSlashBeforeBasename + 1, lastNotSlash - lastSlashBeforeBasename);
 }
@@ -212,12 +212,12 @@ inline std::string baseName(const std::string& filename) {
  */
 inline std::string simpleName(const std::string& path) {
     std::string name = baseName(path);
-    const size_t lastDot = name.find_last_of('.');
+    const std::size_t lastDot = name.find_last_of('.');
     // file has no extension
     if (lastDot == std::string::npos) {
         return name;
     }
-    const size_t lastSlash = name.find_last_of('/');
+    const std::size_t lastSlash = name.find_last_of('/');
     // last slash occurs after last dot, so no extension
     if (lastSlash != std::string::npos && lastSlash > lastDot) {
         return name;
@@ -231,12 +231,12 @@ inline std::string simpleName(const std::string& path) {
  */
 inline std::string fileExtension(const std::string& path) {
     std::string name = path;
-    const size_t lastDot = name.find_last_of('.');
+    const std::size_t lastDot = name.find_last_of('.');
     // file has no extension
     if (lastDot == std::string::npos) {
         return std::string();
     }
-    const size_t lastSlash = name.find_last_of('/');
+    const std::size_t lastSlash = name.find_last_of('/');
     // last slash occurs after last dot, so no extension
     if (lastSlash != std::string::npos && lastSlash > lastDot) {
         return std::string();

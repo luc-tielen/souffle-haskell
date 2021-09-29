@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <cstring>
 #include <iostream>
@@ -23,6 +24,10 @@
 #include <type_traits>
 
 namespace souffle {
+
+// deprecated. use `std::array` directly.
+template <typename A, std::size_t N>
+using Tuple = std::array<A, N>;
 
 /**
  * Types of elements in a tuple.

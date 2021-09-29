@@ -1,6 +1,6 @@
 /*
  * Souffle - A Datalog Compiler
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved
+ * Copyright (c) 2021, The Souffle Developers. All rights reserved
  * Licensed under the Universal Permissive License v 1.0 as shown at:
  * - https://opensource.org/licenses/UPL
  * - <souffle root>/licenses/SOUFFLE-UPL.txt
@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <set>
 #include <utility>
 #include <vector>
 
@@ -148,6 +149,18 @@ std::vector<A> filterNot(std::vector<A> xs, F&& f) {
 template <typename A, typename F>
 std::vector<A> filter(std::vector<A> xs, F&& f) {
     return filterNot(std::move(xs), [&](auto&& x) { return !f(x); });
+}
+
+// -------------------------------------------------------------------------------
+//                               Set Utilities
+// -------------------------------------------------------------------------------
+
+template <typename A>
+std::set<A> operator-(const std::set<A>& lhs, const std::set<A>& rhs) {
+    std::set<A> result;
+    std::set_difference(
+            lhs.begin(), lhs.end(), rhs.begin(), rhs.end(), std::inserter(result, result.begin()));
+    return result;
 }
 
 }  // namespace souffle

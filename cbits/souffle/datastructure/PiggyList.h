@@ -3,6 +3,7 @@
 #include "souffle/utility/ParallelUtil.h"
 #include <array>
 #include <atomic>
+#include <cassert>
 #include <cstring>
 #include <iostream>
 #include <iterator>
@@ -12,7 +13,7 @@
  * Some versions of MSVC do not provide a builtin for counting leading zeroes
  * like gcc, so we have to implement it ourselves.
  */
-#if _MSC_VER < 1924
+#if defined(_MSC_VER)
 unsigned long __inline __builtin_clzll(unsigned long long value) {
     unsigned long msb = 0;
 
@@ -21,7 +22,7 @@ unsigned long __inline __builtin_clzll(unsigned long long value) {
     else
         return 64;
 }
-#endif  // _MSC_VER < 1924
+#endif  // _MSC_VER
 #endif  // _WIN32
 
 using std::size_t;
@@ -38,17 +39,17 @@ public:
     RandomInsertPiggyList() = default;
     // an instance where the initial size is not 65k, and instead is user settable (to a power of
     // initialbitsize)
-    RandomInsertPiggyList(size_t initialbitsize) : BLOCKBITS(initialbitsize) {}
+    RandomInsertPiggyList(std::size_t initialbitsize) : BLOCKBITS(initialbitsize) {}
 
     /** copy constructor */
     RandomInsertPiggyList(const RandomInsertPiggyList& other) : BLOCKBITS(other.BLOCKBITS) {
         this->numElements.store(other.numElements.load());
 
         // copy blocks from the old lookup table to this one
-        for (size_t i = 0; i < maxContainers; ++i) {
+        for (std::size_t i = 0; i < maxContainers; ++i) {
             if (other.blockLookupTable[i].load() != nullptr) {
                 // calculate the size of that block
-                const size_t blockSize = INITIALBLOCKSIZE << i;
+                const std::size_t blockSize = INITIALBLOCKSIZE << i;
 
                 // allocate that in the new container
                 this->blockLookupTable[i].store(new T[blockSize]);
@@ -71,25 +72,25 @@ public:
         freeList();
     }
 
-    inline size_t size() const {
+    inline std::size_t size() const {
         return numElements.load();
     }
 
-    inline T* getBlock(size_t blockNum) const {
+    inline T* getBlock(std::size_t blockNum) const {
         return blockLookupTable[blockNum];
     }
 
-    inline T& get(size_t index) const {
-        size_t nindex = index + INITIALBLOCKSIZE;
-        size_t blockNum = (63 - __builtin_clzll(nindex));
-        size_t blockInd = (nindex) & ((1 << blockNum) - 1);
+    inline T& get(std::size_t index) const {
+        std::size_t nindex = index + INITIALBLOCKSIZE;
+        std::size_t blockNum = (63 - __builtin_clzll(nindex));
+        std::size_t blockInd = (nindex) & ((1 << blockNum) - 1);
         return this->getBlock(blockNum - BLOCKBITS)[blockInd];
     }
 
-    void insertAt(size_t index, T value) {
+    void insertAt(std::size_t index, T value) {
         // starting with an initial blocksize requires some shifting to transform into a nice powers of two
         // series
-        size_t blockNum = (63 - __builtin_clzll(index + INITIALBLOCKSIZE)) - BLOCKBITS;
+        std::size_t blockNum = (63 - __builtin_clzll(index + INITIALBLOCKSIZE)) - BLOCKBITS;
 
         // allocate the block if not allocated
         if (blockLookupTable[blockNum].load() == nullptr) {
@@ -110,14 +111,14 @@ public:
         freeList();
         numElements.store(0);
     }
-    const size_t BLOCKBITS = 16ul;
-    const size_t INITIALBLOCKSIZE = (1ul << BLOCKBITS);
+    const std::size_t BLOCKBITS = 16ul;
+    const std::size_t INITIALBLOCKSIZE = (1ul << BLOCKBITS);
 
     // number of elements currently stored within
-    std::atomic<size_t> numElements{0};
+    std::atomic<std::size_t> numElements{0};
 
     // 2^64 - 1 elements can be stored (default initialised to nullptrs)
-    static constexpr size_t maxContainers = 64;
+    static constexpr std::size_t maxContainers = 64;
     std::array<std::atomic<T*>, maxContainers> blockLookupTable = {};
 
     // for parallel node insertions
@@ -129,7 +130,7 @@ public:
     void freeList() {
         slock.lock();
         // delete all - deleting a nullptr is a no-op
-        for (size_t i = 0; i < maxContainers; ++i) {
+        for (std::size_t i = 0; i < maxContainers; ++i) {
             delete[] blockLookupTable[i].load();
             // reset the container within to be empty.
             blockLookupTable[i].store(nullptr);
@@ -142,7 +143,7 @@ template <class T>
 class PiggyList {
 public:
     PiggyList() : num_containers(0), container_size(0), m_size(0) {}
-    PiggyList(size_t initialbitsize)
+    PiggyList(std::size_t initialbitsize)
             : BLOCKBITS(initialbitsize), num_containers(0), container_size(0), m_size(0) {}
 
     /** copy constructor */
@@ -152,8 +153,8 @@ public:
         m_size.store(other.m_size.load());
         // copy each chunk from other into this
         // the size of the next container to allocate
-        size_t cSize = BLOCKSIZE;
-        for (size_t i = 0; i < other.num_containers; ++i) {
+        std::size_t cSize = BLOCKSIZE;
+        for (std::size_t i = 0; i < other.num_containers; ++i) {
             this->blockLookupTable[i] = new T[cSize];
             std::memcpy(this->blockLookupTable[i], other.blockLookupTable[i], cSize * sizeof(T));
             cSize <<= 1;
@@ -177,16 +178,16 @@ public:
      *  that haven't had time to had containers created and updated
      * @return the number of nodes exist within the list + number of nodes queued to be inserted
      */
-    inline size_t size() const {
+    inline std::size_t size() const {
         return m_size.load();
     };
 
-    inline T* getBlock(size_t blocknum) const {
+    inline T* getBlock(std::size_t blocknum) const {
         return this->blockLookupTable[blocknum];
     }
 
-    size_t append(T element) {
-        size_t new_index = m_size.fetch_add(1, std::memory_order_acquire);
+    std::size_t append(T element) {
+        std::size_t new_index = m_size.fetch_add(1, std::memory_order_acquire);
 
         // will this not fit?
         if (container_size < new_index + 1) {
@@ -206,8 +207,8 @@ public:
         return new_index;
     }
 
-    size_t createNode() {
-        size_t new_index = m_size.fetch_add(1, std::memory_order_acquire);
+    std::size_t createNode() {
+        std::size_t new_index = m_size.fetch_add(1, std::memory_order_acquire);
 
         // will this not fit?
         if (container_size < new_index + 1) {
@@ -231,11 +232,11 @@ public:
      * @param index position to search
      * @return the value at index
      */
-    inline T& get(size_t index) const {
+    inline T& get(std::size_t index) const {
         // supa fast 2^16 size first block
-        size_t nindex = index + BLOCKSIZE;
-        size_t blockNum = (63 - __builtin_clzll(nindex));
-        size_t blockInd = (nindex) & ((1 << blockNum) - 1);
+        std::size_t nindex = index + BLOCKSIZE;
+        std::size_t blockNum = (63 - __builtin_clzll(nindex));
+        std::size_t blockInd = (nindex) & ((1 << blockNum) - 1);
         return this->getBlock(blockNum - BLOCKBITS)[blockInd];
     }
 
@@ -252,7 +253,7 @@ public:
     }
 
     class iterator : std::iterator<std::forward_iterator_tag, T> {
-        size_t cIndex = 0;
+        std::size_t cIndex = 0;
         PiggyList* bl;
 
     public:
@@ -262,7 +263,7 @@ public:
         /* begin iterator for iterating over all elements */
         iterator(PiggyList* bl) : bl(bl){};
         /* ender iterator for marking the end of the iteration */
-        iterator(PiggyList* bl, size_t beginInd) : cIndex(beginInd), bl(bl){};
+        iterator(PiggyList* bl, std::size_t beginInd) : cIndex(beginInd), bl(bl){};
 
         T operator*() {
             return bl->get(cIndex);
@@ -297,17 +298,17 @@ public:
     iterator end() {
         return iterator(this, size());
     }
-    const size_t BLOCKBITS = 16ul;
-    const size_t BLOCKSIZE = (1ul << BLOCKBITS);
+    const std::size_t BLOCKBITS = 16ul;
+    const std::size_t BLOCKSIZE = (1ul << BLOCKBITS);
 
     // number of inserted
-    std::atomic<size_t> num_containers = 0;
-    size_t allocsize = BLOCKSIZE;
-    std::atomic<size_t> container_size = 0;
-    std::atomic<size_t> m_size = 0;
+    std::atomic<std::size_t> num_containers = 0;
+    std::size_t allocsize = BLOCKSIZE;
+    std::atomic<std::size_t> container_size = 0;
+    std::atomic<std::size_t> m_size = 0;
 
     // > 2^64 elements can be stored (default initialise to nullptrs)
-    static constexpr size_t max_conts = 64;
+    static constexpr std::size_t max_conts = 64;
     std::array<T*, max_conts> blockLookupTable = {};
 
     // for parallel node insertions
@@ -319,7 +320,7 @@ public:
     void freeList() {
         sl.lock();
         // we don't know which ones are taken up!
-        for (size_t i = 0; i < num_containers; ++i) {
+        for (std::size_t i = 0; i < num_containers; ++i) {
             delete[] blockLookupTable[i];
         }
         sl.unlock();
