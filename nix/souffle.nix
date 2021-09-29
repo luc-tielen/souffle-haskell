@@ -10,7 +10,7 @@ let
 in
 stdenv.mkDerivation rec {
   pname = "souffle";
-  version = "2.0.2";
+  version = "2.1";
 
   src = fetchFromGitHub {
     owner  = "souffle-lang";
