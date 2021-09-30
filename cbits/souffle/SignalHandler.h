@@ -170,8 +170,9 @@ private:
         }
 
         auto write = [](std::initializer_list<char const*> const& msgs) {
-            for (auto&& msg : msgs)
-                ::write(STDERR_FILENO, msg, ::strlen(msg));
+            for (auto&& msg : msgs) {
+                [[maybe_unused]] auto _ = ::write(STDERR_FILENO, msg, ::strlen(msg));
+            }
         };
 
         // `instance()` is okay. Static `singleton` must already be constructed if we got here.
