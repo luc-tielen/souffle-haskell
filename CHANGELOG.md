@@ -4,7 +4,11 @@ All notable changes to this project (as seen by library users) will be documente
 The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-haskell.git/CHANGELOG.md).
 
 
-## [3.0.1] - Unreleased
+## [3.1.0] - 2021-09-30
+
+### Changed
+
+- souffle-haskell now supports Souffle version 2.1.
 
 ### Fixed
 
