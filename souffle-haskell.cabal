@@ -3,8 +3,6 @@ cabal-version: 2.2
 -- This file has been generated from package.yaml by hpack version 0.34.2.
 --
 -- see: https://github.com/sol/hpack
---
--- hash: 7e179d1e2ce8ddd1c9a53631a6b4743b754065bf70a2130d654d738b83cec53a
 
 name:           souffle-haskell
 version:        3.0.0
@@ -25,9 +23,10 @@ extra-source-files:
     LICENSE
     cbits/souffle.h
     cbits/souffle/CompiledSouffle.h
-    cbits/souffle/CompiledTuple.h
     cbits/souffle/datastructure/Brie.h
     cbits/souffle/datastructure/BTree.h
+    cbits/souffle/datastructure/ConcurrentFlyweight.h
+    cbits/souffle/datastructure/ConcurrentInsertOnlyHashMap.h
     cbits/souffle/datastructure/EquivalenceRelation.h
     cbits/souffle/datastructure/LambdaBTree.h
     cbits/souffle/datastructure/PiggyList.h
@@ -54,12 +53,15 @@ extra-source-files:
     cbits/souffle/utility/EvaluatorUtil.h
     cbits/souffle/utility/FileUtil.h
     cbits/souffle/utility/FunctionalUtil.h
+    cbits/souffle/utility/Iteration.h
     cbits/souffle/utility/json11.h
     cbits/souffle/utility/MiscUtil.h
     cbits/souffle/utility/ParallelUtil.h
+    cbits/souffle/utility/span.h
     cbits/souffle/utility/StreamUtil.h
     cbits/souffle/utility/StringUtil.h
     cbits/souffle/utility/tinyformat.h
+    cbits/souffle/utility/Types.h
     cbits/souffle.cpp
     cbits/souffle/LICENSE
 
@@ -90,15 +92,19 @@ library
       cbits/souffle
   install-includes:
       souffle/CompiledSouffle.h
-      souffle/CompiledTuple.h
       souffle/RamTypes.h
       souffle/RecordTable.h
+      souffle/datastructure/ConcurrentFlyweight.h
+      souffle/datastructure/ConcurrentInsertOnlyHashMap.h
+      souffle/utility/ParallelUtil.h
+      souffle/utility/span.h
       souffle/SignalHandler.h
       souffle/SouffleInterface.h
       souffle/SymbolTable.h
       souffle/utility/MiscUtil.h
+      souffle/utility/Iteration.h
+      souffle/utility/Types.h
       souffle/utility/tinyformat.h
-      souffle/utility/ParallelUtil.h
       souffle/utility/StreamUtil.h
       souffle/utility/ContainerUtil.h
       souffle/datastructure/Brie.h
@@ -112,8 +118,8 @@ library
       souffle/io/IOSystem.h
       souffle/io/ReadStream.h
       souffle/io/SerialisationStream.h
-      souffle/utility/json11.h
       souffle/utility/StringUtil.h
+      souffle/utility/json11.h
       souffle/io/ReadStreamCSV.h
       souffle/utility/FileUtil.h
       souffle/io/gzfstream.h
@@ -166,15 +172,19 @@ test-suite souffle-haskell-test
       cbits/souffle
   install-includes:
       souffle/CompiledSouffle.h
-      souffle/CompiledTuple.h
       souffle/RamTypes.h
       souffle/RecordTable.h
+      souffle/datastructure/ConcurrentFlyweight.h
+      souffle/datastructure/ConcurrentInsertOnlyHashMap.h
+      souffle/utility/ParallelUtil.h
+      souffle/utility/span.h
       souffle/SignalHandler.h
       souffle/SouffleInterface.h
       souffle/SymbolTable.h
       souffle/utility/MiscUtil.h
+      souffle/utility/Iteration.h
+      souffle/utility/Types.h
       souffle/utility/tinyformat.h
-      souffle/utility/ParallelUtil.h
       souffle/utility/StreamUtil.h
       souffle/utility/ContainerUtil.h
       souffle/datastructure/Brie.h
@@ -188,8 +198,8 @@ test-suite souffle-haskell-test
       souffle/io/IOSystem.h
       souffle/io/ReadStream.h
       souffle/io/SerialisationStream.h
-      souffle/utility/json11.h
       souffle/utility/StringUtil.h
+      souffle/utility/json11.h
       souffle/io/ReadStreamCSV.h
       souffle/utility/FileUtil.h
       souffle/io/gzfstream.h
@@ -246,15 +256,19 @@ benchmark souffle-haskell-benchmarks
       cbits/souffle
   install-includes:
       souffle/CompiledSouffle.h
-      souffle/CompiledTuple.h
       souffle/RamTypes.h
       souffle/RecordTable.h
+      souffle/datastructure/ConcurrentFlyweight.h
+      souffle/datastructure/ConcurrentInsertOnlyHashMap.h
+      souffle/utility/ParallelUtil.h
+      souffle/utility/span.h
       souffle/SignalHandler.h
       souffle/SouffleInterface.h
       souffle/SymbolTable.h
       souffle/utility/MiscUtil.h
+      souffle/utility/Iteration.h
+      souffle/utility/Types.h
       souffle/utility/tinyformat.h
-      souffle/utility/ParallelUtil.h
       souffle/utility/StreamUtil.h
       souffle/utility/ContainerUtil.h
       souffle/datastructure/Brie.h
@@ -268,8 +282,8 @@ benchmark souffle-haskell-benchmarks
       souffle/io/IOSystem.h
       souffle/io/ReadStream.h
       souffle/io/SerialisationStream.h
-      souffle/utility/json11.h
       souffle/utility/StringUtil.h
+      souffle/utility/json11.h
       souffle/io/ReadStreamCSV.h
       souffle/utility/FileUtil.h
       souffle/io/gzfstream.h
