@@ -68,15 +68,19 @@ include-dirs:
 
 install-includes:
   - souffle/CompiledSouffle.h
-  - souffle/CompiledTuple.h
   - souffle/RamTypes.h
   - souffle/RecordTable.h
+  - souffle/datastructure/ConcurrentFlyweight.h
+  - souffle/datastructure/ConcurrentInsertOnlyHashMap.h
+  - souffle/utility/ParallelUtil.h
+  - souffle/utility/span.h
   - souffle/SignalHandler.h
   - souffle/SouffleInterface.h
   - souffle/SymbolTable.h
   - souffle/utility/MiscUtil.h
+  - souffle/utility/Iteration.h
+  - souffle/utility/Types.h
   - souffle/utility/tinyformat.h
-  - souffle/utility/ParallelUtil.h
   - souffle/utility/StreamUtil.h
   - souffle/utility/ContainerUtil.h
   - souffle/datastructure/Brie.h
@@ -90,8 +94,8 @@ install-includes:
   - souffle/io/IOSystem.h
   - souffle/io/ReadStream.h
   - souffle/io/SerialisationStream.h
-  - souffle/utility/json11.h
   - souffle/utility/StringUtil.h
+  - souffle/utility/json11.h
   - souffle/io/ReadStreamCSV.h
   - souffle/utility/FileUtil.h
   - souffle/io/gzfstream.h

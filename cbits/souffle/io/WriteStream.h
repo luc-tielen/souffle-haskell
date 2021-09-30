@@ -1,6 +1,6 @@
 /*
  * Souffle - A Datalog Compiler
- * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved
+ * Copyright (c) 2021, The Souffle Developers. All rights reserved
  * Licensed under the Universal Permissive License v 1.0 as shown at:
  * - https://opensource.org/licenses/UPL
  * - <souffle root>/licenses/SOUFFLE-UPL.txt
@@ -22,6 +22,7 @@
 #include "souffle/utility/json11.h"
 #include <cassert>
 #include <cstddef>
+#include <iomanip>
 #include <map>
 #include <memory>
 #include <ostream>
@@ -43,8 +44,6 @@ public:
         if (summary) {
             return writeSize(relation.size());
         }
-        auto lease = symbolTable.acquireLock();
-        (void)lease;  // silence "unused variable" warning
         if (arity == 0) {
             if (relation.begin() != relation.end()) {
                 writeNullary();
@@ -72,7 +71,12 @@ protected:
 
     template <typename Tuple>
     void writeNext(const Tuple tuple) {
-        writeNextTuple(tuple.data);
+        using tcb::make_span;
+        writeNextTuple(make_span(tuple).data());
+    }
+
+    virtual void outputSymbol(std::ostream& destination, const std::string& value) {
+        destination << value;
     }
 
     void outputRecord(std::ostream& destination, const RamDomain value, const std::string& name) {
@@ -88,14 +92,14 @@ protected:
         }
 
         auto&& recordTypes = recordInfo["types"];
-        const size_t recordArity = recordInfo["arity"].long_value();
+        const std::size_t recordArity = recordInfo["arity"].long_value();
 
         const RamDomain* tuplePtr = recordTable.unpack(value, recordArity);
 
         destination << "[";
 
         // print record's elements
-        for (size_t i = 0; i < recordArity; ++i) {
+        for (std::size_t i = 0; i < recordArity; ++i) {
             if (i > 0) {
                 destination << ", ";
             }
@@ -107,7 +111,7 @@ protected:
                 case 'i': destination << recordValue; break;
                 case 'f': destination << ramBitCast<RamFloat>(recordValue); break;
                 case 'u': destination << ramBitCast<RamUnsigned>(recordValue); break;
-                case 's': destination << symbolTable.unsafeResolve(recordValue); break;
+                case 's': outputSymbol(destination, symbolTable.decode(recordValue)); break;
                 case 'r': outputRecord(destination, recordValue, recordType); break;
                 case '+': outputADT(destination, recordValue, recordType); break;
                 default: fatal("Unsupported type attribute: `%c`", recordType[0]);
@@ -121,27 +125,39 @@ protected:
 
         assert(!adtInfo.is_null() && "Missing adt type information");
 
-        const size_t numBranches = adtInfo["arity"].long_value();
+        const std::size_t numBranches = adtInfo["arity"].long_value();
         assert(numBranches > 0);
 
-        // adt is encoded as [branchID, [branch_args]] when |branch_args| != 1
-        // and as [branchID, arg] when a branch takes a single argument.
-        const RamDomain* tuplePtr = recordTable.unpack(value, 2);
+        // adt is encoded in one of three possible ways:
+        // [branchID, [branch_args]] when |branch_args| != 1
+        // [branchID, arg] when a branch takes a single argument.
+        // branchID when ADT is an enumeration.
+        bool isEnum = adtInfo["enum"].bool_value();
 
-        const RamDomain branchId = tuplePtr[0];
-        const RamDomain rawBranchArgs = tuplePtr[1];
+        RamDomain branchId = value;
+        const RamDomain* branchArgs = nullptr;
+        json11::Json branchInfo;
+        json11::Json::array branchTypes;
 
-        auto branchInfo = adtInfo["branches"][branchId];
-        auto branchTypes = branchInfo["types"].array_items();
+        if (!isEnum) {
+            const RamDomain* tuplePtr = recordTable.unpack(value, 2);
 
-        // Prepare branch's arguments for output.
-        const RamDomain* branchArgs = [&]() -> const RamDomain* {
-            if (branchTypes.size() > 1) {
-                return recordTable.unpack(rawBranchArgs, branchTypes.size());
-            } else {
-                return &rawBranchArgs;
-            }
-        }();
+            branchId = tuplePtr[0];
+            branchInfo = adtInfo["branches"][branchId];
+            branchTypes = branchInfo["types"].array_items();
+
+            // Prepare branch's arguments for output.
+            branchArgs = [&]() -> const RamDomain* {
+                if (branchTypes.size() > 1) {
+                    return recordTable.unpack(tuplePtr[1], branchTypes.size());
+                } else {
+                    return &tuplePtr[1];
+                }
+            }();
+        } else {
+            branchInfo = adtInfo["branches"][branchId];
+            branchTypes = branchInfo["types"].array_items();
+        }
 
         destination << "$" << branchInfo["name"].string_value();
 
@@ -150,7 +166,7 @@ protected:
         }
 
         // Print arguments
-        for (size_t i = 0; i < branchTypes.size(); ++i) {
+        for (std::size_t i = 0; i < branchTypes.size(); ++i) {
             if (i > 0) {
                 destination << ", ";
             }
@@ -160,7 +176,7 @@ protected:
                 case 'i': destination << branchArgs[i]; break;
                 case 'f': destination << ramBitCast<RamFloat>(branchArgs[i]); break;
                 case 'u': destination << ramBitCast<RamUnsigned>(branchArgs[i]); break;
-                case 's': destination << symbolTable.unsafeResolve(branchArgs[i]); break;
+                case 's': outputSymbol(destination, symbolTable.decode(branchArgs[i])); break;
                 case 'r': outputRecord(destination, branchArgs[i], argType); break;
                 case '+': outputADT(destination, branchArgs[i], argType); break;
                 default: fatal("Unsupported type attribute: `%c`", argType[0]);

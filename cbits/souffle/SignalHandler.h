@@ -21,9 +21,11 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <initializer_list>
 #include <iostream>
 #include <mutex>
 #include <string>
+#include <unistd.h>
 
 namespace souffle {
 
@@ -135,6 +137,7 @@ public:
 private:
     // signal context information
     std::atomic<const char*> msg;
+    static_assert(decltype(msg)::is_always_lock_free, "cannot safely use in signal handler");
 
     // state of signal handler
     bool isSet = false;
@@ -150,20 +153,35 @@ private:
      * Signal handler for various types of signals.
      */
     static void handler(int signal) {
-        const char* msg = instance()->msg;
-        std::string error;
+        // Signal handlers have extreme restrictions on what stdlib/OS facilities are available.
+        // This is b/c signals are async on most platforms.
+        // See: https://en.cppreference.com/w/cpp/utility/program/signal
+        // See: `man 7 signal`
+
+        const char* error;
         switch (signal) {
-            case SIGINT: error = "Interrupt"; break;
+            case SIGABRT: error = "Abort"; break;
             case SIGFPE: error = "Floating-point arithmetic exception"; break;
+            case SIGILL: error = "Illegal instruction"; break;
+            case SIGINT: error = "Interrupt"; break;
             case SIGSEGV: error = "Segmentation violation"; break;
+            case SIGTERM: error = "Terminate"; break;
             default: error = "Unknown"; break;
         }
-        if (msg != nullptr) {
-            std::cerr << error << " signal in rule:\n" << msg << std::endl;
-        } else {
-            std::cerr << error << " signal." << std::endl;
-        }
-        exit(1);
+
+        auto write = [](std::initializer_list<char const*> const& msgs) {
+            for (auto&& msg : msgs) {
+                [[maybe_unused]] auto _ = ::write(STDERR_FILENO, msg, ::strlen(msg));
+            }
+        };
+
+        // `instance()` is okay. Static `singleton` must already be constructed if we got here.
+        if (const char* msg = instance()->msg)
+            write({error, " signal in rule:\n", msg, "\n"});
+        else
+            write({error, " signal.\n"});
+
+        std::_Exit(EXIT_FAILURE);
     }
 
     SignalHandler() : msg(nullptr) {}

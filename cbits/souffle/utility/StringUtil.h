@@ -1,6 +1,6 @@
 /*
  * Souffle - A Datalog Compiler
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved
+ * Copyright (c) 2021, The Souffle Developers. All rights reserved
  * Licensed under the Universal Permissive License v 1.0 as shown at:
  * - https://opensource.org/licenses/UPL
  * - <souffle root>/licenses/SOUFFLE-UPL.txt
@@ -154,7 +154,7 @@ inline RamUnsigned RamUnsignedFromString(
  * starts with minus (c++ default semantics).
  */
 inline bool canBeParsedAsRamSigned(const std::string& string) {
-    size_t charactersRead = 0;
+    std::size_t charactersRead = 0;
 
     try {
         RamSignedFromString(string, &charactersRead, 0);
@@ -171,7 +171,7 @@ inline bool canBeParsedAsRamSigned(const std::string& string) {
  * Souffle accepts: hex, binary and base 10.
  */
 inline bool canBeParsedAsRamUnsigned(const std::string& string) {
-    size_t charactersRead = 0;
+    std::size_t charactersRead = 0;
     try {
         RamUnsignedFromString(string, &charactersRead, 0);
     } catch (...) {
@@ -184,7 +184,7 @@ inline bool canBeParsedAsRamUnsigned(const std::string& string) {
  * Can a string be parsed as RamFloat.
  */
 inline bool canBeParsedAsRamFloat(const std::string& string) {
-    size_t charactersRead = 0;
+    std::size_t charactersRead = 0;
     try {
         RamFloatFromString(string, &charactersRead);
     } catch (...) {
@@ -323,13 +323,20 @@ inline std::vector<std::string> splitString(const std::string& str, char delimit
 }
 
 /**
+ * Strips the prefix of a given string if it exists. No change otherwise.
+ */
+inline std::string stripPrefix(const std::string& prefix, const std::string& element) {
+    return isPrefix(prefix, element) ? element.substr(prefix.length()) : element;
+}
+
+/**
  * Stringify a string using escapes for escape, newline, tab, double-quotes and semicolons
  */
 inline std::string stringify(const std::string& input) {
     std::string str(input);
 
     // replace escapes with double escape sequence
-    size_t start_pos = 0;
+    std::size_t start_pos = 0;
     while ((start_pos = str.find('\\', start_pos)) != std::string::npos) {
         str.replace(start_pos, 1, "\\\\");
         start_pos += 2;
@@ -379,7 +386,7 @@ inline std::string escapeJSONstring(const std::string& JSONstr) {
 
 /** Valid C++ identifier, note that this does not ensure the uniqueness of identifiers returned. */
 inline std::string identifier(std::string id) {
-    for (size_t i = 0; i < id.length(); i++) {
+    for (std::size_t i = 0; i < id.length(); i++) {
         if (((isalpha(id[i]) == 0) && i == 0) || ((isalnum(id[i]) == 0) && id[i] != '_')) {
             id[i] = '_';
         }
@@ -392,7 +399,7 @@ inline std::string identifier(std::string id) {
 inline std::string unescape(
         const std::string& inputString, const std::string& needle, const std::string& replacement) {
     std::string result = inputString;
-    size_t pos = 0;
+    std::size_t pos = 0;
     while ((pos = result.find(needle, pos)) != std::string::npos) {
         result = result.replace(pos, needle.length(), replacement);
         pos += replacement.length();
@@ -411,7 +418,7 @@ inline std::string unescape(const std::string& inputString) {
 inline std::string escape(
         const std::string& inputString, const std::string& needle, const std::string& replacement) {
     std::string result = inputString;
-    size_t pos = 0;
+    std::size_t pos = 0;
     while ((pos = result.find(needle, pos)) != std::string::npos) {
         result = result.replace(pos, needle.length(), replacement);
         pos += replacement.length();

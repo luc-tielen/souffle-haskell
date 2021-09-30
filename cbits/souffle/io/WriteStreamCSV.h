@@ -1,6 +1,6 @@
 /*
  * Souffle - A Datalog Compiler
- * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved
+ * Copyright (c) 2021, The Souffle Developers. All rights reserved
  * Licensed under the Universal Permissive License v 1.0 as shown at:
  * - https://opensource.org/licenses/UPL
  * - <souffle root>/licenses/SOUFFLE-UPL.txt
@@ -15,6 +15,7 @@
 #pragma once
 
 #include "souffle/RamTypes.h"
+#include "souffle/RecordTable.h"
 #include "souffle/SymbolTable.h"
 #include "souffle/io/WriteStream.h"
 #include "souffle/utility/ContainerUtil.h"
@@ -35,21 +36,28 @@
 
 namespace souffle {
 
-class RecordTable;
-
 class WriteStreamCSV : public WriteStream {
 protected:
     WriteStreamCSV(const std::map<std::string, std::string>& rwOperation, const SymbolTable& symbolTable,
             const RecordTable& recordTable)
             : WriteStream(rwOperation, symbolTable, recordTable),
-              delimiter(getOr(rwOperation, "delimiter", "\t")){};
+              rfc4180(getOr(rwOperation, "rfc4180", "false") == std::string("true")),
+              delimiter(getOr(rwOperation, "delimiter", (rfc4180 ? "," : "\t"))) {
+        if (rfc4180 && delimiter.find('"') != std::string::npos) {
+            std::stringstream errorMessage;
+            errorMessage << "CSV delimiter cannot contain '\"' character when rfc4180 is enabled.";
+            throw std::invalid_argument(errorMessage.str());
+        }
+    };
+
+    const bool rfc4180;
 
     const std::string delimiter;
 
     void writeNextTupleCSV(std::ostream& destination, const RamDomain* tuple) {
         writeNextTupleElement(destination, typeAttributes.at(0), tuple[0]);
 
-        for (size_t col = 1; col < arity; ++col) {
+        for (std::size_t col = 1; col < arity; ++col) {
             destination << delimiter;
             writeNextTupleElement(destination, typeAttributes.at(col), tuple[col]);
         }
@@ -57,14 +65,60 @@ protected:
         destination << "\n";
     }
 
+    virtual void outputSymbol(std::ostream& destination, const std::string& value) {
+        outputSymbol(destination, value, false);
+    }
+
+    void outputSymbol(std::ostream& destination, const std::string& value, bool fieldValue) {
+        if (rfc4180) {
+            if (!fieldValue) {
+                destination << '"';
+            }
+            destination << '"';
+
+            const std::size_t end = value.length();
+            for (std::size_t pos = 0; pos < end; ++pos) {
+                char ch = value[pos];
+                if (ch == '"') {
+                    destination << '\\';
+                    destination << '"';
+                }
+                destination << ch;
+            }
+
+            if (!fieldValue) {
+                destination << '"';
+            }
+            destination << '"';
+        } else {
+            destination << value;
+        }
+    }
+
     void writeNextTupleElement(std::ostream& destination, const std::string& type, RamDomain value) {
         switch (type[0]) {
-            case 's': destination << symbolTable.unsafeResolve(value); break;
+            case 's': outputSymbol(destination, symbolTable.decode(value), true); break;
             case 'i': destination << value; break;
             case 'u': destination << ramBitCast<RamUnsigned>(value); break;
             case 'f': destination << ramBitCast<RamFloat>(value); break;
-            case 'r': outputRecord(destination, value, type); break;
-            case '+': outputADT(destination, value, type); break;
+            case 'r':
+                if (rfc4180) {
+                    destination << '"';
+                }
+                outputRecord(destination, value, type);
+                if (rfc4180) {
+                    destination << '"';
+                }
+                break;
+            case '+':
+                if (rfc4180) {
+                    destination << '"';
+                }
+                outputADT(destination, value, type);
+                if (rfc4180) {
+                    destination << '"';
+                }
+                break;
             default: fatal("unsupported type attribute: `%c`", type[0]);
         }
     }
@@ -183,8 +237,9 @@ protected:
 
 class WriteCoutPrintSize : public WriteStream {
 public:
-    explicit WriteCoutPrintSize(const std::map<std::string, std::string>& rwOperation)
-            : WriteStream(rwOperation, {}, {}), lease(souffle::getOutputLock().acquire()) {
+    WriteCoutPrintSize(const std::map<std::string, std::string>& rwOperation, const SymbolTable& symbolTable,
+            const RecordTable& recordTable)
+            : WriteStream(rwOperation, symbolTable, recordTable), lease(souffle::getOutputLock().acquire()) {
         std::cout << rwOperation.at("name") << "\t";
     }
 
@@ -240,9 +295,9 @@ public:
 
 class WriteCoutPrintSizeFactory : public WriteStreamFactory {
 public:
-    Own<WriteStream> getWriter(const std::map<std::string, std::string>& rwOperation, const SymbolTable&,
-            const RecordTable&) override {
-        return mk<WriteCoutPrintSize>(rwOperation);
+    Own<WriteStream> getWriter(const std::map<std::string, std::string>& rwOperation,
+            const SymbolTable& symbolTable, const RecordTable& recordTable) override {
+        return mk<WriteCoutPrintSize>(rwOperation, symbolTable, recordTable);
     }
     const std::string& getName() const override {
         static const std::string name = "stdoutprintsize";

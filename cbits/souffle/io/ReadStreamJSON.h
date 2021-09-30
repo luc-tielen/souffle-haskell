@@ -15,6 +15,7 @@
 #pragma once
 
 #include "souffle/RamTypes.h"
+#include "souffle/RecordTable.h"
 #include "souffle/SymbolTable.h"
 #include "souffle/io/ReadStream.h"
 #include "souffle/utility/ContainerUtil.h"
@@ -37,7 +38,13 @@
 #include <vector>
 
 namespace souffle {
-class RecordTable;
+
+template <typename... T>
+[[noreturn]] static void throwError(T const&... t) {
+    std::ostringstream out;
+    (out << ... << t);
+    throw std::runtime_error(out.str());
+}
 
 class ReadStreamJSON : public ReadStream {
 public:
@@ -47,18 +54,18 @@ public:
         std::string err;
         params = Json::parse(rwOperation.at("params"), err);
         if (err.length() > 0) {
-            fatal("cannot get internal params: %s", err);
+            throwError("cannot get internal params: ", err);
         }
     }
 
 protected:
     std::istream& file;
-    size_t pos;
+    std::size_t pos;
     Json jsonSource;
     Json params;
     bool isInitialized;
     bool useObjects;
-    std::map<const std::string, const size_t> paramIndex;
+    std::map<const std::string, const std::size_t> paramIndex;
 
     Own<RamDomain[]> readNextTuple() override {
         // for some reasons we cannot initalized our json objects in constructor
@@ -71,7 +78,12 @@ protected:
             jsonSource = Json::parse(source, error);
             // it should be wrapped by an extra array
             if (error.length() > 0 || !jsonSource.is_array()) {
-                fatal("cannot deserialize json because %s:\n%s", error, source);
+                throwError("cannot deserialize json because ", error, ":\n", source);
+            }
+
+            if (jsonSource.array_items().empty()) {
+                // No tuples defined
+                return nullptr;
             }
 
             // we only check the first one, since there are extra checks
@@ -80,13 +92,13 @@ protected:
                 useObjects = false;
             } else if (jsonSource[0].is_object()) {
                 useObjects = true;
-                size_t index_pos = 0;
+                std::size_t index_pos = 0;
                 for (auto param : params["relation"]["params"].array_items()) {
                     paramIndex.insert(std::make_pair(param.string_value(), index_pos));
                     index_pos++;
                 }
             } else {
-                fatal("the input is neither list nor object format");
+                throwError("the input is neither list nor object format");
             }
         }
 
@@ -102,16 +114,16 @@ protected:
             return nullptr;
         }
 
-        Own<RamDomain[]> tuple = std::make_unique<RamDomain[]>(typeAttributes.size());
+        Own<RamDomain[]> tuple = mk<RamDomain[]>(typeAttributes.size());
         const Json& jsonObj = jsonSource[pos];
         assert(jsonObj.is_array() && "the input is not json array");
         pos++;
-        for (size_t i = 0; i < typeAttributes.size(); ++i) {
+        for (std::size_t i = 0; i < typeAttributes.size(); ++i) {
             try {
                 auto&& ty = typeAttributes.at(i);
                 switch (ty[0]) {
                     case 's': {
-                        tuple[i] = symbolTable.unsafeLookup(jsonObj[i].string_value());
+                        tuple[i] = symbolTable.encode(jsonObj[i].string_value());
                         break;
                     }
                     case 'r': {
@@ -130,7 +142,7 @@ protected:
                         tuple[i] = static_cast<RamDomain>(jsonObj[i].number_value());
                         break;
                     }
-                    default: fatal("invalid type attribute: `%c`", ty[0]);
+                    default: throwError("invalid type attribute: '", ty[0], "'");
                 }
             } catch (...) {
                 std::stringstream errorMessage;
@@ -160,13 +172,13 @@ protected:
 
         assert(source.is_array() && "the input is not json array");
         auto&& recordTypes = recordInfo["types"];
-        const size_t recordArity = recordInfo["arity"].long_value();
+        const std::size_t recordArity = recordInfo["arity"].long_value();
         std::vector<RamDomain> recordValues(recordArity);
-        for (size_t i = 0; i < recordArity; ++i) {
+        for (std::size_t i = 0; i < recordArity; ++i) {
             const std::string& recordType = recordTypes[i].string_value();
             switch (recordType[0]) {
                 case 's': {
-                    recordValues[i] = symbolTable.unsafeLookup(source[i].string_value());
+                    recordValues[i] = symbolTable.encode(source[i].string_value());
                     break;
                 }
                 case 'r': {
@@ -185,7 +197,7 @@ protected:
                     recordValues[i] = static_cast<RamDomain>(source[i].number_value());
                     break;
                 }
-                default: fatal("invalid type attribute");
+                default: throwError("invalid type attribute");
             }
         }
 
@@ -197,7 +209,7 @@ protected:
             return nullptr;
         }
 
-        Own<RamDomain[]> tuple = std::make_unique<RamDomain[]>(typeAttributes.size());
+        Own<RamDomain[]> tuple = mk<RamDomain[]>(typeAttributes.size());
         const Json& jsonObj = jsonSource[pos];
         assert(jsonObj.is_object() && "the input is not json object");
         pos++;
@@ -205,13 +217,13 @@ protected:
             try {
                 // get the corresponding position by parameter name
                 if (paramIndex.find(p.first) == paramIndex.end()) {
-                    fatal("invalid parameter: %s", p.first);
+                    throwError("invalid parameter: ", p.first);
                 }
-                size_t i = paramIndex.at(p.first);
+                std::size_t i = paramIndex.at(p.first);
                 auto&& ty = typeAttributes.at(i);
                 switch (ty[0]) {
                     case 's': {
-                        tuple[i] = symbolTable.unsafeLookup(p.second.string_value());
+                        tuple[i] = symbolTable.encode(p.second.string_value());
                         break;
                     }
                     case 'r': {
@@ -230,7 +242,7 @@ protected:
                         tuple[i] = static_cast<RamDomain>(p.second.number_value());
                         break;
                     }
-                    default: fatal("invalid type attribute: `%c`", ty[0]);
+                    default: throwError("invalid type attribute: '", ty[0], "'");
                 }
             } catch (...) {
                 std::stringstream errorMessage;
@@ -245,9 +257,9 @@ protected:
     RamDomain readNextElementObject(const Json& source, const std::string& recordTypeName) {
         auto&& recordInfo = types["records"][recordTypeName];
         const std::string recordName = recordTypeName.substr(2);
-        std::map<const std::string, const size_t> recordIndex;
+        std::map<const std::string, const std::size_t> recordIndex;
 
-        size_t index_pos = 0;
+        std::size_t index_pos = 0;
         for (auto param : params["records"][recordName]["params"].array_items()) {
             recordIndex.insert(std::make_pair(param.string_value(), index_pos));
             index_pos++;
@@ -264,19 +276,19 @@ protected:
 
         assert(source.is_object() && "the input is not json object");
         auto&& recordTypes = recordInfo["types"];
-        const size_t recordArity = recordInfo["arity"].long_value();
+        const std::size_t recordArity = recordInfo["arity"].long_value();
         std::vector<RamDomain> recordValues(recordArity);
         recordValues.reserve(recordIndex.size());
         for (auto readParam : source.object_items()) {
             // get the corresponding position by parameter name
             if (recordIndex.find(readParam.first) == recordIndex.end()) {
-                fatal("invalid parameter: %s", readParam.first);
+                throwError("invalid parameter: ", readParam.first);
             }
-            size_t i = recordIndex.at(readParam.first);
+            std::size_t i = recordIndex.at(readParam.first);
             auto&& type = recordTypes[i].string_value();
             switch (type[0]) {
                 case 's': {
-                    recordValues[i] = symbolTable.unsafeLookup(readParam.second.string_value());
+                    recordValues[i] = symbolTable.encode(readParam.second.string_value());
                     break;
                 }
                 case 'r': {
@@ -295,7 +307,7 @@ protected:
                     recordValues[i] = static_cast<RamDomain>(readParam.second.number_value());
                     break;
                 }
-                default: fatal("invalid type attribute: `%c`", type[0]);
+                default: throwError("invalid type attribute: '", type[0], "'");
             }
         }
 
@@ -307,6 +319,8 @@ class ReadFileJSON : public ReadStreamJSON {
 public:
     ReadFileJSON(const std::map<std::string, std::string>& rwOperation, SymbolTable& symbolTable,
             RecordTable& recordTable)
+            // FIXME: This is bordering on UB - we're passing an unconstructed
+            // object (fileHandle) to the base class
             : ReadStreamJSON(fileHandle, rwOperation, symbolTable, recordTable),
               baseName(souffle::baseName(getFileName(rwOperation))),
               fileHandle(getFileName(rwOperation), std::ios::in | std::ios::binary) {
