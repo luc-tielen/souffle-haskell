@@ -12,11 +12,43 @@
         version = with np.lib;
           "${substring 0 8 self.lastModifiedDate}.${self.shortRev or "dirty"}";
         config = { };
+        gcc = { p, version ? 10 }:
+          p.lib.makeOverridable ({ stdenv ? p."gcc${toString version}Stdenv" }:
+            stdenv.mkDerivation rec {
+              pname = "souffle";
+              version = "2.1";
+              src = p.fetchFromGitHub {
+                owner = "souffle-lang";
+                repo = "souffle";
+                rev = version;
+                sha256 = "11x3v78kciz8j8p1j0fppzcyl2lbm6ib4svj6a9cwi836p9h3fma";
+              };
+              nativeBuildInputs = with p; [
+                bison
+                flex
+                mcpp
+                doxygen
+                graphviz
+                makeWrapper
+                perl
+                cmake
+                ninja
+                git
+                lsb-release
+              ];
+              buildInputs = with p; [ ncurses zlib sqlite libffi ];
+            });
         overlay = final: _:
           with final;
-          with haskellPackages.extend (final: _: { }); {
+          with haskellPackages.extend (final: _: rec { }); rec {
+            souffle = callPackage (gcc {
+              p = final;
+              version = 10;
+            }) { };
             souffle-haskell = with haskell.lib;
-              dontCheck ((callCabal2nix "souffle-haskell" ./. { }).overrideAttrs
+              dontCheck
+              ((addBuildTools (callCabal2nix "souffle-haskell" ./. { })
+                [ souffle ]).overrideAttrs
                 (o: { version = "${o.version}.${version}"; }));
           };
         overlays = [ overlay hls.overlay ];
@@ -24,5 +56,11 @@
         inherit overlays;
         packages = flattenTree (recurseIntoAttrs { inherit souffle-haskell; });
         defaultPackage = packages.souffle-haskell;
+        devShell = with haskellPackages;
+          shellFor {
+            packages = p: with p; [ ];
+            buildInputs = [ cabal-install ghc haskell-language-server souffle ];
+            nativeBuildInputs = [ ];
+          };
       });
 }
