@@ -50,6 +50,7 @@
             packages = p: with p; [ hspec-discover ];
             buildInputs = [
               cabal-install
+              ccls
               ghc
               haskell-language-server
               hspec-discover
