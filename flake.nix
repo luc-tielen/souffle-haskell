@@ -12,69 +12,24 @@
         version = with np.lib;
           "${substring 0 8 self.lastModifiedDate}.${self.shortRev or "dirty"}";
         config = { };
-        mkSouffle = { p, gcc ? 10 }:
-          p.lib.makeOverridable ({ stdenv ? p."gcc${toString gcc}Stdenv" }:
-            stdenv.mkDerivation rec {
-              pname = "souffle";
-              version = "2.1";
-              src = p.fetchFromGitHub {
-                owner = "souffle-lang";
-                repo = "souffle";
-                rev = version;
-                sha256 = "11x3v78kciz8j8p1j0fppzcyl2lbm6ib4svj6a9cwi836p9h3fma";
-              };
-              postPatch = ''
-                substituteInPlace CMakeLists.txt \
-                  --replace "DESTINATION \''${BASH_COMPLETION_COMPLETIONSDIR}" "DESTINATION $out/share/completions/"
-              '';
-              postInstall = ''
-                wrapProgram "$out/bin/souffle" --prefix PATH : "${
-                  p.lib.makeBinPath [ p.mcpp ]
-                }"
-              '';
-              nativeBuildInputs = with p; [
-                bison
-                bash-completion
-                flex
-                mcpp
-                doxygen
-                graphviz
-                makeWrapper
-                perl
-                cmake
-                ninja
-                git
-                lsb-release
-              ];
-              buildInputs = with p; [ ncurses zlib sqlite libffi ];
-              propagatedBuildInputs = with p; [ ncurses zlib sqlite libffi ];
-              outputs = [ "out" ];
-            });
         overlay = final: _:
           with final;
           with haskellPackages.extend (_: _: rec { }); rec {
-            souffle = callPackage (mkSouffle {
-              p = final;
-              gcc = 10;
-            }) { };
+            souffle =
+              callPackage (import ./nix/souffle.nix { pkgs = final; }) { };
             souffle-haskell = with haskell.lib;
-              ((addBuildDepends
+              (overrideCabal (addBuildDepends
                 (addBuildTools (callCabal2nix "souffle-haskell" ./. { }) [
                   hpack
                   souffle
-                ]) [ makeWrapper ]).overrideAttrs (o: {
+                ]) [ makeWrapper ]) (o: {
                   version = "${o.version}.${version}";
-                  postPatch = ''
-                    substituteInPlace package.yaml \
-                      --replace "tests:" "executables:"
-                    ${hpack}/bin/hpack -f
+                  doCheck = true;
+                  checkPhase = ''
+                    runHook preCheck
+                    DATALOG_DIR="${o.src}/tests/fixtures/" SOUFFLE_BIN="${souffle}/bin/souffle" ./Setup test
+                    runHook postCheck
                   '';
-                  postFixup = ''
-                    wrapProgram $out/bin/souffle-haskell-test \
-                      --set DATALOG_DIR "${o.src}/tests/fixtures/" \
-                      --set SOUFFLE_BIN "${souffle}/bin/souffle"
-                  '';
-                  doTarget = "souffle-haskell-test";
                 }));
           };
         overlays = [ overlay hls.overlay ];
