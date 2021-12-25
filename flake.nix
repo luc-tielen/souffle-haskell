@@ -14,7 +14,7 @@
         config = { };
         mkSouffle = { p, gcc ? 10 }:
           p.lib.makeOverridable ({ stdenv ? p."gcc${toString gcc}Stdenv" }:
-            stdenv.mkDerivation {
+            stdenv.mkDerivation rec {
               pname = "souffle";
               version = "2.1";
               src = p.fetchFromGitHub {
