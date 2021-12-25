@@ -367,7 +367,7 @@ datalogProgramFile prog datalogDir = do
 
 locateSouffle :: IO (Maybe FilePath)
 locateSouffle = do
-  let locateCmd = (shell "which souffle") { std_out = CreatePipe }
+  let locateCmd = (proc "souffle" []) { std_out = CreatePipe }
   (_, Just hout, _, locateCmdHandle) <- createProcess locateCmd
   waitForProcess locateCmdHandle >>= \case
     ExitFailure _ -> pure Nothing

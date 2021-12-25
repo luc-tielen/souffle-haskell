@@ -1,7 +1,7 @@
 {
   description = "Souffle Datalog bindings for Haskell";
   inputs = {
-    np.url = "github:nixos/nixpkgs?ref=master";
+    np.url = "github:nixos/nixpkgs?ref=haskell-updates";
     fu.url = "github:numtide/flake-utils?ref=master";
     hls.url = "github:haskell/haskell-language-server?ref=master";
   };
@@ -59,9 +59,10 @@
             }) { };
             souffle-haskell = with haskell.lib;
               dontCheck
-              ((addBuildTools (callCabal2nix "souffle-haskell" ./. { })
-                [ souffle ]).overrideAttrs
-                (o: { version = "${o.version}.${version}"; }));
+              ((addBuildTools (callCabal2nix "souffle-haskell" ./. { }) [
+                hpack
+                souffle
+              ]).overrideAttrs (o: { version = "${o.version}.${version}"; }));
           };
         overlays = [ overlay hls.overlay ];
       in with (import np { inherit system config overlays; }); rec {
