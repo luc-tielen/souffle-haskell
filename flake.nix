@@ -12,9 +12,9 @@
         version = with np.lib;
           "${substring 0 8 self.lastModifiedDate}.${self.shortRev or "dirty"}";
         config = { };
-        gcc = { p, version ? 10 }:
-          p.lib.makeOverridable ({ stdenv ? p."gcc${toString version}Stdenv" }:
-            stdenv.mkDerivation rec {
+        mkSouffle = { p, gcc ? 10 }:
+          p.lib.makeOverridable ({ stdenv ? p."gcc${toString gcc}Stdenv" }:
+            stdenv.mkDerivation {
               pname = "souffle";
               version = "2.1";
               src = p.fetchFromGitHub {
@@ -23,8 +23,18 @@
                 rev = version;
                 sha256 = "11x3v78kciz8j8p1j0fppzcyl2lbm6ib4svj6a9cwi836p9h3fma";
               };
+              postPatch = ''
+                substituteInPlace CMakeLists.txt \
+                  --replace "DESTINATION \''${BASH_COMPLETION_COMPLETIONSDIR}" "DESTINATION $out/share/completions/"
+              '';
+              postInstall = ''
+                wrapProgram "$out/bin/souffle" --prefix PATH : "${
+                  p.lib.makeBinPath [ p.mcpp ]
+                }"
+              '';
               nativeBuildInputs = with p; [
                 bison
+                bash-completion
                 flex
                 mcpp
                 doxygen
@@ -37,13 +47,15 @@
                 lsb-release
               ];
               buildInputs = with p; [ ncurses zlib sqlite libffi ];
+              propagatedBuildInputs = with p; [ ncurses zlib sqlite libffi ];
+              outputs = [ "out" ];
             });
         overlay = final: _:
           with final;
-          with haskellPackages.extend (final: _: rec { }); rec {
-            souffle = callPackage (gcc {
+          with haskellPackages.extend (_: _: rec { }); rec {
+            souffle = callPackage (mkSouffle {
               p = final;
-              version = 10;
+              gcc = 10;
             }) { };
             souffle-haskell = with haskell.lib;
               dontCheck
@@ -60,7 +72,6 @@
           shellFor {
             packages = p: with p; [ ];
             buildInputs = [ cabal-install ghc haskell-language-server souffle ];
-            nativeBuildInputs = [ ];
           };
       });
 }
