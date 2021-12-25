@@ -58,11 +58,24 @@
               gcc = 10;
             }) { };
             souffle-haskell = with haskell.lib;
-              dontCheck
-              ((addBuildTools (callCabal2nix "souffle-haskell" ./. { }) [
-                hpack
-                souffle
-              ]).overrideAttrs (o: { version = "${o.version}.${version}"; }));
+              ((addBuildDepends
+                (addBuildTools (callCabal2nix "souffle-haskell" ./. { }) [
+                  hpack
+                  souffle
+                ]) [ makeWrapper ]).overrideAttrs (o: {
+                  version = "${o.version}.${version}";
+                  postPatch = ''
+                    substituteInPlace package.yaml \
+                      --replace "tests:" "executables:"
+                    ${hpack}/bin/hpack -f
+                  '';
+                  postFixup = ''
+                    wrapProgram $out/bin/souffle-haskell-test \
+                      --set DATALOG_DIR "${o.src}/tests/fixtures/" \
+                      --set SOUFFLE_BIN "${souffle}/bin/souffle"
+                  '';
+                  doTarget = "souffle-haskell-test";
+                }));
           };
         overlays = [ overlay hls.overlay ];
       in with (import np { inherit system config overlays; }); rec {
@@ -78,6 +91,7 @@
               haskell-language-server
               hspec-discover
               souffle
+              packages.souffle-haskell
             ];
           };
       });

@@ -1,3 +1,3 @@
-{ compiler ? "ghc884", pkgs ? import ./nix/packages.nix {} }:
-
-(import ./. { inherit pkgs compiler; }).souffle-shell
+(import (fetchTarball https://github.com/edolstra/flake-compat/archive/master.tar.gz) {
+  src = builtins.fetchGit ./.;
+}).shellNix

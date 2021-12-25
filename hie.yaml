@@ -1,0 +1,10 @@
+cradle:
+  cabal:
+    - path: "lib"
+      component: "lib:souffle-haskell"
+
+    - path: "tests"
+      component: "souffle-haskell:test:souffle-haskell-test"
+
+    - path: "benchmarks/bench.hs"
+      component: "souffle-haskell:bench:souffle-haskell-benchmarks"

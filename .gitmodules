@@ -1,3 +1,0 @@
-[submodule "souffle"]
-	path = souffle
-	url = git@github.com:souffle-lang/souffle.git
