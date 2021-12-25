@@ -70,8 +70,14 @@
         defaultPackage = packages.souffle-haskell;
         devShell = with haskellPackages;
           shellFor {
-            packages = p: with p; [ ];
-            buildInputs = [ cabal-install ghc haskell-language-server souffle ];
+            packages = p: with p; [ hspec-discover ];
+            buildInputs = [
+              cabal-install
+              ghc
+              haskell-language-server
+              hspec-discover
+              souffle
+            ];
           };
       });
 }
