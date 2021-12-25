@@ -87,11 +87,11 @@
         "pre-commit-hooks": "pre-commit-hooks"
       },
       "locked": {
-        "lastModified": 1640360074,
-        "narHash": "sha256-zuiJL4HTg/Ja1C13wTWI5KQVTj2fLl7G6UKDzd74WdA=",
+        "lastModified": 1640382017,
+        "narHash": "sha256-o/3unZLhE/KPoXgdsJYBPJWAeMNiVyzWwPUR+YBTOUg=",
         "owner": "haskell",
         "repo": "haskell-language-server",
-        "rev": "2aaa5b827859797c9421a2862862fd8a2f9cdcba",
+        "rev": "7c9b9327d83261a6d40e54a4a2078667f0ddc7bd",
         "type": "github"
       },
       "original": {
@@ -133,16 +133,16 @@
     },
     "np": {
       "locked": {
-        "lastModified": 1640376141,
-        "narHash": "sha256-sMTrwBhqp33/iey7fm7GxcXeEdeUrqUiH5VtvXS5iVs=",
+        "lastModified": 1640390856,
+        "narHash": "sha256-bBLSbuAp+f1/C0SSwvi7Gb5hAotGt/Lr4e233zb8DmU=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "17336f60ffafb332cf27c9d8dd6e0aed54a95167",
+        "rev": "0587013dd2719891573732e5c0fd718e92b25501",
         "type": "github"
       },
       "original": {
         "owner": "nixos",
-        "ref": "master",
+        "ref": "haskell-updates",
         "repo": "nixpkgs",
         "type": "github"
       }
