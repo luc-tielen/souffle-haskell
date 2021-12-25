@@ -33,6 +33,7 @@
                 }));
             souffle-haskell-lint = writeShellScriptBin "souffle-haskell-lint" ''
               ${hlint}/bin/hlint ${souffle-haskell.src} -c -s
+              exit 0
             '';
           };
         overlays = [ overlay hls.overlay ];
