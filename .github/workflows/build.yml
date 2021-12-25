@@ -29,3 +29,13 @@ jobs:
         with:
           name: ${{ matrix.os }}-souffle-haskell.log
           path: ${{ matrix.os }}-souffle-haskell.log
+      - name: nix lint
+        if: ${{ always() }}
+        run: |
+          nix run .#souffle-haskell-lint &> ${{ matrix.os }}-souffle-haskell-lint.log
+      - name: upload ${{ matrix.os }}-souffle-haskell-lint.log
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.os }}-souffle-haskell-lint.log
+          path: ${{ matrix.os }}-souffle-haskell-lint.log

@@ -22,7 +22,7 @@
                 (addBuildTools (callCabal2nix "souffle-haskell" ./. { }) [
                   hpack
                   souffle
-                ]) [ makeWrapper ]) (o: {
+                ]) [ ]) (o: {
                   version = "${o.version}.${version}";
                   doCheck = true;
                   checkPhase = ''
@@ -31,12 +31,19 @@
                     runHook postCheck
                   '';
                 }));
+            souffle-haskell-lint = writeShellScriptBin "souffle-haskell-lint" ''
+              ${hlint}/bin/hlint ${souffle-haskell.src} -c -s
+            '';
           };
         overlays = [ overlay hls.overlay ];
       in with (import np { inherit system config overlays; }); rec {
         inherit overlays;
-        packages = flattenTree (recurseIntoAttrs { inherit souffle-haskell; });
+        packages = flattenTree
+          (recurseIntoAttrs { inherit souffle-haskell souffle-haskell-lint; });
         defaultPackage = packages.souffle-haskell;
+        apps = {
+          souffle-haskell-lint = mkApp { drv = souffle-haskell-lint; };
+        };
         devShell = with haskellPackages;
           shellFor {
             packages = p: with p; [ hspec-discover ];
@@ -46,6 +53,7 @@
               haskell-language-server
               hspec-discover
               souffle
+              souffle-haskell-lint
               packages.souffle-haskell
             ];
           };
