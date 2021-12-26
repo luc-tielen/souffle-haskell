@@ -11,6 +11,13 @@ lib.makeOverridable ({ stdenv ? pkgs."gcc${toString gcc}Stdenv" }:
       rev = version;
       sha256 = "11x3v78kciz8j8p1j0fppzcyl2lbm6ib4svj6a9cwi836p9h3fma";
     };
+    cmakeFlags = [
+      "-DSOUFFLE_GIT=OFF"
+      "-DSOUFFLE_BASH_COMPLETION=OFF"
+      # "-DCMAKE_C_COMPILER=gcc-11"
+      # "-DCMAKE_CXX_COMPILER=g++-11"
+    ];
+    ninjaFlags = [ "-v" ];
     postPatch = ''
       substituteInPlace CMakeLists.txt \
         --replace "DESTINATION \''${BASH_COMPLETION_COMPLETIONSDIR}" "DESTINATION $out/share/completions/"
@@ -25,14 +32,11 @@ lib.makeOverridable ({ stdenv ? pkgs."gcc${toString gcc}Stdenv" }:
       bash-completion
       flex
       mcpp
-      doxygen
-      graphviz
       makeWrapper
       perl
       cmake
       ninja
       git
-      lsb-release
     ];
     buildInputs = with pkgs; [ ncurses zlib sqlite libffi ];
     propagatedBuildInputs = with pkgs; [ ncurses zlib sqlite libffi ];
