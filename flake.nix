@@ -7,7 +7,7 @@
   };
   outputs = { self, np, fu, hls }:
     with fu.lib;
-    eachSystem [ "x86_64-darwin" ] (system:
+    eachSystem [ "x86_64-linux" "x86_64-darwin" ] (system:
       let
         version = with np.lib;
           "${substring 0 8 self.lastModifiedDate}.${self.shortRev or "dirty"}";
@@ -15,9 +15,8 @@
         overlay = final: _:
           with final;
           with haskellPackages.extend (_: _: rec { }); rec {
-            souffle = callPackage (import ./nix/souffle.nix { pkgs = final; }) {
-              inherit (llvmPackages_11) stdenv;
-            };
+            souffle =
+              callPackage (import ./nix/souffle.nix { pkgs = final; }) { };
             souffle-haskell = with haskell.lib;
               (overrideCabal
                 (addBuildTools (callCabal2nix "souffle-haskell" ./. { }) [

@@ -1,7 +1,10 @@
-{ pkgs, gcc ? 10, ... }:
+{ pkgs, cc ? 10, ... }:
 
 with pkgs;
-lib.makeOverridable ({ stdenv ? pkgs."gcc${toString gcc}Stdenv" }:
+lib.makeOverridable ({ stdenv ? (if pkgs.stdenv.isDarwin then
+  pkgs."llvmPackages_${toString cc}".stdenv
+else
+  pkgs."gcc${toString cc}Stdenv") }:
   stdenv.mkDerivation rec {
     pname = "souffle";
     version = "2.1";
@@ -23,17 +26,9 @@ lib.makeOverridable ({ stdenv ? pkgs."gcc${toString gcc}Stdenv" }:
         lib.makeBinPath [ mcpp ]
       }"
     '';
-    nativeBuildInputs = with pkgs; [
-      bison
-      bash-completion
-      flex
-      mcpp
-      makeWrapper
-      perl
-      cmake
-      ninja
-      git
-    ];
+    nativeBuildInputs = with pkgs;
+      [ bison cmake flex git mcpp makeWrapper ninja perl ]
+      ++ (lib.optionals pkgs.stdenv.isLinux [ lsb-release ]);
     buildInputs = with pkgs; [ ncurses zlib sqlite libffi ];
     propagatedBuildInputs = with pkgs; [ ncurses zlib sqlite libffi ];
     outputs = [ "out" ];
