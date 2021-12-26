@@ -1,7 +1,7 @@
 # Souffle-haskell
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/luc-tielen/souffle-haskell/blob/master/LICENSE)
-[![CircleCI](https://circleci.com/gh/luc-tielen/souffle-haskell.svg?style=svg&circle-token=07fcf633c70820100c529dda8869baa60d4b6dd8)](https://circleci.com/gh/luc-tielen/souffle-haskell)
+![CI](https://github.com/luc-tielen/souffle-haskell/actions/workflows/build/badge.svg)
 [![Hackage](https://img.shields.io/hackage/v/souffle-haskell?style=flat-square)](https://hackage.haskell.org/package/souffle-haskell)
 
 This repo provides Haskell bindings for performing analyses with the
