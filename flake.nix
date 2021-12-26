@@ -18,11 +18,11 @@
             souffle =
               callPackage (import ./nix/souffle.nix { pkgs = final; }) { };
             souffle-haskell = with haskell.lib;
-              (overrideCabal (addBuildDepends
+              (overrideCabal
                 (addBuildTools (callCabal2nix "souffle-haskell" ./. { }) [
                   hpack
                   souffle
-                ]) [ ]) (o: {
+                ]) (o: {
                   version = "${o.version}.${version}";
                   doCheck = true;
                   checkPhase = ''
@@ -32,8 +32,7 @@
                   '';
                 }));
             souffle-haskell-lint = writeShellScriptBin "souffle-haskell-lint" ''
-              ${hlint}/bin/hlint ${souffle-haskell.src} -c -s
-              exit 0
+              ${hlint}/bin/hlint ${souffle-haskell.src} -c
             '';
           };
         overlays = [ overlay hls.overlay ];
@@ -47,16 +46,14 @@
         };
         devShell = with haskellPackages;
           shellFor {
-            packages = p: with p; [ hspec-discover ];
+            packages = p: with p; [ hspec-discover packages.souffle-haskell ];
             buildInputs = [
               cabal-install
-              ccls
               ghc
               haskell-language-server
               hspec-discover
               souffle
               souffle-haskell-lint
-              packages.souffle-haskell
             ];
           };
       });
