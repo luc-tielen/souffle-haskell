@@ -11,12 +11,8 @@ lib.makeOverridable ({ stdenv ? pkgs."gcc${toString gcc}Stdenv" }:
       rev = version;
       sha256 = "11x3v78kciz8j8p1j0fppzcyl2lbm6ib4svj6a9cwi836p9h3fma";
     };
-    cmakeFlags = [
-      "-DSOUFFLE_GIT=OFF"
-      "-DSOUFFLE_BASH_COMPLETION=OFF"
-      # "-DCMAKE_C_COMPILER=gcc-11"
-      # "-DCMAKE_CXX_COMPILER=g++-11"
-    ];
+    patches = [ ../patches/1-souffle-2.1-macosx.patch ];
+    cmakeFlags = [ "-DSOUFFLE_GIT=OFF" "-DSOUFFLE_BASH_COMPLETION=OFF" ];
     ninjaFlags = [ "-v" ];
     postPatch = ''
       substituteInPlace CMakeLists.txt \
