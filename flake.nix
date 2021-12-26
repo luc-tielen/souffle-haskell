@@ -16,7 +16,7 @@
           with final;
           with haskellPackages.extend (_: _: rec { }); rec {
             souffle = callPackage (import ./nix/souffle.nix { pkgs = final; }) {
-              inherit (llvmPackages_10) stdenv;
+              inherit (llvmPackages_11) stdenv;
             };
             souffle-haskell = with haskell.lib;
               (overrideCabal
