@@ -35,7 +35,7 @@ import Control.Exception (ErrorCall(..), throwIO, bracket)
 import Control.Monad.State.Strict
 import Data.IORef
 import Data.Foldable (traverse_)
-import Data.List hiding (init)
+import qualified Data.List as List hiding (init)
 import Data.Semigroup (Last(..))
 import Data.Maybe (fromMaybe)
 import Data.Proxy
@@ -334,7 +334,7 @@ instance MonadSouffle SouffleM where
            => Handle prog -> a -> SouffleM (Maybe a)
   findFact prog fact = do
     facts :: [a] <- getFacts prog
-    pure $ find (== fact) facts
+    pure $ List.find (== fact) facts
   {-# INLINABLE findFact #-}
 
   addFact :: forall a prog. (Fact a, ContainsInputFact prog a, Marshal a)
@@ -344,7 +344,7 @@ instance MonadSouffle SouffleM where
     let relationName = factName (Proxy :: Proxy a)
     let factFile = factPath handle </> relationName <.> "facts"
     let line = pushMarshalT (push fact)
-    appendFile factFile $ intercalate "\t" line ++ "\n"
+    appendFile factFile $ List.intercalate "\t" line ++ "\n"
   {-# INLINABLE addFact #-}
 
   addFacts :: forall a prog f. (Fact a, ContainsInputFact prog a, Marshal a, Foldable f)
@@ -354,7 +354,7 @@ instance MonadSouffle SouffleM where
     let relationName = factName (Proxy :: Proxy a)
     let factFile = factPath handle </> relationName <.> "facts"
     let factLines = map (pushMarshalT . push) (foldMap pure facts)
-    traverse_ (\line -> appendFile factFile (intercalate "\t" line ++ "\n")) factLines
+    traverse_ (\line -> appendFile factFile (List.intercalate "\t" line ++ "\n")) factLines
   {-# INLINABLE addFacts #-}
 
 datalogProgramFile :: forall prog. Program prog => prog -> FilePath -> IO (Maybe FilePath)
