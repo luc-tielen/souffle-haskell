@@ -135,7 +135,7 @@ spec = fdescribe "composing analyses" $ parallel $ do
                     , Reachable "a" "c"
                     , Reachable "b" "c"
                     ]
-          results' = mconcat $ take 2 $ repeat results
+          results' = mconcat $ replicate 2 results
       liftIO $ rs `shouldBe` results'
 
   it "supports mempty" $ do
@@ -186,7 +186,7 @@ spec = fdescribe "composing analyses" $ parallel $ do
       withSouffle Path $ \_ -> do
         let analysis :: Analysis Souffle.SouffleM Int Int
             analysis = arr (+1)
-        result1 <- execAnalysis (analysis) 41
+        result1 <- execAnalysis analysis 41
         result2 <- execAnalysis (arr id) 41
         liftIO $ result1 `shouldBe` 42
         liftIO $ result2 `shouldBe` 41
@@ -196,7 +196,7 @@ spec = fdescribe "composing analyses" $ parallel $ do
         let analysis :: Analysis Souffle.SouffleM (Int, Bool) (Int, Bool)
             analysis = first (arr (+1))
             input = (41, True)
-        result <- execAnalysis (analysis) input
+        result <- execAnalysis analysis input
         liftIO $ result `shouldBe` (42, True)
 
     it "supports 'second'" $ do
@@ -204,23 +204,23 @@ spec = fdescribe "composing analyses" $ parallel $ do
         let analysis :: Analysis Souffle.SouffleM (Bool, Int) (Bool, Int)
             analysis = second (arr (+1))
             input = (True, 41)
-        result <- execAnalysis (analysis) input
+        result <- execAnalysis analysis input
         liftIO $ result `shouldBe` (True, 42)
 
     it "supports (***)" $ do
       withSouffle Path $ \_ -> do
         let analysis :: Analysis Souffle.SouffleM (Bool, Int) (Bool, Int)
-            analysis = (arr not) *** (arr (+1))
+            analysis = arr not *** arr (+1)
             input = (True, 41)
-        result <- execAnalysis (analysis) input
+        result <- execAnalysis analysis input
         liftIO $ result `shouldBe` (False, 42)
 
     it "supports (&&&)" $ do
       withSouffle Path $ \_ -> do
         let analysis :: Analysis Souffle.SouffleM Int (Bool, Int)
-            analysis = (arr (== 1000)) &&& (arr (+1))
+            analysis = arr (== 1000) &&& arr (+1)
             input = 41
-        result <- execAnalysis (analysis) input
+        result <- execAnalysis analysis input
         liftIO $ result `shouldBe` (False, 42)
 
     it "supports arrow notation" $ do
