@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -Wno-redundant-constraints #-}
+{-# OPTIONS_GHC -Wno-redundant-constraints -Wno-compat-unqualified-imports #-}
 {-# LANGUAGE FlexibleInstances, TypeFamilies, DerivingVia, InstanceSigs #-}
 {-# LANGUAGE UndecidableInstances, RoleAnnotations #-}
 

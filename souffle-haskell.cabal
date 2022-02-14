@@ -1,6 +1,6 @@
 cabal-version: 2.2
 
--- This file has been generated from package.yaml by hpack version 0.34.6.
+-- This file has been generated from package.yaml by hpack version 0.34.2.
 --
 -- see: https://github.com/sol/hpack
 
@@ -71,6 +71,7 @@ source-repository head
 
 library
   exposed-modules:
+      Language.Souffle.Analysis
       Language.Souffle.Class
       Language.Souffle.Compiled
       Language.Souffle.Internal
@@ -84,10 +85,7 @@ library
       Paths_souffle_haskell
   hs-source-dirs:
       lib
-  default-extensions:
-      OverloadedStrings
-      LambdaCase
-      ScopedTypeVariables
+  default-extensions: OverloadedStrings LambdaCase ScopedTypeVariables
   ghc-options: -Wall -Weverything -Wno-safe -Wno-unsafe -Wno-implicit-prelude -Wno-missed-specializations -Wno-all-missed-specializations -Wno-missing-import-lists -Wno-type-defaults -Wno-missing-local-signatures -Wno-monomorphism-restriction -Wno-missing-deriving-strategies -Wno-prepositive-qualified-module -Wno-missing-safe-haskell-mode -optP-Wno-nonportable-include-path -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++17 -Wall
   include-dirs:
@@ -139,14 +137,15 @@ library
   build-depends:
       array <=1.0
     , base >=4.12 && <5
-    , bytestring
+    , bytestring >=0.10.10 && <1
     , containers >=0.6.2.1 && <1
     , deepseq >=1.4.4 && <2
     , directory >=1.3.3 && <2
     , filepath >=1.4.2 && <2
     , mtl >=2.0 && <3
     , process >=1.6 && <2
-    , template-haskell ==2.*
+    , profunctors >=5.6.2 && <6
+    , template-haskell >=2 && <3
     , temporary >=1.3 && <2
     , text >=1.0 && <2
     , text-short >=0.1.3 && <1
@@ -161,18 +160,14 @@ test-suite souffle-haskell-test
   type: exitcode-stdio-1.0
   main-is: test.hs
   other-modules:
+      Test.Language.Souffle.AnalysisSpec
       Test.Language.Souffle.CompiledSpec
       Test.Language.Souffle.InterpretedSpec
       Test.Language.Souffle.MarshalSpec
       Paths_souffle_haskell
-  autogen-modules:
-      Paths_souffle_haskell
   hs-source-dirs:
       tests
-  default-extensions:
-      OverloadedStrings
-      LambdaCase
-      ScopedTypeVariables
+  default-extensions: OverloadedStrings LambdaCase ScopedTypeVariables
   ghc-options: -Wall -Weverything -Wno-safe -Wno-unsafe -Wno-implicit-prelude -Wno-missed-specializations -Wno-all-missed-specializations -Wno-missing-import-lists -Wno-type-defaults -Wno-missing-local-signatures -Wno-monomorphism-restriction -Wno-missing-deriving-strategies -Wno-prepositive-qualified-module -Wno-missing-safe-haskell-mode -optP-Wno-nonportable-include-path -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++17 -D__EMBEDDED_SOUFFLE__
   include-dirs:
@@ -226,7 +221,7 @@ test-suite souffle-haskell-test
   build-depends:
       array <=1.0
     , base >=4.12 && <5
-    , bytestring
+    , bytestring >=0.10.10 && <1
     , containers >=0.6.2.1 && <1
     , deepseq >=1.4.4 && <2
     , directory >=1.3.3 && <2
@@ -237,8 +232,9 @@ test-suite souffle-haskell-test
     , mtl >=2.0 && <3
     , neat-interpolation ==0.*
     , process >=1.6 && <2
+    , profunctors >=5.6.2 && <6
     , souffle-haskell
-    , template-haskell ==2.*
+    , template-haskell >=2 && <3
     , temporary >=1.3 && <2
     , text >=1.0 && <2
     , text-short >=0.1.3 && <1
@@ -254,14 +250,9 @@ benchmark souffle-haskell-benchmarks
   main-is: bench.hs
   other-modules:
       Paths_souffle_haskell
-  autogen-modules:
-      Paths_souffle_haskell
   hs-source-dirs:
       benchmarks
-  default-extensions:
-      OverloadedStrings
-      LambdaCase
-      ScopedTypeVariables
+  default-extensions: OverloadedStrings LambdaCase ScopedTypeVariables
   ghc-options: -Wall -Weverything -Wno-safe -Wno-unsafe -Wno-implicit-prelude -Wno-missed-specializations -Wno-all-missed-specializations -Wno-missing-import-lists -Wno-type-defaults -Wno-missing-local-signatures -Wno-monomorphism-restriction -Wno-missing-deriving-strategies -Wno-prepositive-qualified-module -Wno-missing-safe-haskell-mode -optP-Wno-nonportable-include-path -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits +RTS -N1 -RTS
   cxx-options: -std=c++17 -D__EMBEDDED_SOUFFLE__ -std=c++17 -march=native
   include-dirs:
@@ -313,7 +304,7 @@ benchmark souffle-haskell-benchmarks
   build-depends:
       array <=1.0
     , base >=4.12 && <5
-    , bytestring
+    , bytestring >=0.10.10 && <1
     , containers >=0.6.2.1 && <1
     , criterion
     , deepseq >=1.4.4 && <2
@@ -321,8 +312,9 @@ benchmark souffle-haskell-benchmarks
     , filepath >=1.4.2 && <2
     , mtl >=2.0 && <3
     , process >=1.6 && <2
+    , profunctors >=5.6.2 && <6
     , souffle-haskell
-    , template-haskell ==2.*
+    , template-haskell >=2 && <3
     , temporary >=1.3 && <2
     , text >=1.0 && <2
     , text-short >=0.1.3 && <1
