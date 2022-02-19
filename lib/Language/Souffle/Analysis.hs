@@ -9,7 +9,7 @@ module Language.Souffle.Analysis
 import Prelude hiding (id, (.))
 import Control.Category
 import Control.Monad
-import Control.Arrow hiding (left)
+import Control.Arrow
 import Data.Profunctor
 
 -- NOTE: 2nd a is mostly used for Category/Arrow instances
@@ -27,8 +27,8 @@ instance Functor m => Functor (Analysis m a) where
     Analysis f r (fmap func <$> g)
 
 instance Functor m => Profunctor (Analysis m) where
-  lmap left (Analysis f r g) =
-    Analysis (lmap left f) r (lmap left g)
+  lmap fn (Analysis f r g) =
+    Analysis (lmap fn f) r (lmap fn g)
   rmap = fmap
 
 instance (Monoid (m ()), Applicative m) => Applicative (Analysis m a) where
@@ -53,14 +53,38 @@ instance (Monoid (m ()), Monad m) => Category (Analysis m) where
       -- NOTE: lazyness avoids work here in g2 in cases where "const" is used
       g = g2 >=> g1
 
+instance Functor m => Strong (Analysis m) where
+  first' (Analysis f r g) =
+    Analysis (f . fst) r $ \(b, d) -> (,d) <$> g b
+
+  second' (Analysis f r g) =
+    Analysis (f . snd) r $ \(d, b) -> (d,) <$> g b
+
+instance Applicative m => Choice (Analysis m) where
+  left' (Analysis f r g) = Analysis f' r g'
+    where
+      f' = \case
+        Left b -> f b
+        Right _ -> pure ()
+      g' = \case
+        Left b -> Left <$> g b
+        Right d -> pure $ Right d
+
+  right' (Analysis f r g) = Analysis f' r g'
+    where
+      f' = \case
+        Left _ -> pure ()
+        Right b -> f b
+      g' = \case
+        Left d -> pure $ Left d
+        Right b -> Right <$> g b
+
 instance (Monad m, Monoid (m ()), Category (Analysis m)) => Arrow (Analysis m) where
   arr f = Analysis mempty mempty (pure . f)
 
-  first (Analysis f r g) =
-    Analysis (f . fst) r $ \(b, d) -> (,d) <$> g b
+  first = first'
 
-  second (Analysis f r g) =
-    Analysis (f . snd) r $ \(d, b) -> (d,) <$> g b
+  second = second'
 
   Analysis f1 r1 g1 *** Analysis f2 r2 g2 =
     Analysis (\(b, b') -> f1 b *> f2 b') (r1 <> r2) $ \(b, b') -> do
@@ -70,3 +94,8 @@ instance (Monad m, Monoid (m ()), Category (Analysis m)) => Arrow (Analysis m) w
 
   Analysis f1 r1 g1 &&& Analysis f2 r2 g2 =
     Analysis (f1 <> f2) (r1 <> r2) $ \b -> (,) <$> g1 b <*> g2 b
+
+instance (Monad m, Monoid (m ())) => ArrowChoice (Analysis m) where
+  left = left'
+
+  right = right'

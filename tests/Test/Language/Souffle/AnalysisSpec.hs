@@ -86,7 +86,7 @@ edges :: [Edge]
 edges = [Edge "a" "b", Edge "b" "c", Edge "b" "d", Edge "d" "e"]
 
 spec :: Spec
-spec = fdescribe "composing analyses" $ parallel $ do
+spec = describe "composing analyses" $ parallel $ do
   it "supports fmap" $ do
     withSouffle Path $ \h -> do
       let analysis = pathAnalysis h
@@ -235,3 +235,15 @@ spec = fdescribe "composing analyses" $ parallel $ do
                                      , StringFact "b"
                                      , StringFact "d"
                                      ]
+
+    it "supports case expressions in arrow notation" $ do
+      withSouffle Path $ \h -> do
+        let analysis =  proc es -> do
+              rs <- pathAnalysis h -< es
+              case rs of
+                [] -> returnA -< []
+                rs' -> returnA -< take 2 rs'
+        result <- execAnalysis analysis edges
+        let expected = [ Reachable "a" "b", Reachable "a" "c" ]
+        liftIO $ result `shouldBe` expected
+
