@@ -23,8 +23,8 @@
 #include <memory>
 #include <new>
 
-#if defined(__cpp_lib_hardware_interference_size) && \
-        (!defined(__APPLE__))  // https://bugs.llvm.org/show_bug.cgi?id=41423
+// https://bugs.llvm.org/show_bug.cgi?id=41423
+#if defined(__cpp_lib_hardware_interference_size) && (__cpp_lib_hardware_interference_size != 201703L)
 using std::hardware_constructive_interference_size;
 using std::hardware_destructive_interference_size;
 #else
@@ -44,6 +44,10 @@ constexpr std::size_t hardware_destructive_interference_size = 2 * sizeof(max_al
 
 #ifdef __APPLE__
 #define pthread_yield pthread_yield_np
+#elif !defined(_MSC_VER)
+#include <sched.h>
+// pthread_yield is deprecated and should be replaced by sched_yield
+#define pthread_yield sched_yield
 #endif
 
 // support for a parallel region
@@ -521,7 +525,7 @@ public:
     }
 };
 
-/** Concurrent tracks locking mechanism. */
+/** Concurrent lanes locking mechanism. */
 struct MutexConcurrentLanes {
     using lane_id = std::size_t;
     using unique_lock_type = std::unique_lock<std::mutex>;
@@ -561,29 +565,27 @@ struct MutexConcurrentLanes {
         return unique_lock_type(Lanes[Lane].Access);
     }
 
-    // Lock the given track.
+    // Lock the given lane.
     // Must eventually be followed by unlock(Lane).
     void lock(const lane_id Lane) const {
-        assert(Lane < Size);
         Lanes[Lane].Access.lock();
     }
 
-    // Unlock the given track.
-    // Must already be the owner of the track's lock.
+    // Unlock the given lane.
+    // Must already be the owner of the lane's lock.
     void unlock(const lane_id Lane) const {
-        assert(Lane < Size);
         Lanes[Lane].Access.unlock();
     }
 
-    // Acquire the capability to lock all other tracks than the given one.
+    // Acquire the capability to lock all other lanes than the given one.
     //
     // Must eventually be followed by beforeUnlockAllBut(Lane).
     void beforeLockAllBut(const lane_id Lane) const {
         if (!BeforeLockAll.try_lock()) {
             // If we cannot get the lock immediately, it means it was acquired
-            // concurrently by another track that will also try to acquire our
-            // track lock.
-            // So we release our track lock to let the concurrent operation
+            // concurrently by another lane that will also try to acquire our
+            // lane lock.
+            // So we release our lane lock to let the concurrent operation
             // progress.
             unlock(Lane);
             BeforeLockAll.lock();
@@ -591,16 +593,16 @@ struct MutexConcurrentLanes {
         }
     }
 
-    // Release the capability to lock all other tracks than the given one.
+    // Release the capability to lock all other lanes than the given one.
     //
     // Must already be the owner of that capability.
     void beforeUnlockAllBut(const lane_id) const {
         BeforeLockAll.unlock();
     }
 
-    // Lock all tracks but the given one.
+    // Lock all lanes but the given one.
     //
-    // Must already have acquired the capability to lock all other tracks
+    // Must already have acquired the capability to lock all other lanes
     // by calling beforeLockAllBut(Lane).
     //
     // Must eventually be followed by unlockAllBut(Lane).
@@ -612,8 +614,8 @@ struct MutexConcurrentLanes {
         }
     }
 
-    // Unlock all tracks but the given one.
-    // Must already be the owner of all the tracks' locks.
+    // Unlock all lanes but the given one.
+    // Must already be the owner of all the lanes' locks.
     void unlockAllBut(const lane_id Lane) const {
         for (std::size_t I = 0; I < Size; ++I) {
             if (I != Lane) {

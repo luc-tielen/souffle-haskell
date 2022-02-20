@@ -318,14 +318,6 @@ ind_0.printStats(o);
 
 class Sf_edge_cases : public SouffleProgram {
 private:
-static inline bool regex_wrapper(const std::string& pattern, const std::string& text) {
-   bool result = false; 
-   try { result = std::regex_match(text, std::regex(pattern)); } catch(...) { 
-     std::cerr << "warning: wrong pattern provided for match(\"" << pattern << "\",\"" << text << "\").\n";
-}
-   return result;
-}
-private:
 static inline std::string substr_wrapper(const std::string& str, std::size_t idx, std::size_t len) {
    std::string result; 
    try { result = str.substr(idx,len); } catch(...) { 
@@ -342,30 +334,30 @@ SymbolTable symTable{
 	R"_(∀)_",
 	R"_(∀∀)_",
 };// -- initialize record table --
-RecordTable recordTable;
+SpecializedRecordTable<0> recordTable{};
 // -- Table: empty_strings
 Own<t_btree_iii__0_1_2__111> rel_1_empty_strings = mk<t_btree_iii__0_1_2__111>();
 souffle::RelationWrapper<t_btree_iii__0_1_2__111> wrapper_rel_1_empty_strings;
 // -- Table: long_strings
 Own<t_btree_i__0__1> rel_2_long_strings = mk<t_btree_i__0__1>();
 souffle::RelationWrapper<t_btree_i__0__1> wrapper_rel_2_long_strings;
-// -- Table: unicode
-Own<t_btree_i__0__1> rel_3_unicode = mk<t_btree_i__0__1>();
-souffle::RelationWrapper<t_btree_i__0__1> wrapper_rel_3_unicode;
 // -- Table: no_strings
-Own<t_btree_uif__0_1_2__111> rel_4_no_strings = mk<t_btree_uif__0_1_2__111>();
-souffle::RelationWrapper<t_btree_uif__0_1_2__111> wrapper_rel_4_no_strings;
+Own<t_btree_uif__0_1_2__111> rel_3_no_strings = mk<t_btree_uif__0_1_2__111>();
+souffle::RelationWrapper<t_btree_uif__0_1_2__111> wrapper_rel_3_no_strings;
+// -- Table: unicode
+Own<t_btree_i__0__1> rel_4_unicode = mk<t_btree_i__0__1>();
+souffle::RelationWrapper<t_btree_i__0__1> wrapper_rel_4_unicode;
 public:
 Sf_edge_cases()
 : wrapper_rel_1_empty_strings(0, *rel_1_empty_strings, *this, "empty_strings", std::array<const char *,3>{{"s:symbol","s:symbol","i:number"}}, std::array<const char *,3>{{"s","s2","n"}}, 0)
 , wrapper_rel_2_long_strings(1, *rel_2_long_strings, *this, "long_strings", std::array<const char *,1>{{"s:symbol"}}, std::array<const char *,1>{{"s"}}, 0)
-, wrapper_rel_3_unicode(2, *rel_3_unicode, *this, "unicode", std::array<const char *,1>{{"s:symbol"}}, std::array<const char *,1>{{"s"}}, 0)
-, wrapper_rel_4_no_strings(3, *rel_4_no_strings, *this, "no_strings", std::array<const char *,3>{{"u:unsigned","i:number","f:float"}}, std::array<const char *,3>{{"u","n","f"}}, 0)
+, wrapper_rel_3_no_strings(2, *rel_3_no_strings, *this, "no_strings", std::array<const char *,3>{{"u:unsigned","i:number","f:float"}}, std::array<const char *,3>{{"u","n","f"}}, 0)
+, wrapper_rel_4_unicode(3, *rel_4_unicode, *this, "unicode", std::array<const char *,1>{{"s:symbol"}}, std::array<const char *,1>{{"s"}}, 0)
 {
 addRelation("empty_strings", wrapper_rel_1_empty_strings, true, true);
 addRelation("long_strings", wrapper_rel_2_long_strings, true, true);
-addRelation("unicode", wrapper_rel_3_unicode, true, true);
-addRelation("no_strings", wrapper_rel_4_no_strings, true, true);
+addRelation("no_strings", wrapper_rel_3_no_strings, true, true);
+addRelation("unicode", wrapper_rel_4_unicode, true, true);
 }
 ~Sf_edge_cases() {
 }
@@ -376,14 +368,15 @@ std::string             outputDirectory;
 SignalHandler*          signalHandler {SignalHandler::instance()};
 std::atomic<RamDomain>  ctr {};
 std::atomic<std::size_t>     iter {};
-bool                    performIO = false;
 
-void runFunction(std::string  inputDirectoryArg   = "",
-                 std::string  outputDirectoryArg  = "",
-                 bool         performIOArg        = false) {
+void runFunction(std::string  inputDirectoryArg,
+                 std::string  outputDirectoryArg,
+                 bool         performIOArg,
+                 bool         pruneImdtRelsArg) {
     this->inputDirectory  = std::move(inputDirectoryArg);
     this->outputDirectory = std::move(outputDirectoryArg);
     this->performIO       = performIOArg;
+    this->pruneImdtRels   = pruneImdtRelsArg; 
 
     // set default threads (in embedded mode)
     // if this is not set, and omp is used, the default omp setting of number of cores is used.
@@ -414,9 +407,9 @@ subroutine_3(args, ret);
 signalHandler->reset();
 }
 public:
-void run() override { runFunction("", "", false); }
+void run() override { runFunction("", "", false, false); }
 public:
-void runAll(std::string inputDirectoryArg = "", std::string outputDirectoryArg = "") override { runFunction(inputDirectoryArg, outputDirectoryArg, true);
+void runAll(std::string inputDirectoryArg = "", std::string outputDirectoryArg = "", bool performIOArg=true, bool pruneImdtRelsArg=true) override { runFunction(inputDirectoryArg, outputDirectoryArg, performIOArg, pruneImdtRelsArg);
 }
 public:
 void printAll(std::string outputDirectoryArg = "") override {
@@ -428,13 +421,13 @@ try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeN
 if (!outputDirectoryArg.empty()) {directiveMap["output-dir"] = outputDirectoryArg;}
 IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll(*rel_2_long_strings);
 } catch (std::exception& e) {std::cerr << e.what();exit(1);}
-try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","s"},{"auxArity","0"},{"name","unicode"},{"operation","output"},{"output-dir","."},{"params","{\"records\": {}, \"relation\": {\"arity\": 1, \"params\": [\"s\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 1, \"types\": [\"s:symbol\"]}}"}});
-if (!outputDirectoryArg.empty()) {directiveMap["output-dir"] = outputDirectoryArg;}
-IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll(*rel_3_unicode);
-} catch (std::exception& e) {std::cerr << e.what();exit(1);}
 try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","u\tn\tf"},{"auxArity","0"},{"name","no_strings"},{"operation","output"},{"output-dir","."},{"params","{\"records\": {}, \"relation\": {\"arity\": 3, \"params\": [\"u\", \"n\", \"f\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 3, \"types\": [\"u:unsigned\", \"i:number\", \"f:float\"]}}"}});
 if (!outputDirectoryArg.empty()) {directiveMap["output-dir"] = outputDirectoryArg;}
-IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll(*rel_4_no_strings);
+IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll(*rel_3_no_strings);
+} catch (std::exception& e) {std::cerr << e.what();exit(1);}
+try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","s"},{"auxArity","0"},{"name","unicode"},{"operation","output"},{"output-dir","."},{"params","{\"records\": {}, \"relation\": {\"arity\": 1, \"params\": [\"s\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 1, \"types\": [\"s:symbol\"]}}"}});
+if (!outputDirectoryArg.empty()) {directiveMap["output-dir"] = outputDirectoryArg;}
+IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll(*rel_4_unicode);
 } catch (std::exception& e) {std::cerr << e.what();exit(1);}
 }
 public:
@@ -442,19 +435,19 @@ void loadAll(std::string inputDirectoryArg = "") override {
 try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","s"},{"auxArity","0"},{"fact-dir","."},{"name","long_strings"},{"operation","input"},{"params","{\"records\": {}, \"relation\": {\"arity\": 1, \"params\": [\"s\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 1, \"types\": [\"s:symbol\"]}}"}});
 if (!inputDirectoryArg.empty()) {directiveMap["fact-dir"] = inputDirectoryArg;}
 IOSystem::getInstance().getReader(directiveMap, symTable, recordTable)->readAll(*rel_2_long_strings);
-} catch (std::exception& e) {std::cerr << "Error loading data: " << e.what() << '\n';}
+} catch (std::exception& e) {std::cerr << "Error loading long_strings data: " << e.what() << '\n';}
+try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","u\tn\tf"},{"auxArity","0"},{"fact-dir","."},{"name","no_strings"},{"operation","input"},{"params","{\"records\": {}, \"relation\": {\"arity\": 3, \"params\": [\"u\", \"n\", \"f\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 3, \"types\": [\"u:unsigned\", \"i:number\", \"f:float\"]}}"}});
+if (!inputDirectoryArg.empty()) {directiveMap["fact-dir"] = inputDirectoryArg;}
+IOSystem::getInstance().getReader(directiveMap, symTable, recordTable)->readAll(*rel_3_no_strings);
+} catch (std::exception& e) {std::cerr << "Error loading no_strings data: " << e.what() << '\n';}
 try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","s\ts2\tn"},{"auxArity","0"},{"fact-dir","."},{"name","empty_strings"},{"operation","input"},{"params","{\"records\": {}, \"relation\": {\"arity\": 3, \"params\": [\"s\", \"s2\", \"n\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 3, \"types\": [\"s:symbol\", \"s:symbol\", \"i:number\"]}}"}});
 if (!inputDirectoryArg.empty()) {directiveMap["fact-dir"] = inputDirectoryArg;}
 IOSystem::getInstance().getReader(directiveMap, symTable, recordTable)->readAll(*rel_1_empty_strings);
-} catch (std::exception& e) {std::cerr << "Error loading data: " << e.what() << '\n';}
+} catch (std::exception& e) {std::cerr << "Error loading empty_strings data: " << e.what() << '\n';}
 try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","s"},{"auxArity","0"},{"fact-dir","."},{"name","unicode"},{"operation","input"},{"params","{\"records\": {}, \"relation\": {\"arity\": 1, \"params\": [\"s\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 1, \"types\": [\"s:symbol\"]}}"}});
 if (!inputDirectoryArg.empty()) {directiveMap["fact-dir"] = inputDirectoryArg;}
-IOSystem::getInstance().getReader(directiveMap, symTable, recordTable)->readAll(*rel_3_unicode);
-} catch (std::exception& e) {std::cerr << "Error loading data: " << e.what() << '\n';}
-try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","u\tn\tf"},{"auxArity","0"},{"fact-dir","."},{"name","no_strings"},{"operation","input"},{"params","{\"records\": {}, \"relation\": {\"arity\": 3, \"params\": [\"u\", \"n\", \"f\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 3, \"types\": [\"u:unsigned\", \"i:number\", \"f:float\"]}}"}});
-if (!inputDirectoryArg.empty()) {directiveMap["fact-dir"] = inputDirectoryArg;}
-IOSystem::getInstance().getReader(directiveMap, symTable, recordTable)->readAll(*rel_4_no_strings);
-} catch (std::exception& e) {std::cerr << "Error loading data: " << e.what() << '\n';}
+IOSystem::getInstance().getReader(directiveMap, symTable, recordTable)->readAll(*rel_4_unicode);
+} catch (std::exception& e) {std::cerr << "Error loading unicode data: " << e.what() << '\n';}
 }
 public:
 void dumpInputs() override {
@@ -466,6 +459,12 @@ IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(
 } catch (std::exception& e) {std::cerr << e.what();exit(1);}
 try {std::map<std::string, std::string> rwOperation;
 rwOperation["IO"] = "stdout";
+rwOperation["name"] = "no_strings";
+rwOperation["types"] = "{\"relation\": {\"arity\": 3, \"auxArity\": 0, \"types\": [\"u:unsigned\", \"i:number\", \"f:float\"]}}";
+IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(*rel_3_no_strings);
+} catch (std::exception& e) {std::cerr << e.what();exit(1);}
+try {std::map<std::string, std::string> rwOperation;
+rwOperation["IO"] = "stdout";
 rwOperation["name"] = "empty_strings";
 rwOperation["types"] = "{\"relation\": {\"arity\": 3, \"auxArity\": 0, \"types\": [\"s:symbol\", \"s:symbol\", \"i:number\"]}}";
 IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(*rel_1_empty_strings);
@@ -474,13 +473,7 @@ try {std::map<std::string, std::string> rwOperation;
 rwOperation["IO"] = "stdout";
 rwOperation["name"] = "unicode";
 rwOperation["types"] = "{\"relation\": {\"arity\": 1, \"auxArity\": 0, \"types\": [\"s:symbol\"]}}";
-IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(*rel_3_unicode);
-} catch (std::exception& e) {std::cerr << e.what();exit(1);}
-try {std::map<std::string, std::string> rwOperation;
-rwOperation["IO"] = "stdout";
-rwOperation["name"] = "no_strings";
-rwOperation["types"] = "{\"relation\": {\"arity\": 3, \"auxArity\": 0, \"types\": [\"u:unsigned\", \"i:number\", \"f:float\"]}}";
-IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(*rel_4_no_strings);
+IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(*rel_4_unicode);
 } catch (std::exception& e) {std::cerr << e.what();exit(1);}
 }
 public:
@@ -499,15 +492,15 @@ IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(
 } catch (std::exception& e) {std::cerr << e.what();exit(1);}
 try {std::map<std::string, std::string> rwOperation;
 rwOperation["IO"] = "stdout";
-rwOperation["name"] = "unicode";
-rwOperation["types"] = "{\"relation\": {\"arity\": 1, \"auxArity\": 0, \"types\": [\"s:symbol\"]}}";
-IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(*rel_3_unicode);
+rwOperation["name"] = "no_strings";
+rwOperation["types"] = "{\"relation\": {\"arity\": 3, \"auxArity\": 0, \"types\": [\"u:unsigned\", \"i:number\", \"f:float\"]}}";
+IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(*rel_3_no_strings);
 } catch (std::exception& e) {std::cerr << e.what();exit(1);}
 try {std::map<std::string, std::string> rwOperation;
 rwOperation["IO"] = "stdout";
-rwOperation["name"] = "no_strings";
-rwOperation["types"] = "{\"relation\": {\"arity\": 3, \"auxArity\": 0, \"types\": [\"u:unsigned\", \"i:number\", \"f:float\"]}}";
-IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(*rel_4_no_strings);
+rwOperation["name"] = "unicode";
+rwOperation["types"] = "{\"relation\": {\"arity\": 1, \"auxArity\": 0, \"types\": [\"s:symbol\"]}}";
+IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(*rel_4_unicode);
 } catch (std::exception& e) {std::cerr << e.what();exit(1);}
 }
 public:
@@ -545,7 +538,7 @@ if (performIO) {
 try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","s\ts2\tn"},{"auxArity","0"},{"fact-dir","."},{"name","empty_strings"},{"operation","input"},{"params","{\"records\": {}, \"relation\": {\"arity\": 3, \"params\": [\"s\", \"s2\", \"n\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 3, \"types\": [\"s:symbol\", \"s:symbol\", \"i:number\"]}}"}});
 if (!inputDirectory.empty()) {directiveMap["fact-dir"] = inputDirectory;}
 IOSystem::getInstance().getReader(directiveMap, symTable, recordTable)->readAll(*rel_1_empty_strings);
-} catch (std::exception& e) {std::cerr << "Error loading data: " << e.what() << '\n';}
+} catch (std::exception& e) {std::cerr << "Error loading empty_strings data: " << e.what() << '\n';}
 }
 signalHandler->setMsg(R"_(empty_strings("","",42).
 in file /home/luc/personal/souffle-haskell/tests/fixtures/edge_cases.dl [20:1-20:27])_");
@@ -586,7 +579,7 @@ if (performIO) {
 try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","s"},{"auxArity","0"},{"fact-dir","."},{"name","long_strings"},{"operation","input"},{"params","{\"records\": {}, \"relation\": {\"arity\": 1, \"params\": [\"s\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 1, \"types\": [\"s:symbol\"]}}"}});
 if (!inputDirectory.empty()) {directiveMap["fact-dir"] = inputDirectory;}
 IOSystem::getInstance().getReader(directiveMap, symTable, recordTable)->readAll(*rel_2_long_strings);
-} catch (std::exception& e) {std::cerr << "Error loading data: " << e.what() << '\n';}
+} catch (std::exception& e) {std::cerr << "Error loading long_strings data: " << e.what() << '\n';}
 }
 signalHandler->setMsg(R"_(long_strings("long_string_from_DL:...............................................................................................................................................................................................................................................................................................end").
 in file /home/luc/personal/souffle-haskell/tests/fixtures/edge_cases.dl [25:1-25:328])_");
@@ -610,29 +603,29 @@ IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll
 #endif // _MSC_VER
 void subroutine_2(const std::vector<RamDomain>& args, std::vector<RamDomain>& ret) {
 if (performIO) {
-try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","s"},{"auxArity","0"},{"fact-dir","."},{"name","unicode"},{"operation","input"},{"params","{\"records\": {}, \"relation\": {\"arity\": 1, \"params\": [\"s\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 1, \"types\": [\"s:symbol\"]}}"}});
+try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","u\tn\tf"},{"auxArity","0"},{"fact-dir","."},{"name","no_strings"},{"operation","input"},{"params","{\"records\": {}, \"relation\": {\"arity\": 3, \"params\": [\"u\", \"n\", \"f\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 3, \"types\": [\"u:unsigned\", \"i:number\", \"f:float\"]}}"}});
 if (!inputDirectory.empty()) {directiveMap["fact-dir"] = inputDirectory;}
-IOSystem::getInstance().getReader(directiveMap, symTable, recordTable)->readAll(*rel_3_unicode);
-} catch (std::exception& e) {std::cerr << "Error loading data: " << e.what() << '\n';}
+IOSystem::getInstance().getReader(directiveMap, symTable, recordTable)->readAll(*rel_3_no_strings);
+} catch (std::exception& e) {std::cerr << "Error loading no_strings data: " << e.what() << '\n';}
 }
-signalHandler->setMsg(R"_(unicode("∀").
-in file /home/luc/personal/souffle-haskell/tests/fixtures/edge_cases.dl [30:1-30:16])_");
+signalHandler->setMsg(R"_(no_strings(42,-100,1.5).
+in file /home/luc/personal/souffle-haskell/tests/fixtures/edge_cases.dl [33:1-33:27])_");
 [&](){
-CREATE_OP_CONTEXT(rel_3_unicode_op_ctxt,rel_3_unicode->createContext());
-Tuple<RamDomain,1> tuple{{ramBitCast(RamSigned(3))}};
-rel_3_unicode->insert(tuple,READ_OP_CONTEXT(rel_3_unicode_op_ctxt));
+CREATE_OP_CONTEXT(rel_3_no_strings_op_ctxt,rel_3_no_strings->createContext());
+Tuple<RamDomain,3> tuple{{ramBitCast(RamUnsigned(42)),ramBitCast(RamSigned(-100)),ramBitCast(RamFloat(1.5))}};
+rel_3_no_strings->insert(tuple,READ_OP_CONTEXT(rel_3_no_strings_op_ctxt));
 }
-();signalHandler->setMsg(R"_(unicode("∀∀").
-in file /home/luc/personal/souffle-haskell/tests/fixtures/edge_cases.dl [31:1-31:19])_");
+();signalHandler->setMsg(R"_(no_strings(123,-456,3.14).
+in file /home/luc/personal/souffle-haskell/tests/fixtures/edge_cases.dl [34:1-34:29])_");
 [&](){
-CREATE_OP_CONTEXT(rel_3_unicode_op_ctxt,rel_3_unicode->createContext());
-Tuple<RamDomain,1> tuple{{ramBitCast(RamSigned(4))}};
-rel_3_unicode->insert(tuple,READ_OP_CONTEXT(rel_3_unicode_op_ctxt));
+CREATE_OP_CONTEXT(rel_3_no_strings_op_ctxt,rel_3_no_strings->createContext());
+Tuple<RamDomain,3> tuple{{ramBitCast(RamUnsigned(123)),ramBitCast(RamSigned(-456)),ramBitCast(RamFloat(3.1400001))}};
+rel_3_no_strings->insert(tuple,READ_OP_CONTEXT(rel_3_no_strings_op_ctxt));
 }
 ();if (performIO) {
-try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","s"},{"auxArity","0"},{"name","unicode"},{"operation","output"},{"output-dir","."},{"params","{\"records\": {}, \"relation\": {\"arity\": 1, \"params\": [\"s\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 1, \"types\": [\"s:symbol\"]}}"}});
+try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","u\tn\tf"},{"auxArity","0"},{"name","no_strings"},{"operation","output"},{"output-dir","."},{"params","{\"records\": {}, \"relation\": {\"arity\": 3, \"params\": [\"u\", \"n\", \"f\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 3, \"types\": [\"u:unsigned\", \"i:number\", \"f:float\"]}}"}});
 if (!outputDirectory.empty()) {directiveMap["output-dir"] = outputDirectory;}
-IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll(*rel_3_unicode);
+IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll(*rel_3_no_strings);
 } catch (std::exception& e) {std::cerr << e.what();exit(1);}
 }
 }
@@ -644,29 +637,29 @@ IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll
 #endif // _MSC_VER
 void subroutine_3(const std::vector<RamDomain>& args, std::vector<RamDomain>& ret) {
 if (performIO) {
-try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","u\tn\tf"},{"auxArity","0"},{"fact-dir","."},{"name","no_strings"},{"operation","input"},{"params","{\"records\": {}, \"relation\": {\"arity\": 3, \"params\": [\"u\", \"n\", \"f\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 3, \"types\": [\"u:unsigned\", \"i:number\", \"f:float\"]}}"}});
+try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","s"},{"auxArity","0"},{"fact-dir","."},{"name","unicode"},{"operation","input"},{"params","{\"records\": {}, \"relation\": {\"arity\": 1, \"params\": [\"s\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 1, \"types\": [\"s:symbol\"]}}"}});
 if (!inputDirectory.empty()) {directiveMap["fact-dir"] = inputDirectory;}
-IOSystem::getInstance().getReader(directiveMap, symTable, recordTable)->readAll(*rel_4_no_strings);
-} catch (std::exception& e) {std::cerr << "Error loading data: " << e.what() << '\n';}
+IOSystem::getInstance().getReader(directiveMap, symTable, recordTable)->readAll(*rel_4_unicode);
+} catch (std::exception& e) {std::cerr << "Error loading unicode data: " << e.what() << '\n';}
 }
-signalHandler->setMsg(R"_(no_strings(42,-100,1.5).
-in file /home/luc/personal/souffle-haskell/tests/fixtures/edge_cases.dl [33:1-33:27])_");
+signalHandler->setMsg(R"_(unicode("∀").
+in file /home/luc/personal/souffle-haskell/tests/fixtures/edge_cases.dl [30:1-30:16])_");
 [&](){
-CREATE_OP_CONTEXT(rel_4_no_strings_op_ctxt,rel_4_no_strings->createContext());
-Tuple<RamDomain,3> tuple{{ramBitCast(RamUnsigned(42)),ramBitCast(RamSigned(-100)),ramBitCast(RamFloat(1.5))}};
-rel_4_no_strings->insert(tuple,READ_OP_CONTEXT(rel_4_no_strings_op_ctxt));
+CREATE_OP_CONTEXT(rel_4_unicode_op_ctxt,rel_4_unicode->createContext());
+Tuple<RamDomain,1> tuple{{ramBitCast(RamSigned(3))}};
+rel_4_unicode->insert(tuple,READ_OP_CONTEXT(rel_4_unicode_op_ctxt));
 }
-();signalHandler->setMsg(R"_(no_strings(123,-456,3.14).
-in file /home/luc/personal/souffle-haskell/tests/fixtures/edge_cases.dl [34:1-34:29])_");
+();signalHandler->setMsg(R"_(unicode("∀∀").
+in file /home/luc/personal/souffle-haskell/tests/fixtures/edge_cases.dl [31:1-31:19])_");
 [&](){
-CREATE_OP_CONTEXT(rel_4_no_strings_op_ctxt,rel_4_no_strings->createContext());
-Tuple<RamDomain,3> tuple{{ramBitCast(RamUnsigned(123)),ramBitCast(RamSigned(-456)),ramBitCast(RamFloat(3.1400001))}};
-rel_4_no_strings->insert(tuple,READ_OP_CONTEXT(rel_4_no_strings_op_ctxt));
+CREATE_OP_CONTEXT(rel_4_unicode_op_ctxt,rel_4_unicode->createContext());
+Tuple<RamDomain,1> tuple{{ramBitCast(RamSigned(4))}};
+rel_4_unicode->insert(tuple,READ_OP_CONTEXT(rel_4_unicode_op_ctxt));
 }
 ();if (performIO) {
-try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","u\tn\tf"},{"auxArity","0"},{"name","no_strings"},{"operation","output"},{"output-dir","."},{"params","{\"records\": {}, \"relation\": {\"arity\": 3, \"params\": [\"u\", \"n\", \"f\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 3, \"types\": [\"u:unsigned\", \"i:number\", \"f:float\"]}}"}});
+try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","s"},{"auxArity","0"},{"name","unicode"},{"operation","output"},{"output-dir","."},{"params","{\"records\": {}, \"relation\": {\"arity\": 1, \"params\": [\"s\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 1, \"types\": [\"s:symbol\"]}}"}});
 if (!outputDirectory.empty()) {directiveMap["output-dir"] = outputDirectory;}
-IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll(*rel_4_no_strings);
+IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll(*rel_4_unicode);
 } catch (std::exception& e) {std::cerr << e.what();exit(1);}
 }
 }

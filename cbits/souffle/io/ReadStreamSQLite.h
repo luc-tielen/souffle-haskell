@@ -64,19 +64,24 @@ protected:
 
         uint32_t column;
         for (column = 0; column < arity; column++) {
-            std::string element(reinterpret_cast<const char*>(sqlite3_column_text(selectStatement, column)));
-
-            if (element.empty()) {
+            std::string element;
+            if (0 == sqlite3_column_bytes(selectStatement, column)) {
                 element = "n/a";
+            } else {
+                element = reinterpret_cast<const char*>(sqlite3_column_text(selectStatement, column));
+
+                if (element.empty()) {
+                    element = "n/a";
+                }
             }
 
             try {
                 auto&& ty = typeAttributes.at(column);
                 switch (ty[0]) {
                     case 's': tuple[column] = symbolTable.encode(element); break;
+                    case 'f': tuple[column] = ramBitCast(RamFloatFromString(element)); break;
                     case 'i':
                     case 'u':
-                    case 'f':
                     case 'r': tuple[column] = RamSignedFromString(element); break;
                     default: fatal("invalid type attribute: `%c`", ty[0]);
                 }

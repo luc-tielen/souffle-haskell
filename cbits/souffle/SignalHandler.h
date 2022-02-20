@@ -25,7 +25,13 @@
 #include <iostream>
 #include <mutex>
 #include <string>
+
+#ifdef _WIN32
+#include <io.h>
+#define STDERR_FILENO 2 /* Standard error output.  */
+#else
 #include <unistd.h>
+#endif  //_WIN32
 
 namespace souffle {
 
@@ -171,6 +177,9 @@ private:
 
         auto write = [](std::initializer_list<char const*> const& msgs) {
             for (auto&& msg : msgs) {
+                // assign to variable to suppress ignored-return-value error.
+                // I don't think we care enough to handle this fringe failure mode.
+                // Worse case we don't get an error message.
                 [[maybe_unused]] auto _ = ::write(STDERR_FILENO, msg, ::strlen(msg));
             }
         };

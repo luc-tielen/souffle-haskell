@@ -458,7 +458,7 @@ public:
     void setNumLanes(const std::size_t) override {}
 
     /** @brief converts record to a record reference */
-    RamDomain pack(const std::vector<RamDomain>& Vector) override {
+    RamDomain pack([[maybe_unused]] const std::vector<RamDomain>& Vector) override {
         assert(Vector.size() == 0);
         return EmptyRecordIndex;
     };
@@ -469,33 +469,35 @@ public:
     }
 
     /** @brief converts record to a record reference */
-    RamDomain pack(const std::initializer_list<RamDomain>& List) override {
+    RamDomain pack([[maybe_unused]] const std::initializer_list<RamDomain>& List) override {
         assert(List.size() == 0);
         return EmptyRecordIndex;
     }
 
     /** @brief convert record reference to a record pointer */
-    const RamDomain* unpack(RamDomain Index) const override {
+    const RamDomain* unpack([[maybe_unused]] RamDomain Index) const override {
         assert(Index == EmptyRecordIndex);
         return EmptyRecordData;
     }
 };
 
 /** The interface of any Record Table. */
-class RecordTableInterface {
+class RecordTable {
 public:
-    virtual ~RecordTableInterface() {}
+    virtual ~RecordTable() {}
 
     virtual void setNumLanes(const std::size_t NumLanes) = 0;
 
     virtual RamDomain pack(const RamDomain* Tuple, const std::size_t Arity) = 0;
+
+    virtual RamDomain pack(const std::initializer_list<RamDomain>& List) = 0;
 
     virtual const RamDomain* unpack(const RamDomain Ref, const std::size_t Arity) const = 0;
 };
 
 /** A concurrent Record Table with some specialized record maps. */
 template <std::size_t... SpecializedArities>
-class SpecializedRecordTable : public RecordTableInterface {
+class SpecializedRecordTable : public RecordTable {
 private:
     // The current size of the Maps vector.
     std::size_t Size;
@@ -540,14 +542,22 @@ public:
     virtual void setNumLanes(const std::size_t NumLanes) override {
         Lanes.setNumLanes(NumLanes);
         for (auto& Map : Maps) {
-            Map->setNumLanes(NumLanes);
+            if (Map) {
+                Map->setNumLanes(NumLanes);
+            }
         }
     }
 
-    /** @brief convert record to record reference */
+    /** @brief convert tuple to record reference */
     virtual RamDomain pack(const RamDomain* Tuple, const std::size_t Arity) override {
         auto Guard = Lanes.guard();
         return lookupMap(Arity).pack(Tuple);
+    }
+
+    /** @brief convert tuple to record reference */
+    virtual RamDomain pack(const std::initializer_list<RamDomain>& List) override {
+        auto Guard = Lanes.guard();
+        return lookupMap(List.size()).pack(std::data(List));
     }
 
     /** @brief convert record reference to a record */
@@ -600,9 +610,6 @@ private:
     }
 };
 
-/** Default record table uses specialized record maps for arities 0 to 12. */
-using RecordTable = SpecializedRecordTable<0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12>;
-
 /** @brief helper to convert tuple to record reference for the synthesiser */
 template <class RecordTableT, std::size_t Arity>
 RamDomain pack(RecordTableT&& recordTab, Tuple<RamDomain, Arity> const& tuple) {
@@ -613,6 +620,12 @@ RamDomain pack(RecordTableT&& recordTab, Tuple<RamDomain, Arity> const& tuple) {
 template <class RecordTableT, std::size_t Arity>
 RamDomain pack(RecordTableT&& recordTab, span<const RamDomain, Arity> tuple) {
     return recordTab.pack(tuple.data(), Arity);
+}
+
+/** @brief helper to pack using an initialization-list of RamDomain values. */
+template <class RecordTableT>
+RamDomain pack(RecordTableT&& recordTab, const std::initializer_list<RamDomain>&& initlist) {
+    return recordTab.pack(std::data(initlist), initlist.size());
 }
 
 }  // namespace souffle

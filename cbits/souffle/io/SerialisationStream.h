@@ -29,7 +29,7 @@
 
 namespace souffle {
 
-class RecordTableInterface;
+class RecordTable;
 class SymbolTable;
 
 using json11::Json;
@@ -43,23 +43,29 @@ protected:
     template <typename A>
     using RO = std::conditional_t<readOnlyTables, const A, A>;
 
-    SerialisationStream(RO<SymbolTable>& symTab, RO<RecordTableInterface>& recTab, Json types,
+    SerialisationStream(RO<SymbolTable>& symTab, RO<RecordTable>& recTab, Json types,
             std::vector<std::string> relTypes, std::size_t auxArity = 0)
             : symbolTable(symTab), recordTable(recTab), types(std::move(types)),
               typeAttributes(std::move(relTypes)), arity(typeAttributes.size() - auxArity),
               auxiliaryArity(auxArity) {}
 
-    SerialisationStream(RO<SymbolTable>& symTab, RO<RecordTableInterface>& recTab, Json types)
+    SerialisationStream(RO<SymbolTable>& symTab, RO<RecordTable>& recTab, Json types)
             : symbolTable(symTab), recordTable(recTab), types(std::move(types)) {
         setupFromJson();
     }
 
-    SerialisationStream(RO<SymbolTable>& symTab, RO<RecordTableInterface>& recTab,
+    SerialisationStream(RO<SymbolTable>& symTab, RO<RecordTable>& recTab,
             const std::map<std::string, std::string>& rwOperation)
             : symbolTable(symTab), recordTable(recTab) {
         std::string parseErrors;
         types = Json::parse(rwOperation.at("types"), parseErrors);
         assert(parseErrors.size() == 0 && "Internal JSON parsing failed.");
+        if (rwOperation.count("params") > 0) {
+            params = Json::parse(rwOperation.at("params"), parseErrors);
+            assert(parseErrors.size() == 0 && "Internal JSON parsing failed.");
+        } else {
+            params = Json::object();
+        }
 
         auxiliaryArity = RamSignedFromString(getOr(rwOperation, "auxArity", "0"));
 
@@ -67,8 +73,9 @@ protected:
     }
 
     RO<SymbolTable>& symbolTable;
-    RO<RecordTableInterface>& recordTable;
+    RO<RecordTable>& recordTable;
     Json types;
+    Json params;
     std::vector<std::string> typeAttributes;
 
     std::size_t arity = 0;

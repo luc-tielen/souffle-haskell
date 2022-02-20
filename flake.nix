@@ -24,6 +24,9 @@
                   souffle
                 ]) (o: {
                   version = "${o.version}.${version}";
+                  # NOTE: next line needs to be changed to "doCheck = false;"
+                  # when upgrading Souffle, so the test fixtures can be
+                  # upgraded with the new Souffle compiler before running the tests.
                   doCheck = true;
                   checkPhase = ''
                     runHook preCheck
