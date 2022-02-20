@@ -5,7 +5,7 @@ jobs:
     runs-on: ${{matrix.os}}
     strategy:
       matrix:
-        os: [ubuntu-latest] # TODO fix macos support : [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v2.4.0
         with:
@@ -13,7 +13,7 @@ jobs:
           fetch-depth: 0
       - uses: cachix/install-nix-action@v15
         with:
-          install_url: https://releases.nixos.org/nix/nix-2.5.1/install
+          install_url: https://releases.nixos.org/nix/nix-2.6.1/install
           extra_nix_config: |
             experimental-features = nix-command flakes
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
