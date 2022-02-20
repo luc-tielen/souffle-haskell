@@ -28,7 +28,9 @@ else
     '';
     nativeBuildInputs = with pkgs;
       [ bison cmake flex git mcpp makeWrapper ninja perl ]
-      ++ (lib.optionals pkgs.stdenv.isLinux [ lsb-release ]);
+      ++ (lib.optionals stdenv.isDarwin)
+      [ pkgs."llvmPackages_${toString cc}".bintools-unwrapped ]
+      ++ (lib.optionals stdenv.isLinux [ lsb-release ]);
     buildInputs = with pkgs; [ ncurses zlib sqlite libffi ];
     propagatedBuildInputs = with pkgs; [ ncurses zlib sqlite libffi ];
     outputs = [ "out" ];
