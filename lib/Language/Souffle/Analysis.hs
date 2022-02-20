@@ -1,5 +1,15 @@
 {-# LANGUAGE UndecidableInstances, TupleSections #-}
 
+{- | This module provides an 'Analysis' type for combining multiple Datalog
+     analyses together. Composition of analyses is done via the various
+     type-classes that are implemented for this type. For a longer explanation
+     of how the 'Analysis' type works, see this
+     <https://luctielen.com/posts/analyses_are_arrows/ blogpost>.
+
+     If you are just starting out using this library, you are probably better
+     of taking a look at the "Language.Souffle.Interpreted" module instead to
+     start interacting with a single Datalog program.
+-}
 module Language.Souffle.Analysis
   ( Analysis
   , mkAnalysis
@@ -12,13 +22,26 @@ import Control.Monad
 import Control.Arrow
 import Data.Profunctor
 
--- NOTE: 2nd a is mostly used for Category/Arrow instances
+-- | Data type used to compose multiple Datalog programs. Composition is mainly
+--   done via the various type-classes implemented for this type.
+--   Values of this type can be created using 'mkAnalysis'.
+--
+--   The @m@ type-variable represents the monad the analysis will run in. In
+--   most cases, this will be the @SouffleM@ monad from either
+--   "Language.Souffle.Compiled" or "Language.Souffle.Interpreted".
+--   The @a@ and @b@ type-variables represent respectively the input and output
+--   types of the analysis.
 data Analysis m a b
   = Analysis (a -> m ()) (m ()) (a -> m b)
 
-mkAnalysis :: (a -> m ()) -> m () -> m b -> Analysis m a b
+-- | Creates an 'Analysis' value.
+mkAnalysis :: (a -> m ()) -- ^ Function for finding facts used by the 'Analysis'.
+           -> m ()        -- ^ Function for actually running the 'Analysis'.
+           -> m b         -- ^ Function for retrieving the 'Analysis' results from Souffle.
+           -> Analysis m a b
 mkAnalysis f r g = Analysis f r (const g)
 
+-- | Converts an 'Analysis' into an effectful function, so it can be executed.
 execAnalysis :: Applicative m => Analysis m a b -> (a -> m b)
 execAnalysis (Analysis f r g) a = f a *> r *> g a
 
