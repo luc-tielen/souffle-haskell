@@ -210,6 +210,9 @@ private:
 
     void createRelationView() {
         // Create view with symbol strings resolved
+
+        const auto columnNames = params["relation"]["params"].array_items();
+
         std::stringstream createViewText;
         createViewText << "CREATE VIEW IF NOT EXISTS '" << relationName << "' AS ";
         std::stringstream projectionClause;
@@ -218,22 +221,26 @@ private:
         std::stringstream whereClause;
         bool firstWhere = true;
         for (unsigned int i = 0; i < arity; i++) {
-            std::string columnName = std::to_string(i);
+            const std::string tableColumnName = std::to_string(i);
+            const auto& viewColumnName =
+                    (columnNames[i].is_string() ? columnNames[i].string_value() : tableColumnName);
             if (i != 0) {
                 projectionClause << ",";
             }
             if (typeAttributes.at(i)[0] == 's') {
-                projectionClause << "'_symtab_" << columnName << "'.symbol AS '" << columnName << "'";
-                fromClause << ",'" << symbolTableName << "' AS '_symtab_" << columnName << "'";
+                projectionClause << "'_symtab_" << tableColumnName << "'.symbol AS '" << viewColumnName
+                                 << "'";
+                fromClause << ",'" << symbolTableName << "' AS '_symtab_" << tableColumnName << "'";
                 if (!firstWhere) {
                     whereClause << " AND ";
                 } else {
                     firstWhere = false;
                 }
-                whereClause << "'_" << relationName << "'.'" << columnName << "' = "
-                            << "'_symtab_" << columnName << "'.id";
+                whereClause << "'_" << relationName << "'.'" << tableColumnName << "' = "
+                            << "'_symtab_" << tableColumnName << "'.id";
             } else {
-                projectionClause << "'_" << relationName << "'.'" << columnName << "'";
+                projectionClause << "'_" << relationName << "'.'" << tableColumnName << "' AS '"
+                                 << viewColumnName << "'";
             }
         }
         createViewText << "SELECT " << projectionClause.str() << " FROM " << fromClause.str();

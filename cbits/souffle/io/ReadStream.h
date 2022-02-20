@@ -176,8 +176,7 @@ protected:
                 return branchIdx;
             }
 
-            const RamDomain empty[] = {};
-            RamDomain emptyArgs = recordTable.pack(empty, 0);
+            RamDomain emptyArgs = recordTable.pack(toVector<RamDomain>().data(), 0);
             const RamDomain record[] = {branchIdx, emptyArgs};
             return recordTable.pack(record, 2);
         }

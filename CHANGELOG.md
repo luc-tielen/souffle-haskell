@@ -6,6 +6,7 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
 ## [3.2.0] - Unreleased
 
 - Add `Analysis` type for composing multiple Datalog programs.
+- souffle-haskell now supports Souffle version 2.2.
 
 ## [3.1.0] - 2021-09-30
 

@@ -145,7 +145,7 @@ public:
         }
         LoadFactor = 1.0;
         Buckets = std::make_unique<std::atomic<BucketList*>[]>(BucketCount);
-        MaxSizeBeforeGrow = std::ceil(LoadFactor * BucketCount);
+        MaxSizeBeforeGrow = std::ceil(LoadFactor * (double)BucketCount);
     }
 
     ConcurrentInsertOnlyHashMap(const Hash& hash = Hash(), const KeyEqual& key_equal = KeyEqual(),
@@ -190,7 +190,7 @@ public:
         const auto Guard = Lanes.guard(H);
         const size_t Bucket = HashValue % BucketCount;
 
-        BucketList* L = Buckets[Bucket].load(std::memory_order_consume);
+        BucketList* L = Buckets[Bucket].load(std::memory_order_acquire);
         while (L != nullptr) {
             if (EqualTo(L->Value.first, X)) {
                 // found the key
@@ -239,7 +239,7 @@ public:
      *
      */
     template <class... Args>
-    std::pair<const value_type*, bool> get(const lane_id H, node_type N, Args&&... Xs) {
+    std::pair<const value_type*, bool> get(const lane_id H, const node_type N, Args&&... Xs) {
         // At any time a concurrent lane may insert the key before this lane.
         //
         // The synchronisation point is the atomic compare-and-exchange of the
@@ -302,11 +302,11 @@ public:
 
         // 4)
         // the head of the bucket's list last time we checked
-        BucketList* LastKnownHead = Buckets[Bucket].load(std::memory_order_relaxed);
+        BucketList* LastKnownHead = Buckets[Bucket].load(std::memory_order_acquire);
         // the head of the bucket's list we already searched from
         BucketList* SearchedFrom = nullptr;
         // the node we want to insert
-        BucketList* Node = static_cast<BucketList*>(N);
+        BucketList* const Node = static_cast<BucketList*>(N);
 
         // Loop until either the node is inserted or the key is found in the bucket.
         // Assuming bucket collisions are rare this loop is not executed more than once.
@@ -318,8 +318,11 @@ public:
             while (L != SearchedFrom) {
                 if (EqualTo(L->Value.first, std::forward<Args>(Xs)...)) {
                     // 6)
-                    // found the key
+                    // Found the key, no need to insert.
+                    // Although it's not strictly necessary, clear the node
+                    // chaining to avoid leaving a dangling pointer there.
                     Value = &(L->Value);
+                    Node->Next = nullptr;
                     goto Done;
                 }
                 L = L->Next;
@@ -343,7 +346,6 @@ public:
                 Inserted = true;
                 NewSize = ++Size;
                 Value = &(Node->Value);
-                Node = nullptr;
                 goto AfterInserted;
             }
 
@@ -410,7 +412,7 @@ private:
             // Chose a prime number of buckets that ensures the desired load factor
             // given the current number of elements in the map.
             const std::size_t CurrentSize = Size;
-            const std::size_t NeededBucketCount = std::ceil(CurrentSize / LoadFactor);
+            const std::size_t NeededBucketCount = std::ceil((double)CurrentSize / LoadFactor);
             std::size_t NewBucketCount = NeededBucketCount;
             for (std::size_t I = 0; I < details::ToPrime.size(); ++I) {
                 const uint64_t N = details::ToPrime[I].first;
@@ -430,6 +432,9 @@ private:
             // and insert in the new bucket.
             //
             // Maybe concurrent lanes could help using some job-stealing algorithm.
+            //
+            // Use relaxed memory ordering since the whole operation takes place
+            // in a critical section.
             for (std::size_t B = 0; B < BucketCount; ++B) {
                 BucketList* L = Buckets[B].load(std::memory_order_relaxed);
                 while (L) {
@@ -446,7 +451,7 @@ private:
 
             Buckets = std::move(NewBuckets);
             BucketCount = NewBucketCount;
-            MaxSizeBeforeGrow = (NewBucketCount * LoadFactor);
+            MaxSizeBeforeGrow = ((double)NewBucketCount * LoadFactor);
         }
 
         Lanes.beforeUnlockAllBut(H);

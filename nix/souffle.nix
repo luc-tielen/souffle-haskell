@@ -7,12 +7,12 @@ else
   pkgs."gcc${toString cc}Stdenv") }:
   stdenv.mkDerivation rec {
     pname = "souffle";
-    version = "2.1";
+    version = "2.2";
     src = fetchFromGitHub {
       owner = "souffle-lang";
       repo = "souffle";
       rev = version;
-      sha256 = "11x3v78kciz8j8p1j0fppzcyl2lbm6ib4svj6a9cwi836p9h3fma";
+      sha256 = "15c8wnv0i2sbzys8m4f6k74d59ahf50xl7wcfc5v8pgx6bwc46y2";
     };
     patches = [ ../patches/1-souffle-2.1-macosx.patch ];
     cmakeFlags = [ "-DSOUFFLE_GIT=OFF" "-DSOUFFLE_BASH_COMPLETION=OFF" ];

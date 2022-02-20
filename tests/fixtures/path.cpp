@@ -227,14 +227,6 @@ ind_0.printStats(o);
 
 class Sf_path : public SouffleProgram {
 private:
-static inline bool regex_wrapper(const std::string& pattern, const std::string& text) {
-   bool result = false; 
-   try { result = std::regex_match(text, std::regex(pattern)); } catch(...) { 
-     std::cerr << "warning: wrong pattern provided for match(\"" << pattern << "\",\"" << text << "\").\n";
-}
-   return result;
-}
-private:
 static inline std::string substr_wrapper(const std::string& str, std::size_t idx, std::size_t len) {
    std::string result; 
    try { result = str.substr(idx,len); } catch(...) { 
@@ -249,7 +241,7 @@ SymbolTable symTable{
 	R"_(b)_",
 	R"_(c)_",
 };// -- initialize record table --
-RecordTable recordTable;
+SpecializedRecordTable<0> recordTable{};
 // -- Table: edge
 Own<t_btree_ii__0_1__11> rel_1_edge = mk<t_btree_ii__0_1__11>();
 souffle::RelationWrapper<t_btree_ii__0_1__11> wrapper_rel_1_edge;
@@ -277,14 +269,15 @@ std::string             outputDirectory;
 SignalHandler*          signalHandler {SignalHandler::instance()};
 std::atomic<RamDomain>  ctr {};
 std::atomic<std::size_t>     iter {};
-bool                    performIO = false;
 
-void runFunction(std::string  inputDirectoryArg   = "",
-                 std::string  outputDirectoryArg  = "",
-                 bool         performIOArg        = false) {
+void runFunction(std::string  inputDirectoryArg,
+                 std::string  outputDirectoryArg,
+                 bool         performIOArg,
+                 bool         pruneImdtRelsArg) {
     this->inputDirectory  = std::move(inputDirectoryArg);
     this->outputDirectory = std::move(outputDirectoryArg);
     this->performIO       = performIOArg;
+    this->pruneImdtRels   = pruneImdtRelsArg; 
 
     // set default threads (in embedded mode)
     // if this is not set, and omp is used, the default omp setting of number of cores is used.
@@ -307,19 +300,19 @@ subroutine_1(args, ret);
 signalHandler->reset();
 }
 public:
-void run() override { runFunction("", "", false); }
+void run() override { runFunction("", "", false, false); }
 public:
-void runAll(std::string inputDirectoryArg = "", std::string outputDirectoryArg = "") override { runFunction(inputDirectoryArg, outputDirectoryArg, true);
+void runAll(std::string inputDirectoryArg = "", std::string outputDirectoryArg = "", bool performIOArg=true, bool pruneImdtRelsArg=true) override { runFunction(inputDirectoryArg, outputDirectoryArg, performIOArg, pruneImdtRelsArg);
 }
 public:
 void printAll(std::string outputDirectoryArg = "") override {
-try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","n\tm"},{"auxArity","0"},{"name","edge"},{"operation","output"},{"output-dir","."},{"params","{\"records\": {}, \"relation\": {\"arity\": 2, \"params\": [\"n\", \"m\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 2, \"types\": [\"s:symbol\", \"s:symbol\"]}}"}});
-if (!outputDirectoryArg.empty()) {directiveMap["output-dir"] = outputDirectoryArg;}
-IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll(*rel_1_edge);
-} catch (std::exception& e) {std::cerr << e.what();exit(1);}
 try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","n\tm"},{"auxArity","0"},{"name","reachable"},{"operation","output"},{"output-dir","."},{"params","{\"records\": {}, \"relation\": {\"arity\": 2, \"params\": [\"n\", \"m\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 2, \"types\": [\"s:symbol\", \"s:symbol\"]}}"}});
 if (!outputDirectoryArg.empty()) {directiveMap["output-dir"] = outputDirectoryArg;}
 IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll(*rel_2_reachable);
+} catch (std::exception& e) {std::cerr << e.what();exit(1);}
+try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","n\tm"},{"auxArity","0"},{"name","edge"},{"operation","output"},{"output-dir","."},{"params","{\"records\": {}, \"relation\": {\"arity\": 2, \"params\": [\"n\", \"m\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 2, \"types\": [\"s:symbol\", \"s:symbol\"]}}"}});
+if (!outputDirectoryArg.empty()) {directiveMap["output-dir"] = outputDirectoryArg;}
+IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll(*rel_1_edge);
 } catch (std::exception& e) {std::cerr << e.what();exit(1);}
 }
 public:
@@ -327,7 +320,7 @@ void loadAll(std::string inputDirectoryArg = "") override {
 try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","n\tm"},{"auxArity","0"},{"fact-dir","."},{"name","edge"},{"operation","input"},{"params","{\"records\": {}, \"relation\": {\"arity\": 2, \"params\": [\"n\", \"m\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 2, \"types\": [\"s:symbol\", \"s:symbol\"]}}"}});
 if (!inputDirectoryArg.empty()) {directiveMap["fact-dir"] = inputDirectoryArg;}
 IOSystem::getInstance().getReader(directiveMap, symTable, recordTable)->readAll(*rel_1_edge);
-} catch (std::exception& e) {std::cerr << "Error loading data: " << e.what() << '\n';}
+} catch (std::exception& e) {std::cerr << "Error loading edge data: " << e.what() << '\n';}
 }
 public:
 void dumpInputs() override {
@@ -342,15 +335,15 @@ public:
 void dumpOutputs() override {
 try {std::map<std::string, std::string> rwOperation;
 rwOperation["IO"] = "stdout";
-rwOperation["name"] = "edge";
-rwOperation["types"] = "{\"relation\": {\"arity\": 2, \"auxArity\": 0, \"types\": [\"s:symbol\", \"s:symbol\"]}}";
-IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(*rel_1_edge);
-} catch (std::exception& e) {std::cerr << e.what();exit(1);}
-try {std::map<std::string, std::string> rwOperation;
-rwOperation["IO"] = "stdout";
 rwOperation["name"] = "reachable";
 rwOperation["types"] = "{\"relation\": {\"arity\": 2, \"auxArity\": 0, \"types\": [\"s:symbol\", \"s:symbol\"]}}";
 IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(*rel_2_reachable);
+} catch (std::exception& e) {std::cerr << e.what();exit(1);}
+try {std::map<std::string, std::string> rwOperation;
+rwOperation["IO"] = "stdout";
+rwOperation["name"] = "edge";
+rwOperation["types"] = "{\"relation\": {\"arity\": 2, \"auxArity\": 0, \"types\": [\"s:symbol\", \"s:symbol\"]}}";
+IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(*rel_1_edge);
 } catch (std::exception& e) {std::cerr << e.what();exit(1);}
 }
 public:
@@ -382,7 +375,7 @@ if (performIO) {
 try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","n\tm"},{"auxArity","0"},{"fact-dir","."},{"name","edge"},{"operation","input"},{"params","{\"records\": {}, \"relation\": {\"arity\": 2, \"params\": [\"n\", \"m\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 2, \"types\": [\"s:symbol\", \"s:symbol\"]}}"}});
 if (!inputDirectory.empty()) {directiveMap["fact-dir"] = inputDirectory;}
 IOSystem::getInstance().getReader(directiveMap, symTable, recordTable)->readAll(*rel_1_edge);
-} catch (std::exception& e) {std::cerr << "Error loading data: " << e.what() << '\n';}
+} catch (std::exception& e) {std::cerr << "Error loading edge data: " << e.what() << '\n';}
 }
 signalHandler->setMsg(R"_(edge("a","b").
 in file /home/luc/personal/souffle-haskell/tests/fixtures/path.dl [11:1-11:16])_");
@@ -426,8 +419,8 @@ rel_2_reachable->insert(tuple,READ_OP_CONTEXT(rel_2_reachable_op_ctxt));
 }
 ();}
 [&](){
-CREATE_OP_CONTEXT(rel_3_delta_reachable_op_ctxt,rel_3_delta_reachable->createContext());
 CREATE_OP_CONTEXT(rel_2_reachable_op_ctxt,rel_2_reachable->createContext());
+CREATE_OP_CONTEXT(rel_3_delta_reachable_op_ctxt,rel_3_delta_reachable->createContext());
 for(const auto& env0 : *rel_2_reachable) {
 Tuple<RamDomain,2> tuple{{ramBitCast(env0[0]),ramBitCast(env0[1])}};
 rel_3_delta_reachable->insert(tuple,READ_OP_CONTEXT(rel_3_delta_reachable_op_ctxt));
@@ -441,10 +434,10 @@ signalHandler->setMsg(R"_(reachable(x,z) :-
 in file /home/luc/personal/souffle-haskell/tests/fixtures/path.dl [15:1-15:48])_");
 if(!(rel_1_edge->empty()) && !(rel_3_delta_reachable->empty())) {
 [&](){
-CREATE_OP_CONTEXT(rel_3_delta_reachable_op_ctxt,rel_3_delta_reachable->createContext());
 CREATE_OP_CONTEXT(rel_2_reachable_op_ctxt,rel_2_reachable->createContext());
-CREATE_OP_CONTEXT(rel_1_edge_op_ctxt,rel_1_edge->createContext());
 CREATE_OP_CONTEXT(rel_4_new_reachable_op_ctxt,rel_4_new_reachable->createContext());
+CREATE_OP_CONTEXT(rel_1_edge_op_ctxt,rel_1_edge->createContext());
+CREATE_OP_CONTEXT(rel_3_delta_reachable_op_ctxt,rel_3_delta_reachable->createContext());
 for(const auto& env0 : *rel_1_edge) {
 auto range = rel_3_delta_reachable->lowerUpperRange_10(Tuple<RamDomain,2>{{ramBitCast(env0[1]), ramBitCast<RamDomain>(MIN_RAM_SIGNED)}},Tuple<RamDomain,2>{{ramBitCast(env0[1]), ramBitCast<RamDomain>(MAX_RAM_SIGNED)}},READ_OP_CONTEXT(rel_3_delta_reachable_op_ctxt));
 for(const auto& env1 : range) {
@@ -478,8 +471,8 @@ if (!outputDirectory.empty()) {directiveMap["output-dir"] = outputDirectory;}
 IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll(*rel_2_reachable);
 } catch (std::exception& e) {std::cerr << e.what();exit(1);}
 }
-if (performIO) rel_2_reachable->purge();
-if (performIO) rel_1_edge->purge();
+if (pruneImdtRels) rel_1_edge->purge();
+if (pruneImdtRels) rel_2_reachable->purge();
 }
 #ifdef _MSC_VER
 #pragma warning(default: 4100)

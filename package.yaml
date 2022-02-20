@@ -1,7 +1,7 @@
 name: souffle-haskell
 synopsis: Souffle Datalog bindings for Haskell
 description: Souffle Datalog bindings for Haskell.
-version: 3.1.0
+version: 3.2.0
 homepage: https://github.com/luc-tielen/souffle-haskell#README.md
 license: MIT
 author: Luc Tielen
@@ -79,13 +79,17 @@ install-includes:
   - souffle/SouffleInterface.h
   - souffle/SymbolTable.h
   - souffle/utility/MiscUtil.h
+  - souffle/utility/General.h
   - souffle/utility/Iteration.h
   - souffle/utility/Types.h
   - souffle/utility/tinyformat.h
   - souffle/utility/StreamUtil.h
   - souffle/utility/ContainerUtil.h
-  - souffle/datastructure/Brie.h
+  - souffle/utility/DynamicCasting.h
+  - souffle/datastructure/BTreeDelete.h
+  - souffle/datastructure/BTreeUtil.h
   - souffle/utility/CacheUtil.h
+  - souffle/datastructure/Brie.h
   - souffle/datastructure/EquivalenceRelation.h
   - souffle/datastructure/LambdaBTree.h
   - souffle/datastructure/BTree.h
@@ -107,7 +111,7 @@ install-includes:
   - souffle/io/ReadStreamSQLite.h
   - souffle/io/WriteStreamSQLite.h
   - souffle/utility/EvaluatorUtil.h
-  - souffle/utility/FunctionalUtil.h
+  - souffle/utility/EvaluatorUtil.h
 
 library:
   source-dirs: lib

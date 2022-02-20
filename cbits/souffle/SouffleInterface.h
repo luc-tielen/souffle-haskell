@@ -689,7 +689,7 @@ public:
  * Abstract base class for generated Datalog programs.
  */
 class SouffleProgram {
-private:
+protected:
     /**
      * Define a relation map for external access, when getRelation(name) is called,
      * the relation with the given name will be returned from this map,
@@ -717,12 +717,22 @@ private:
      * allRelations store all the relation in a vector.
      */
     std::vector<Relation*> allRelations;
+
     /**
      * The number of threads used by OpenMP
      */
     std::size_t numThreads = 1;
 
-protected:
+    /**
+     * Enable I/O
+     */
+    bool performIO = false;
+
+    /**
+     * Prune Intermediate Relations when there is no further use for them.
+     */
+    bool pruneImdtRels = true;
+
     /**
      * Add the relation to relationMap (with its name) and allRelations,
      * depends on the properties of the relation, if the relation is an input relation, it will be added to
@@ -763,7 +773,8 @@ public:
     virtual ~SouffleProgram() = default;
 
     /**
-     * Execute the souffle program, without any loads or stores.
+     * Execute the souffle program, without any loads or stores, and live-profiling (in case it is switched
+     * on).
      */
     virtual void run() {}
 
@@ -773,8 +784,11 @@ public:
      *
      * @param inputDirectory If non-empty, specifies the input directory
      * @param outputDirectory If non-empty, specifies the output directory
+     * @param performIO Enable I/O operations
+     * @param pruneImdtRels Prune intermediate relations
      */
-    virtual void runAll(std::string inputDirectory = "", std::string outputDirectory = "") = 0;
+    virtual void runAll(std::string inputDirectory = "", std::string outputDirectory = "",
+            bool performIO = false, bool pruneImdtRels = true) = 0;
 
     /**
      * Read all input relations.
@@ -1003,6 +1017,20 @@ public:
         tuple t1(relation);
         tuple_insert<decltype(t), sizeof...(Args)>::add(t, t1);
         return relation->contains(t1);
+    }
+
+    /**
+     * Set perform-I/O flag
+     */
+    void setPerformIO(bool performIOArg) {
+        performIO = performIOArg;
+    }
+
+    /**
+     * Set prune-intermediate-relations flag
+     */
+    void setPruneImdtRels(bool pruneImdtRelsArg) {
+        pruneImdtRels = pruneImdtRelsArg;
     }
 };
 

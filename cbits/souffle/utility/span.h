@@ -282,9 +282,13 @@ struct is_container_element_type_compatible<
         !std::is_same<typename std::remove_cv<decltype(
                           detail::data(std::declval<T>()))>::type,
                       void>::value>::type>
+    // HACK: WORKAROUND - GCC 9.2.1 claims `A* (*)[]` is not compatible w/ `A const* (*)[]`.
+    //       This seems BS and Clang 10.0 is perfectly happy.
+    //       GCC 9.2.1 does, however, agree that `A**` is compatible w/ `A const**`.
+    //       Use the `*` test instead of `(*)[]`.
     : std::is_convertible<
-          remove_pointer_t<decltype(detail::data(std::declval<T>()))> (*)[],
-          E (*)[]> {};
+          remove_pointer_t<decltype(detail::data(std::declval<T>()))>*,
+          E*> {};
 
 template <typename, typename = std::size_t>
 struct is_complete : std::false_type {};
