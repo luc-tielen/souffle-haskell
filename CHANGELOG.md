@@ -3,6 +3,9 @@
 All notable changes to this project (as seen by library users) will be documented in this file.
 The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-haskell.git/CHANGELOG.md).
 
+## [3.2.0] - Unreleased
+
+- Add `Analysis` type for composing multiple Datalog programs.
 
 ## [3.1.0] - 2021-09-30
 
