@@ -1,11 +1,11 @@
 {
   description = "Souffle Datalog bindings for Haskell";
   inputs = {
-    np.url = "github:nixos/nixpkgs?ref=haskell-updates";
+    np.url = "github:nixos/nixpkgs?ref=master";
     fu.url = "github:numtide/flake-utils?ref=master";
-    hls.url = "github:haskell/haskell-language-server?ref=master";
+    ds.url = "github:numtide/devshell?ref=master";
   };
-  outputs = { self, np, fu, hls }:
+  outputs = { self, np, fu, ds }:
     with fu.lib;
     eachSystem [ "x86_64-linux" "x86_64-darwin" ] (system:
       let
@@ -38,7 +38,7 @@
               ${hlint}/bin/hlint ${souffle-haskell.src} -c
             '';
           };
-        overlays = [ overlay hls.overlay ];
+        overlays = [ overlay ds.overlay ];
       in with (import np { inherit system config overlays; }); rec {
         inherit overlays;
         packages = flattenTree
@@ -47,17 +47,18 @@
         apps = {
           souffle-haskell-lint = mkApp { drv = souffle-haskell-lint; };
         };
-        devShell = with haskellPackages;
-          shellFor {
-            packages = p: with p; [ hspec-discover packages.souffle-haskell ];
-            buildInputs = [
-              cabal-install
-              ghc
-              haskell-language-server
-              hspec-discover
-              souffle
-              souffle-haskell-lint
-            ];
-          };
+        devShell = devshell.mkShell {
+          name = "SOUFFLE-HASKELL";
+          packages = with haskellPackages; [
+            cabal-install
+            ghc
+            haskell-language-server
+            hlint
+            hpack
+            hspec-discover
+            souffle
+            souffle-haskell-lint
+          ];
+        };
       });
 }
