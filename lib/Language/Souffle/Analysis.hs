@@ -122,3 +122,13 @@ instance (Monad m, Monoid (m ())) => ArrowChoice (Analysis m) where
   left = left'
 
   right = right'
+
+  Analysis f1 r1 g1 +++ Analysis f2 r2 g2 = Analysis f' (r1 <> r2) g'
+    where
+      f' = \case
+        Left b -> f1 b
+        Right b' -> f2 b'
+      g' = \case
+        Left b -> Left <$> g1 b
+        Right b' -> Right <$> g2 b'
+
