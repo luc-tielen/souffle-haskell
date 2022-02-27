@@ -43,7 +43,7 @@ in the following way:
 
 ```haskell
 -- Enable some necessary extensions:
-{-# LANGUAGE ScopedTypeVariables, DataKinds, TypeFamilies, DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass, DerivingVia, DataKinds, UndecidableInstances #-}
 
 module Main ( main ) where
 
@@ -54,8 +54,13 @@ import Data.Vector
 import qualified Language.Souffle.Compiled as Souffle
 
 
--- We define a data type representing our datalog program.
+-- First, we define a data type representing our datalog program.
 data Path = Path
+  -- By making Path an instance of Program, we provide Haskell with information
+  -- about the datalog program. It uses this to perform compile-time checks to
+  -- limit the amount of possible programmer errors to a minimum.
+  deriving Souffle.Program
+  via Souffle.ProgramOptions Path '[Edge, Reachable] "path"
 
 -- Facts are represented in Haskell as simple product types,
 -- Numbers map to Int32, unsigned to Word32, floats to Float,
@@ -63,31 +68,19 @@ data Path = Path
 
 data Edge = Edge String String
   deriving (Eq, Show, Generic)
+  -- For simple product types, we can automatically generate the
+  -- marshalling/unmarshalling code of data between Haskell and datalog.
+  deriving anyclass Souffle.Marshal
+  -- By making a data type an instance of Fact, we give Haskell the
+  -- necessary information to bind to the datalog fact.
+  deriving Souffle.Fact
+  via Souffle.FactOptions Edge 'Souffle.Input "edge"
 
 data Reachable = Reachable String String
   deriving (Eq, Show, Generic)
-
--- By making Path an instance of Program, we provide Haskell with information
--- about the datalog program. It uses this to perform compile-time checks to
--- limit the amount of possible programmer errors to a minimum.
-instance Souffle.Program Path where
-  type ProgramFacts Path = [Edge, Reachable]
-  programName = const "path"
-
--- By making a data type an instance of Fact, we give Haskell the
--- necessary information to bind to the datalog fact.
-instance Souffle.Fact Edge where
-  type FactDirection Edge = 'Souffle.Input
-  factName = const "edge"
-
-instance Souffle.Fact Reachable where
-  type FactDirection Reachable = 'Souffle.Output
-  factName = const "reachable"
-
--- For simple product types, we can automatically generate the
--- marshalling/unmarshalling code of data between Haskell and datalog.
-instance Souffle.Marshal Edge
-instance Souffle.Marshal Reachable
+  deriving anyclass Souffle.Marshal
+  deriving Souffle.Fact
+  via Souffle.FactOptions Reachable 'Souffle.Output "reachable"
 
 
 main :: IO ()
