@@ -12,7 +12,9 @@
 --   the compiled alternative once the prototyping phase is finished.
 module Language.Souffle.Interpreted
   ( Program(..)
+  , ProgramOptions(..)
   , Fact(..)
+  , FactOptions(..)
   , Marshal(..)
   , Direction(..)
   , ContainsInputFact

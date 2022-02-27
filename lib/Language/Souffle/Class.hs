@@ -1,5 +1,5 @@
 {-# LANGUAGE DataKinds, UndecidableInstances, FlexibleContexts #-}
-{-# LANGUAGE TypeFamilies, TypeOperators #-}
+{-# LANGUAGE TypeFamilies, TypeOperators, TypeApplications #-}
 
 -- | This module provides the top level API for Souffle related operations.
 --   It makes use of Haskell's powerful typesystem to make certain invalid states
@@ -15,7 +15,9 @@
 --   type safety and user-friendly error messages.
 module Language.Souffle.Class
   ( Program(..)
+  , ProgramOptions(..)
   , Fact(..)
+  , FactOptions(..)
   , Marshal.Marshal(..)
   , Direction(..)
   , ContainsInputFact
@@ -35,6 +37,7 @@ import Control.Monad.Writer
 import Data.Proxy
 import Data.Kind
 import Data.Word
+import GHC.TypeLits
 import qualified Language.Souffle.Marshal as Marshal
 import Type.Errors.Pretty
 
@@ -115,6 +118,29 @@ class Program a where
   --   This has to be the same as the name of the .dl file (minus the extension).
   programName :: a -> String
 
+-- | A helper data type, used in combination with the DerivingVia extension to
+--   automatically generate code to bind Haskell to a Souffle Datalog program.
+--
+-- The following is an example how to bind to a Datalog program "path"
+-- (saved as path.dl / path.cpp), that uses two facts called "edge" and
+-- "reachable" (represented with the Edge and Reachable types):
+--
+-- @
+-- data Path = Path
+--   deriving Souffle.Program
+--   via Souffle.ProgramOptions Path "path" '[Edge, Reachable]
+-- @
+--
+-- See also: 'FactOptions'.
+newtype ProgramOptions (prog :: Type) (progName :: Symbol) (facts :: [Type])
+  = ProgramOptions prog
+
+instance KnownSymbol progName => Program (ProgramOptions prog progName facts) where
+  type ProgramFacts (ProgramOptions _ _ facts) = facts
+
+  programName = const $ symbolVal (Proxy @progName)
+  {-# INLINABLE programName #-}
+
 -- | A typeclass for data types representing a fact in datalog.
 --
 -- Example usage:
@@ -135,6 +161,41 @@ class Marshal.Marshal a => Fact a where
   --
   -- It uses a 'Proxy' to select the correct instance.
   factName :: Proxy a -> String
+
+-- | A helper data type, used in combination with the DerivingVia extension to
+--   automatically generate code to bind a Haskell datatype to a Souffle
+--   Datalog fact.
+--
+-- The following is an example how to bind to a Datalog fact "edge"
+-- that contains two symbols (strings in Haskell) that is an input (from the
+-- Datalog point of view):
+--
+-- @
+-- data Edge = Edge String String
+--   deriving (Eq, Show, Generic)
+--   deriving anyclass Souffle.Marshal
+--   deriving Souffle.Fact
+--   via Souffle.FactOptions Edge "edge" 'Souffle.Input
+-- @
+--
+-- See also: 'ProgramOptions'.
+newtype FactOptions (fact :: Type) (factName :: Symbol) (dir :: Direction)
+  = FactOptions fact
+
+instance Marshal.Marshal fact => Marshal.Marshal (FactOptions fact name dir) where
+  push (FactOptions fact) = Marshal.push fact
+  {-# INLINABLE push #-}
+  pop = FactOptions <$> Marshal.pop
+  {-# INLINABLE pop #-}
+
+instance ( Marshal.Marshal fact
+         , KnownSymbol factName
+         ) => Fact (FactOptions fact factName dir) where
+  type FactDirection (FactOptions _ _ dir) = dir
+
+  factName = const $ symbolVal (Proxy @factName)
+  {-# INLINABLE factName #-}
+
 
 -- | A datatype describing which operations a certain fact supports.
 --   The direction is from the datalog perspective, so that it

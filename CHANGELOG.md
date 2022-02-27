@@ -3,6 +3,12 @@
 All notable changes to this project (as seen by library users) will be documented in this file.
 The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-haskell.git/CHANGELOG.md).
 
+## [3.3.0] - Unreleased
+
+### Added
+
+- New `DerivingVia`-style API for binding to a Datalog program.
+
 ## [3.2.0] - 2022-02-20
 
 - Add `Analysis` type for composing multiple Datalog programs.
