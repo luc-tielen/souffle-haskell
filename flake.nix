@@ -43,7 +43,7 @@
           in { inherit souffle souffle-haskell-lint haskellPackages; };
         overlays = [ overlay ds.overlay ];
       in with (import np { inherit system config overlays; }); rec {
-        inherit overlays;
+        inherit overlay;
         packages = flattenTree (recurseIntoAttrs {
           inherit (haskellPackages) souffle-haskell;
           inherit souffle-haskell-lint;
