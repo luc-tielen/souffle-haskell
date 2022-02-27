@@ -60,7 +60,7 @@ data Path = Path
   -- about the datalog program. It uses this to perform compile-time checks to
   -- limit the amount of possible programmer errors to a minimum.
   deriving Souffle.Program
-  via Souffle.ProgramOptions Path '[Edge, Reachable] "path"
+  via Souffle.ProgramOptions Path "path" '[Edge, Reachable]
 
 -- Facts are represented in Haskell as simple product types,
 -- Numbers map to Int32, unsigned to Word32, floats to Float,
@@ -74,13 +74,13 @@ data Edge = Edge String String
   -- By making a data type an instance of Fact, we give Haskell the
   -- necessary information to bind to the datalog fact.
   deriving Souffle.Fact
-  via Souffle.FactOptions Edge 'Souffle.Input "edge"
+  via Souffle.FactOptions Edge "edge" 'Souffle.Input
 
 data Reachable = Reachable String String
   deriving (Eq, Show, Generic)
   deriving anyclass Souffle.Marshal
   deriving Souffle.Fact
-  via Souffle.FactOptions Reachable 'Souffle.Output "reachable"
+  via Souffle.FactOptions Reachable "reachable" 'Souffle.Output
 
 
 main :: IO ()

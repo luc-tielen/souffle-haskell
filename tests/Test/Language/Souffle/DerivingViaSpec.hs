@@ -12,19 +12,19 @@ import qualified Language.Souffle.Interpreted as Souffle
 
 data Path = Path
   deriving Souffle.Program
-  via Souffle.ProgramOptions Path '[Edge, Reachable] "path"
+  via Souffle.ProgramOptions Path "path" '[Edge, Reachable]
 
 data Edge = Edge String String
   deriving stock (Eq, Show, Generic)
   deriving anyclass Souffle.Marshal
   deriving Souffle.Fact
-  via Souffle.FactOptions Edge 'Souffle.InputOutput "edge"
+  via Souffle.FactOptions Edge "edge" 'Souffle.InputOutput
 
 data Reachable = Reachable String String
   deriving stock (Eq, Show, Generic)
   deriving anyclass Souffle.Marshal
   deriving Souffle.Fact
-  via Souffle.FactOptions Reachable 'Souffle.Output "reachable"
+  via Souffle.FactOptions Reachable "reachable" 'Souffle.Output
 
 
 spec :: Spec

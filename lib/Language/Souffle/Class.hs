@@ -118,11 +118,25 @@ class Program a where
   --   This has to be the same as the name of the .dl file (minus the extension).
   programName :: a -> String
 
-newtype ProgramOptions (prog :: Type) (facts :: [Type]) (progName :: Symbol)
+-- | A helper data type, used in combination with the DerivingVia extension to
+--   automatically generate code to bind Haskell to a Souffle Datalog program.
+--
+-- The following is an example how to bind to a Datalog program "path"
+-- (saved as path.dl / path.cpp), that uses two facts called "edge" and
+-- "reachable" (represented with the Edge and Reachable types):
+--
+-- @
+-- data Path = Path
+--   deriving Souffle.Program
+--   via Souffle.ProgramOptions Path "path" '[Edge, Reachable]
+-- @
+--
+-- See also: 'FactOptions'.
+newtype ProgramOptions (prog :: Type) (progName :: Symbol) (facts :: [Type])
   = ProgramOptions prog
 
-instance KnownSymbol progName => Program (ProgramOptions prog facts progName) where
-  type ProgramFacts (ProgramOptions _ facts _) = facts
+instance KnownSymbol progName => Program (ProgramOptions prog progName facts) where
+  type ProgramFacts (ProgramOptions _ _ facts) = facts
 
   programName = const $ symbolVal (Proxy @progName)
   {-# INLINABLE programName #-}
@@ -148,10 +162,27 @@ class Marshal.Marshal a => Fact a where
   -- It uses a 'Proxy' to select the correct instance.
   factName :: Proxy a -> String
 
-newtype FactOptions (fact :: Type) (dir :: Direction) (factName :: Symbol)
+-- | A helper data type, used in combination with the DerivingVia extension to
+--   automatically generate code to bind a Haskell datatype to a Souffle
+--   Datalog fact.
+--
+-- The following is an example how to bind to a Datalog fact "edge"
+-- that contains two symbols (strings in Haskell) that is an input (from the
+-- Datalog point of view):
+--
+-- @
+-- data Edge = Edge String String
+--   deriving (Eq, Show, Generic)
+--   deriving anyclass Souffle.Marshal
+--   deriving Souffle.Fact
+--   via Souffle.FactOptions Edge "edge" 'Souffle.Input
+-- @
+--
+-- See also: 'ProgramOptions'.
+newtype FactOptions (fact :: Type) (factName :: Symbol) (dir :: Direction)
   = FactOptions fact
 
-instance Marshal.Marshal fact => Marshal.Marshal (FactOptions fact dir name) where
+instance Marshal.Marshal fact => Marshal.Marshal (FactOptions fact name dir) where
   push (FactOptions fact) = Marshal.push fact
   {-# INLINABLE push #-}
   pop = FactOptions <$> Marshal.pop
@@ -159,8 +190,8 @@ instance Marshal.Marshal fact => Marshal.Marshal (FactOptions fact dir name) whe
 
 instance ( Marshal.Marshal fact
          , KnownSymbol factName
-         ) => Fact (FactOptions fact dir factName) where
-  type FactDirection (FactOptions _ dir _) = dir
+         ) => Fact (FactOptions fact factName dir) where
+  type FactDirection (FactOptions _ _ dir) = dir
 
   factName = const $ symbolVal (Proxy @factName)
   {-# INLINABLE factName #-}
