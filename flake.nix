@@ -12,37 +12,42 @@
         version = with np.lib;
           "${substring 0 8 self.lastModifiedDate}.${self.shortRev or "dirty"}";
         config = { };
-        overlay = final: _:
-          with final;
-          with haskellPackages.extend (_: _: rec { }); rec {
-            souffle =
+        overlay = final: super:
+          let
+            souffle = with final;
               callPackage (import ./nix/souffle.nix { pkgs = final; }) { };
-            souffle-haskell = with haskell.lib;
-              (overrideCabal
-                (addBuildTools (callCabal2nix "souffle-haskell" ./. { }) [
-                  hpack
-                  souffle
-                ]) (o: {
-                  version = "${o.version}.${version}";
-                  # NOTE: next line needs to be changed to "doCheck = false;"
-                  # when upgrading Souffle, so the test fixtures can be
-                  # upgraded with the new Souffle compiler before running the tests.
-                  doCheck = true;
-                  checkPhase = ''
-                    runHook preCheck
-                    DATALOG_DIR="${o.src}/tests/fixtures/" SOUFFLE_BIN="${souffle}/bin/souffle" ./Setup test
-                    runHook postCheck
-                  '';
-                }));
-            souffle-haskell-lint = writeShellScriptBin "souffle-haskell-lint" ''
-              ${hlint}/bin/hlint ${souffle-haskell.src} -c
-            '';
-          };
+            haskellPackages = super.haskellPackages.extend (f: _: {
+              souffle-haskell = with final.haskell.lib;
+                with f;
+                (overrideCabal
+                  (addBuildTools (callCabal2nix "souffle-haskell" ./. { }) [
+                    hpack
+                    souffle
+                  ]) (o: {
+                    version = "${o.version}.${version}";
+                    # NOTE: next line needs to be changed to "doCheck = false;"
+                    # when upgrading Souffle, so the test fixtures can be
+                    # upgraded with the new Souffle compiler before running the tests.
+                    doCheck = true;
+                    checkPhase = ''
+                      runHook preCheck
+                      DATALOG_DIR="${o.src}/tests/fixtures/" SOUFFLE_BIN="${souffle}/bin/souffle" ./Setup test
+                      runHook postCheck
+                    '';
+                  }));
+            });
+            souffle-haskell-lint = with final;
+              writeShellScriptBin "souffle-haskell-lint" ''
+                ${hlint}/bin/hlint ${haskellPackages.souffle-haskell.src} -c
+              '';
+          in { inherit souffle souffle-haskell-lint haskellPackages; };
         overlays = [ overlay ds.overlay ];
       in with (import np { inherit system config overlays; }); rec {
         inherit overlays;
-        packages = flattenTree
-          (recurseIntoAttrs { inherit souffle-haskell souffle-haskell-lint; });
+        packages = flattenTree (recurseIntoAttrs {
+          inherit (haskellPackages) souffle-haskell;
+          inherit souffle-haskell-lint;
+        });
         defaultPackage = packages.souffle-haskell;
         apps = {
           souffle-haskell-lint = mkApp { drv = souffle-haskell-lint; };
@@ -57,6 +62,7 @@
             hpack
             hspec-discover
             souffle
+            souffle-haskell
             souffle-haskell-lint
           ];
         };
