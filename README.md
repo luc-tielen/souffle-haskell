@@ -45,6 +45,9 @@ in the following way:
 -- Enable some necessary extensions:
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass, DerivingVia, DataKinds, UndecidableInstances #-}
 
+-- NOTE: The usage of "deriving stock", "deriving anyclass" and "deriving via" in the
+-- examples below matters in order for the library to work correctly!
+
 module Main ( main ) where
 
 import Data.Foldable ( traverse_ )
@@ -67,7 +70,7 @@ data Path = Path
 -- symbols to Strings / Text.
 
 data Edge = Edge String String
-  deriving (Eq, Show, Generic)
+  deriving stock (Eq, Show, Generic)
   -- For simple product types, we can automatically generate the
   -- marshalling/unmarshalling code of data between Haskell and datalog.
   deriving anyclass Souffle.Marshal
@@ -77,7 +80,7 @@ data Edge = Edge String String
   via Souffle.FactOptions Edge "edge" 'Souffle.Input
 
 data Reachable = Reachable String String
-  deriving (Eq, Show, Generic)
+  deriving stock (Eq, Show, Generic)
   deriving anyclass Souffle.Marshal
   deriving Souffle.Fact
   via Souffle.FactOptions Reachable "reachable" 'Souffle.Output
