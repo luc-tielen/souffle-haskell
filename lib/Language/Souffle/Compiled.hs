@@ -15,7 +15,9 @@
 --   C++ compilation times.
 module Language.Souffle.Compiled
   ( Program(..)
+  , ProgramOptions(..)
   , Fact(..)
+  , FactOptions(..)
   , Marshal(..)
   , Direction(..)
   , ContainsInputFact

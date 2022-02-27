@@ -1,5 +1,5 @@
 {-# LANGUAGE DataKinds, UndecidableInstances, FlexibleContexts #-}
-{-# LANGUAGE TypeFamilies, TypeOperators #-}
+{-# LANGUAGE TypeFamilies, TypeOperators, TypeApplications #-}
 
 -- | This module provides the top level API for Souffle related operations.
 --   It makes use of Haskell's powerful typesystem to make certain invalid states
@@ -15,7 +15,9 @@
 --   type safety and user-friendly error messages.
 module Language.Souffle.Class
   ( Program(..)
+  , ProgramOptions(..)
   , Fact(..)
+  , FactOptions(..)
   , Marshal.Marshal(..)
   , Direction(..)
   , ContainsInputFact
@@ -35,6 +37,7 @@ import Control.Monad.Writer
 import Data.Proxy
 import Data.Kind
 import Data.Word
+import GHC.TypeLits
 import qualified Language.Souffle.Marshal as Marshal
 import Type.Errors.Pretty
 
@@ -115,6 +118,15 @@ class Program a where
   --   This has to be the same as the name of the .dl file (minus the extension).
   programName :: a -> String
 
+newtype ProgramOptions (prog :: Type) (facts :: [Type]) (progName :: Symbol)
+  = ProgramOptions prog
+
+instance KnownSymbol progName => Program (ProgramOptions prog facts progName) where
+  type ProgramFacts (ProgramOptions _ facts _) = facts
+
+  programName = const $ symbolVal (Proxy @progName)
+  {-# INLINABLE programName #-}
+
 -- | A typeclass for data types representing a fact in datalog.
 --
 -- Example usage:
@@ -135,6 +147,24 @@ class Marshal.Marshal a => Fact a where
   --
   -- It uses a 'Proxy' to select the correct instance.
   factName :: Proxy a -> String
+
+newtype FactOptions (fact :: Type) (dir :: Direction) (factName :: Symbol)
+  = FactOptions fact
+
+instance Marshal.Marshal fact => Marshal.Marshal (FactOptions fact dir name) where
+  push (FactOptions fact) = Marshal.push fact
+  {-# INLINABLE push #-}
+  pop = FactOptions <$> Marshal.pop
+  {-# INLINABLE pop #-}
+
+instance ( Marshal.Marshal fact
+         , KnownSymbol factName
+         ) => Fact (FactOptions fact dir factName) where
+  type FactDirection (FactOptions _ dir _) = dir
+
+  factName = const $ symbolVal (Proxy @factName)
+  {-# INLINABLE factName #-}
+
 
 -- | A datatype describing which operations a certain fact supports.
 --   The direction is from the datalog perspective, so that it
