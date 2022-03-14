@@ -81,7 +81,7 @@ data Config
   , cfgSouffleBin   :: Maybe FilePath
   , cfgFactDir      :: Maybe FilePath
   , cfgOutputDir    :: Maybe FilePath
-  } deriving Show
+  } deriving stock Show
 
 -- | Retrieves the default config for the interpreter. These settings can
 --   be overridden using record update syntax if needed.

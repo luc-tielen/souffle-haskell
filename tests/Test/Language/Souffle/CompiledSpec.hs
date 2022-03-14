@@ -14,10 +14,10 @@ import qualified Language.Souffle.Compiled as Souffle
 data Path = Path
 
 data Edge = Edge String String
-  deriving (Eq, Show, Generic)
+  deriving stock (Eq, Show, Generic)
 
 data Reachable = Reachable String String
-  deriving (Eq, Show, Generic)
+  deriving stock (Eq, Show, Generic)
 
 instance Souffle.Program Path where
   type ProgramFacts Path = '[Edge, Reachable]

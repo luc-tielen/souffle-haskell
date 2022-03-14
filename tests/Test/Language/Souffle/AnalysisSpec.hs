@@ -17,10 +17,10 @@ import qualified Language.Souffle.Interpreted as Souffle
 data Path = Path
 
 data Edge = Edge String String
-  deriving (Eq, Show, Generic)
+  deriving stock (Eq, Show, Generic)
 
 data Reachable = Reachable String String
-  deriving (Eq, Show, Generic)
+  deriving stock (Eq, Show, Generic)
 
 instance Souffle.Program Path where
   type ProgramFacts Path = [Edge, Reachable]
@@ -38,7 +38,7 @@ instance Souffle.Marshal Edge
 instance Souffle.Marshal Reachable
 
 data Results = Results [Reachable] [Edge]
-  deriving (Eq, Show)
+  deriving stock (Eq, Show)
 
 pathAnalysis :: Souffle.Handle Path
              -> Analysis Souffle.SouffleM [Edge] [Reachable]
@@ -54,7 +54,7 @@ pathAnalysis' h =
 data RoundTrip = RoundTrip
 
 newtype StringFact = StringFact String
-  deriving (Eq, Show, Generic)
+  deriving stock (Eq, Show, Generic)
 
 instance Souffle.Program RoundTrip where
   type ProgramFacts RoundTrip = '[StringFact]

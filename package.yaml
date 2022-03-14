@@ -6,7 +6,7 @@ homepage: https://github.com/luc-tielen/souffle-haskell#README.md
 license: MIT
 author: Luc Tielen
 maintainer: luc.tielen@gmail.com
-copyright: 2020 Luc Tielen
+copyright: 2022 Luc Tielen
 category: Logic Programming, Foreign Binding, Bindings
 github: luc-tielen/souffle-haskell
 extra-source-files:
@@ -19,26 +19,14 @@ extra-source-files:
 
 dependencies:
   - base >= 4.12 && < 5
-  - mtl >= 2.0 && < 3
-  - template-haskell >= 2 && < 3
-  - type-errors-pretty >= 0.0.1.0 && < 1
   - text >= 1.0 && < 2
-  - text-short >= 0.1.3 && < 1
-  - containers >= 0.6.2.1 && < 1
   - vector <= 1.0
-  - array <= 1.0
-  - deepseq >= 1.4.4 && < 2
-  - directory >= 1.3.3 && < 2
-  - filepath  >= 1.4.2 && < 2
-  - temporary >= 1.3 && < 2
-  - process >= 1.6 && < 2
-  - bytestring >= 0.10.10 && < 1
-  - profunctors >= 5.6.2 && < 6
 
 default-extensions:
   - OverloadedStrings
   - LambdaCase
   - ScopedTypeVariables
+  - DerivingStrategies
 
 ghc-options:
   - -Wall
@@ -52,7 +40,6 @@ ghc-options:
   - -Wno-type-defaults
   - -Wno-missing-local-signatures
   - -Wno-monomorphism-restriction
-  - -Wno-missing-deriving-strategies
   - -Wno-prepositive-qualified-module
   - -Wno-missing-safe-haskell-mode
   - -optP-Wno-nonportable-include-path
@@ -123,6 +110,18 @@ library:
       extra-libraries: stdc++
   generated-other-modules:
     - Paths_souffle_haskell
+  dependencies:
+    - mtl >= 2.0 && < 3
+    - type-errors-pretty >= 0.0.1.0 && < 1
+    - deepseq >= 1.4.4 && < 2
+    - filepath  >= 1.4.2 && < 2
+    - process >= 1.6 && < 2
+    - bytestring >= 0.10.10 && < 1
+    - text-short >= 0.1.3 && < 1
+    - array <= 1.0
+    - profunctors >= 5.6.2 && < 6
+    - directory >= 1.3.3 && < 2
+    - temporary >= 1.3 && < 2
 
 tests:
   souffle-haskell-test:
@@ -136,7 +135,11 @@ tests:
       - hspec >= 2.6.1 && < 3.0.0
       - hspec-hedgehog == 0.*
       - hedgehog == 1.*
-      - neat-interpolation == 0.*
+      - text-short >= 0.1.3 && < 1
+      - array <= 1.0
+      - profunctors >= 5.6.2 && < 6
+      - directory >= 1.3.3 && < 2
+      - temporary >= 1.3 && < 2
       - souffle-haskell
     cxx-options:
       - -D__EMBEDDED_SOUFFLE__
@@ -152,6 +155,7 @@ benchmarks:
     dependencies:
       - souffle-haskell
       - criterion
+      - deepseq >= 1.4.4 && < 2
     cxx-options:
       - -D__EMBEDDED_SOUFFLE__
       - -std=c++17

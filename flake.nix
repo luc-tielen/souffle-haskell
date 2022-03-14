@@ -17,10 +17,9 @@
       souffle = with final;
       callPackage (import ./nix/souffle.nix { pkgs = final; }) { };
       haskellPackages = super.haskell.packages.ghc902.override {
-        overrides = f: _: {
-          # ghc = f.haskell.compiler.
+        overrides = hself: hsuper: {
           souffle-haskell = with final.haskell.lib;
-          with f;
+          with hself;
           (overrideCabal
           (addBuildTools (callCabal2nix "souffle-haskell" ./. { }) [
             hpack
