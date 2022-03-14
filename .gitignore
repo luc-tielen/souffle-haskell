@@ -10,3 +10,4 @@ result-*
 cbits/*.o
 upload-docs.sh
 *.csv
+.direnv/
