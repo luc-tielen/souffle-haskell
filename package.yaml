@@ -23,10 +23,11 @@ dependencies:
   - vector <= 1.0
 
 default-extensions:
-  - OverloadedStrings
-  - LambdaCase
-  - ScopedTypeVariables
   - DerivingStrategies
+  - FlexibleContexts
+  - LambdaCase
+  - OverloadedStrings
+  - ScopedTypeVariables
 
 ghc-options:
   - -Wall

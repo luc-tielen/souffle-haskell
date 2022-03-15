@@ -89,10 +89,11 @@ library
   hs-source-dirs:
       lib
   default-extensions:
-      OverloadedStrings
-      LambdaCase
-      ScopedTypeVariables
       DerivingStrategies
+      FlexibleContexts
+      LambdaCase
+      OverloadedStrings
+      ScopedTypeVariables
   ghc-options: -Wall -Weverything -Wno-safe -Wno-unsafe -Wno-implicit-prelude -Wno-missed-specializations -Wno-all-missed-specializations -Wno-missing-import-lists -Wno-type-defaults -Wno-missing-local-signatures -Wno-monomorphism-restriction -Wno-prepositive-qualified-module -Wno-missing-safe-haskell-mode -optP-Wno-nonportable-include-path -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++17 -Wall
   include-dirs:
@@ -180,10 +181,11 @@ test-suite souffle-haskell-test
   hs-source-dirs:
       tests
   default-extensions:
-      OverloadedStrings
-      LambdaCase
-      ScopedTypeVariables
       DerivingStrategies
+      FlexibleContexts
+      LambdaCase
+      OverloadedStrings
+      ScopedTypeVariables
   ghc-options: -Wall -Weverything -Wno-safe -Wno-unsafe -Wno-implicit-prelude -Wno-missed-specializations -Wno-all-missed-specializations -Wno-missing-import-lists -Wno-type-defaults -Wno-missing-local-signatures -Wno-monomorphism-restriction -Wno-prepositive-qualified-module -Wno-missing-safe-haskell-mode -optP-Wno-nonportable-include-path -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++17 -D__EMBEDDED_SOUFFLE__
   include-dirs:
@@ -266,10 +268,11 @@ benchmark souffle-haskell-benchmarks
   hs-source-dirs:
       benchmarks
   default-extensions:
-      OverloadedStrings
-      LambdaCase
-      ScopedTypeVariables
       DerivingStrategies
+      FlexibleContexts
+      LambdaCase
+      OverloadedStrings
+      ScopedTypeVariables
   ghc-options: -Wall -Weverything -Wno-safe -Wno-unsafe -Wno-implicit-prelude -Wno-missed-specializations -Wno-all-missed-specializations -Wno-missing-import-lists -Wno-type-defaults -Wno-missing-local-signatures -Wno-monomorphism-restriction -Wno-prepositive-qualified-module -Wno-missing-safe-haskell-mode -optP-Wno-nonportable-include-path -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits +RTS -N1 -RTS
   cxx-options: -std=c++17 -D__EMBEDDED_SOUFFLE__ -std=c++17 -march=native
   include-dirs:
