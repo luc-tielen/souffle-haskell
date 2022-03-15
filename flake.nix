@@ -9,15 +9,21 @@
     with fu.lib;
     eachSystem [ "x86_64-linux" "x86_64-darwin" ] (system:
       let
+        ghc = "ghc921";
         version = with np.lib;
-          "${substring 0 8 self.lastModifiedDate}.${self.shortRev or "dirty"}";
+          "${substring 0 8 self.lastModifiedDate}.${ghc}.${
+            self.shortRev or "dirty"
+          }";
         config = { };
         overlay = final: super:
           let
             souffle = with final;
               callPackage (import ./nix/souffle.nix { pkgs = final; }) { };
-            haskellPackages = super.haskell.packages.ghc902.override {
+            haskellPackages = super.haskell.packages.${ghc}.override {
               overrides = hself: hsuper: {
+                # ghc-9.2.1: see, https://github.com/kowainik/type-errors-pretty/issues/24
+                type-errors-pretty = with final.haskell.lib;
+                  dontCheck (doJailbreak (hsuper.type-errors-pretty));
                 souffle-haskell = with final.haskell.lib;
                   with hself;
                   (overrideCabal
