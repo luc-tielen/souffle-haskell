@@ -9,7 +9,7 @@
     with fu.lib;
     eachSystem [ "x86_64-linux" "x86_64-darwin" ] (system:
       let
-        ghc = "ghc921";
+        ghc = "ghc922";
         version = with np.lib;
           "${substring 0 8 self.lastModifiedDate}.${ghc}.${
             self.shortRev or "dirty"
