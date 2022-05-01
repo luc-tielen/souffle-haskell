@@ -29,45 +29,45 @@ import Data.Void (Void)
 
 
 data Edge = Edge String String
-  deriving (Eq, Show, Generic)
+  deriving stock (Eq, Show, Generic)
 
 newtype EdgeUInt = EdgeUInt Word32
-  deriving (Eq, Show, Generic)
+  deriving stock (Eq, Show, Generic)
 
 newtype FloatValue = FloatValue Float
-  deriving (Eq, Show, Generic)
+  deriving stock (Eq, Show, Generic)
 
 data EdgeStrict = EdgeStrict !String !String
-  deriving (Eq, Show, Generic)
+  deriving stock (Eq, Show, Generic)
 
 data EdgeUnpacked
   = EdgeUnpacked {-# UNPACK #-} !Int32 {-# UNPACK #-} !Int32
-  deriving (Eq, Show, Generic)
+  deriving stock (Eq, Show, Generic)
 
 type Vertex = Text
 type Vertex' = Text
 
 data EdgeSynonyms = EdgeSynonyms Vertex Vertex
-  deriving (Eq, Show, Generic)
+  deriving stock (Eq, Show, Generic)
 
 data EdgeMultipleSynonyms = EdgeMultipleSynonyms Vertex Vertex'
-  deriving (Eq, Show, Generic)
+  deriving stock (Eq, Show, Generic)
 
 data EdgeMixed = EdgeMixed Text Vertex
-  deriving (Eq, Show, Generic)
+  deriving stock (Eq, Show, Generic)
 
 data EdgeRecord
   = EdgeRecord
   { fromNode :: Text
   , toNode :: Text
-  } deriving (Eq, Show, Generic)
+  } deriving stock (Eq, Show, Generic)
 
 data IntsAndStrings = IntsAndStrings Text Int32 Text
-  deriving (Eq, Show, Generic)
+  deriving stock (Eq, Show, Generic)
 
 data LargeRecord
   = LargeRecord Int32 Int32 Int32 Int32
-  deriving (Eq, Show, Generic)
+  deriving stock (Eq, Show, Generic)
 
 
 instance Marshal Edge
@@ -86,25 +86,25 @@ instance Marshal LargeRecord
 data RoundTrip = RoundTrip
 
 newtype StringFact = StringFact String
-  deriving (Eq, Show, Generic)
+  deriving stock (Eq, Show, Generic)
 
 newtype TextFact = TextFact T.Text
-  deriving (Eq, Show, Generic)
+  deriving stock (Eq, Show, Generic)
 
 newtype LazyTextFact = LazyTextFact TL.Text
-  deriving (Eq, Show, Generic)
+  deriving stock (Eq, Show, Generic)
 
 newtype ShortTextFact = ShortTextFact TS.ShortText
-  deriving (Eq, Show, Generic)
+  deriving stock (Eq, Show, Generic)
 
 newtype Int32Fact = Int32Fact Int32
-  deriving (Eq, Show, Generic)
+  deriving stock (Eq, Show, Generic)
 
 newtype Word32Fact = Word32Fact Word32
-  deriving (Eq, Show, Generic)
+  deriving stock (Eq, Show, Generic)
 
 newtype FloatFact = FloatFact Float
-  deriving (Eq, Show, Generic)
+  deriving stock (Eq, Show, Generic)
 
 instance Souffle.Fact StringFact where
   type FactDirection StringFact = 'Souffle.InputOutput
@@ -159,18 +159,18 @@ data EdgeCases = EdgeCases
 
 data EmptyStrings a
   = EmptyStrings a a Int32
-  deriving (Eq, Show, Generic)
+  deriving stock (Eq, Show, Generic)
 
 newtype LongStrings a
   = LongStrings a
-  deriving (Eq, Show, Generic)
+  deriving stock (Eq, Show, Generic)
 
 newtype Unicode a
   = Unicode a
-  deriving (Eq, Show, Generic)
+  deriving stock (Eq, Show, Generic)
 
 data NoStrings a = NoStrings Word32 Int32 Float
-  deriving (Eq, Show, Generic)
+  deriving stock (Eq, Show, Generic)
 
 instance Souffle.Program EdgeCases where
   type ProgramFacts EdgeCases =

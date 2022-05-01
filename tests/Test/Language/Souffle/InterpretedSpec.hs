@@ -23,10 +23,10 @@ data PathNoInput = PathNoInput  -- doesn't mark edge as an input
 data BadPath = BadPath
 
 data Edge = Edge String String
-  deriving (Eq, Show, Generic)
+  deriving stock (Eq, Show, Generic)
 
 data Reachable = Reachable String String
-  deriving (Eq, Show, Generic)
+  deriving stock (Eq, Show, Generic)
 
 instance Souffle.Fact Edge where
   type FactDirection Edge = 'Souffle.InputOutput
