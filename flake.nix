@@ -64,7 +64,7 @@
           name = "SOUFFLE-HASKELL";
           packages = with haskellPackages; [
             cabal-install
-            ghc
+            haskellPackages.ghc
             haskell-language-server
             hlint
             hpack
