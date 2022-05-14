@@ -70,7 +70,9 @@ The marshalling is done via a stack-based approach, where elements are
 pushed/popped one by one. You need to make sure that the marshalling
 of values happens in the correct order or unexpected things might happen
 (including crashes). Pushing and popping of fields should happen in the
-same order (from left to right, as defined in Datalog).
+same order (from left to right, as defined in Datalog). The ordering of how
+nested products are serialized is the same as when the fields of the nested
+product types are inlined into the parent type.
 
 Generic implementations for 'push' and 'pop' that perform the previously
 described behavior are available. This makes it possible to
@@ -89,10 +91,10 @@ class Marshal a where
   pop :: MonadPop m => m a
 
   default push
-    :: (Generic a, C.SimpleProduct a, GMarshal (Rep a), MonadPush m)
+    :: (Generic a, SimpleProduct a, GMarshal (Rep a), MonadPush m)
     => a -> m ()
   default pop
-    :: (Generic a, C.SimpleProduct a, GMarshal (Rep a), MonadPop m)
+    :: (Generic a, SimpleProduct a, GMarshal (Rep a), MonadPop m)
     => m a
   push a = gpush (from a)
   {-# INLINABLE push #-}
