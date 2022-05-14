@@ -30,7 +30,7 @@ type family SimpleProduct (a :: Type) :: Constraint where
   SimpleProduct a = (ProductLike a (Rep a), OnlySimpleFields a (Rep a))
 
 type family ProductLike (t :: Type) (f :: Type -> Type) :: Constraint where
-  ProductLike t (_ :*: b) = ProductLike t b
+  ProductLike t (a :*: b) = (ProductLike t a, ProductLike t b)
   ProductLike t (M1 _ _ a) = ProductLike t a
   ProductLike _ (K1 _ _) = ()
   ProductLike t (_ :+: _) =
