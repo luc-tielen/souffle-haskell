@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# LANGUAGE FlexibleInstances, FlexibleContexts #-}
 {-# LANGUAGE DefaultSignatures, TypeOperators #-}
+{-# LANGUAGE TypeFamilies, DataKinds, UndecidableInstances #-}
 
 -- | This module exposes a uniform interface to marshal values
 --   to and from Souffle Datalog. This is done via the 'Marshal' typeclass.
@@ -10,15 +11,17 @@ module Language.Souffle.Marshal
   ( Marshal(..)
   , MonadPush(..)
   , MonadPop(..)
+  , SimpleProduct
   ) where
 
+import Type.Errors.Pretty
 import GHC.Generics
 import Data.Int
 import Data.Word
+import Data.Kind
 import qualified Data.Text as T
 import qualified Data.Text.Short as TS
 import qualified Data.Text.Lazy as TL
-import qualified Language.Souffle.Internal.Constraints as C
 
 {- | A typeclass for serializing primitive values from Haskell to Datalog.
 
@@ -161,3 +164,41 @@ instance GMarshal a => GMarshal (M1 i c a) where
   {-# INLINABLE gpush #-}
   gpop = M1 <$> gpop
   {-# INLINABLE gpop #-}
+
+
+-- | A helper type family used for generating a more user-friendly type error
+--   for incompatible types when generically deriving marshalling code for
+--   the 'Language.Souffle.Marshal.Marshal' typeclass.
+--
+--   The __a__ type parameter is the original type, used when displaying the type error.
+--
+--   A type error is returned if the passed in type is not a simple product type
+--   consisting of only types that implement 'Marshal'.
+type family SimpleProduct (a :: Type) :: Constraint where
+  SimpleProduct a = (ProductLike a (Rep a), OnlyMarshallableFields (Rep a))
+
+type family ProductLike (t :: Type) (f :: Type -> Type) :: Constraint where
+  ProductLike t (a :*: b) = (ProductLike t a, ProductLike t b)
+  ProductLike t (M1 _ _ a) = ProductLike t a
+  ProductLike _ (K1 _ _) = ()
+  ProductLike t (_ :+: _) =
+    TypeError ( "Error while deriving marshalling code for type " <> t <> ":"
+              % "Cannot derive sum type, only product types are supported.")
+  ProductLike t U1 =
+    TypeError ( "Error while deriving marshalling code for type " <> t <> ":"
+              % "Cannot automatically derive code for 0 argument constructor.")
+  ProductLike t V1 =
+    TypeError ( "Error while deriving marshalling code for type " <> t <> ":"
+              % "Cannot derive void type.")
+
+type family OnlyMarshallableFields (f :: Type -> Type) :: Constraint where
+  OnlyMarshallableFields (a :*: b) = (OnlyMarshallableFields a, OnlyMarshallableFields b)
+  OnlyMarshallableFields (a :+: b) = (OnlyMarshallableFields a, OnlyMarshallableFields b)
+  OnlyMarshallableFields (M1 _ _ a) = OnlyMarshallableFields a
+  OnlyMarshallableFields U1 = ()
+  OnlyMarshallableFields V1 = ()
+  OnlyMarshallableFields k = OnlyMarshallableField k
+
+type family OnlyMarshallableField (f :: Type -> Type) :: Constraint where
+  OnlyMarshallableField (M1 _ _ a) = OnlyMarshallableField a
+  OnlyMarshallableField (K1 _ a) = Marshal a
