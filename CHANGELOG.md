@@ -12,6 +12,11 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
   newtypes are allowed to be serialized, as well as product types inside other
   product types (as long as all the fields implement the 'Marshal' typeclass).
 
+### Fixed
+
+- Check if a type is a simple product type consisting of only types supported by
+  Datalog. (This had a small bug for facts with more than 4 arguments.)
+
 ## [3.3.0] - 2022-02-27
 
 ### Added
