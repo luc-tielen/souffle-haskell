@@ -288,6 +288,21 @@ roundTripSpecs = describe "data transfer between Haskell and Souffle" $ parallel
           fact' <- run fact
           fact === fact'
 
+        it "can serialize and deserialize Word32 values" $ hedgehog $ do
+          x <- forAll $ Gen.word32 (Range.linear minBound maxBound)
+          let fact = Word32Fact x
+          fact' <- run fact
+          fact === fact'
+
+        it "can serialize and deserialize Float values" $ hedgehog $ do
+          let epsilon = 1e-6
+              fmin = -1e9
+              fmax =  1e9
+          x <- forAll $ Gen.float (Range.exponentialFloat fmin fmax)
+          let fact = FloatFact x
+          FloatFact x' <- run fact
+          (abs (x' - x) < epsilon) === True
+
         it "can serialize and deserialize newtypes" $ hedgehog $ do
           a <- forAll $ Gen.int32 (Range.linear minBound maxBound)
           b <- forAll $ Gen.int32 (Range.linear minBound maxBound)
@@ -306,20 +321,6 @@ roundTripSpecs = describe "data transfer between Haskell and Souffle" $ parallel
           fact' <- run fact
           fact === fact'
 
-        it "can serialize and deserialize Word32 values" $ hedgehog $ do
-          x <- forAll $ Gen.word32 (Range.linear minBound maxBound)
-          let fact = Word32Fact x
-          fact' <- run fact
-          fact === fact'
-
-        it "can serialize and deserialize Float values" $ hedgehog $ do
-          let epsilon = 1e-6
-              fmin = -1e9
-              fmax =  1e9
-          x <- forAll $ Gen.float (Range.exponentialFloat fmin fmax)
-          let fact = FloatFact x
-          FloatFact x' <- run fact
-          (abs (x' - x) < epsilon) === True
 
   describe "interpreted mode" $ parallel $
     roundTripTests $ \fact -> liftIO $ Interpreted.runSouffle RoundTrip $ \handle -> do
