@@ -1,11 +1,11 @@
 cabal-version: 2.2
 
--- This file has been generated from package.yaml by hpack version 0.34.5.
+-- This file has been generated from package.yaml by hpack version 0.34.7.
 --
 -- see: https://github.com/sol/hpack
 
 name:           souffle-haskell
-version:        3.3.0
+version:        3.4.0
 synopsis:       Souffle Datalog bindings for Haskell
 description:    Souffle Datalog bindings for Haskell.
 category:       Logic Programming, Foreign Binding, Bindings
@@ -175,6 +175,8 @@ test-suite souffle-haskell-test
       Test.Language.Souffle.InterpretedSpec
       Test.Language.Souffle.MarshalSpec
       Paths_souffle_haskell
+  autogen-modules:
+      Paths_souffle_haskell
   hs-source-dirs:
       tests
   default-extensions:
@@ -259,6 +261,8 @@ benchmark souffle-haskell-benchmarks
   type: exitcode-stdio-1.0
   main-is: bench.hs
   other-modules:
+      Paths_souffle_haskell
+  autogen-modules:
       Paths_souffle_haskell
   hs-source-dirs:
       benchmarks
