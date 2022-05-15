@@ -13,3 +13,7 @@
 .decl float_fact(x: float)
 .input float_fact
 .output float_fact
+
+.decl large_record(a: number, b: number, c: number, d: number)
+.input large_record
+.output large_record

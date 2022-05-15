@@ -9,7 +9,7 @@
     with fu.lib;
     eachSystem [ "x86_64-linux" "x86_64-darwin" ] (system:
       let
-        ghc = "ghc922";
+        ghc = "ghc902";
         version = with np.lib;
           "${substring 0 8 self.lastModifiedDate}.${ghc}.${
             self.shortRev or "dirty"
@@ -64,13 +64,12 @@
           name = "SOUFFLE-HASKELL";
           packages = with haskellPackages; [
             cabal-install
-            ghc
+            haskellPackages.ghc
             haskell-language-server
             hlint
             hpack
             hspec-discover
             souffle
-            souffle-haskell
             souffle-haskell-lint
           ];
         };

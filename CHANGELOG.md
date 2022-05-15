@@ -3,6 +3,20 @@
 All notable changes to this project (as seen by library users) will be documented in this file.
 The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-haskell.git/CHANGELOG.md).
 
+## [3.4.0] - Unreleased
+
+### Changed
+
+- Loosen the constraint that only types that are simple products that only
+  contain directly marshallable types like `Int32`, `Word32`, ... Now also
+  newtypes are allowed to be serialized, as well as product types inside other
+  product types (as long as all the fields implement the 'Marshal' typeclass).
+
+### Fixed
+
+- Check if a type is a simple product type consisting of only types supported by
+  Datalog. (This had a small bug for facts with more than 4 arguments.)
+
 ## [3.3.0] - 2022-02-27
 
 ### Added

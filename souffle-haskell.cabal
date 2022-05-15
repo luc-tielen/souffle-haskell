@@ -1,6 +1,6 @@
 cabal-version: 2.2
 
--- This file has been generated from package.yaml by hpack version 0.34.6.
+-- This file has been generated from package.yaml by hpack version 0.34.5.
 --
 -- see: https://github.com/sol/hpack
 
@@ -79,7 +79,6 @@ library
       Language.Souffle.Compiled
       Language.Souffle.Internal
       Language.Souffle.Internal.Bindings
-      Language.Souffle.Internal.Constraints
       Language.Souffle.Interpreted
       Language.Souffle.Marshal
   other-modules:
@@ -176,8 +175,6 @@ test-suite souffle-haskell-test
       Test.Language.Souffle.InterpretedSpec
       Test.Language.Souffle.MarshalSpec
       Paths_souffle_haskell
-  autogen-modules:
-      Paths_souffle_haskell
   hs-source-dirs:
       tests
   default-extensions:
@@ -262,8 +259,6 @@ benchmark souffle-haskell-benchmarks
   type: exitcode-stdio-1.0
   main-is: bench.hs
   other-modules:
-      Paths_souffle_haskell
-  autogen-modules:
       Paths_souffle_haskell
   hs-source-dirs:
       benchmarks
