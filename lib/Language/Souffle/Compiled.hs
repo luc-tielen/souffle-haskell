@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleInstances, FlexibleContexts, TypeFamilies, DerivingVia #-}
 {-# LANGUAGE BangPatterns, RoleAnnotations, MultiParamTypeClasses #-}
 {-# LANGUAGE InstanceSigs, DataKinds, TypeApplications, TypeOperators #-}
-{-# LANGUAGE ConstraintKinds, PolyKinds #-}
+{-# LANGUAGE ConstraintKinds, PolyKinds, UndecidableInstances #-}
 
 -- | This module provides an implementation for the typeclasses defined in
 --   "Language.Souffle.Class".
@@ -36,6 +36,7 @@ import Control.Monad.State.Strict
 import Data.Foldable ( traverse_ )
 import Data.Functor.Identity
 import Data.Proxy
+import Data.Kind
 import qualified Data.Array as A
 import qualified Data.Array.IO as A
 import qualified Data.Array.Unsafe as A
@@ -317,7 +318,7 @@ instance Collect (A.Array Int) where
 
 -- | A helper typeclass constraint, needed to serialize Datalog facts from
 --   Haskell to C++.
-type Submit a = ToByteSize (Rep a)
+type Submit a = ToByteSize (GetFields (Rep a))
 
 instance MonadSouffle SouffleM where
   type Handler SouffleM = Handle
@@ -439,24 +440,40 @@ instance ToByteSize TS.ShortText where
   toByteSize = const $ Estimated 36
   {-# INLINABLE toByteSize #-}
 
-instance ToByteSize a => ToByteSize (K1 i a) where
-  toByteSize = const $ toByteSize (Proxy @a)
+instance ToByteSize '[] where
+  toByteSize = const $ Exact 0
   {-# INLINABLE toByteSize #-}
 
-instance ToByteSize a => ToByteSize (M1 i c a) where
-  toByteSize = const $ toByteSize (Proxy @a)
+instance (ToByteSize a, ToByteSize as) => ToByteSize (a ': as) where
+  toByteSize =
+    const $ toByteSize (Proxy @a) <> toByteSize (Proxy @as)
   {-# INLINABLE toByteSize #-}
 
-instance (ToByteSize f, ToByteSize g) => ToByteSize (f :*: g) where
-  toByteSize = const $
-    toByteSize (Proxy @f) <> toByteSize (Proxy @g)
-  {-# INLINABLE toByteSize #-}
+-- | A helper type family, for getting all directly marshallable fields of a type.
+type family GetFields (a :: k) :: [Type] where
+  GetFields (K1 _ a) = DoGetFields a
+  GetFields (M1 _ _ a) = GetFields a
+  GetFields (f :*: g) = GetFields f ++ GetFields g
 
-estimateNumBytes :: forall a. ToByteSize (Rep a) => Proxy a -> ByteSize
-estimateNumBytes _ = toByteSize (Proxy @(Rep a))
+type family DoGetFields (a :: Type) :: [Type] where
+  DoGetFields Int32 = '[Int32]
+  DoGetFields Word32 = '[Word32]
+  DoGetFields Float = '[Float]
+  DoGetFields String = '[String]
+  DoGetFields T.Text = '[T.Text]
+  DoGetFields TL.Text = '[TL.Text]
+  DoGetFields TS.ShortText = '[TS.ShortText]
+  DoGetFields a = GetFields (Rep a)
+
+type family a ++ b where
+  '[] ++ b = b
+  (a ': as) ++ bs = a ': as ++ bs
+
+estimateNumBytes :: forall a. Submit a => Proxy a -> ByteSize
+estimateNumBytes _ = toByteSize (Proxy @(GetFields (Rep a)))
 {-# INLINABLE estimateNumBytes #-}
 
-writeBytes :: forall f a. (Foldable f, Marshal a, ToByteSize (Rep a))
+writeBytes :: forall f a. (Foldable f, Marshal a, Submit a)
            => MVar BufData -> Ptr Internal.Relation -> f a -> IO ()
 writeBytes bufVar relation fa = case estimateNumBytes (Proxy @a) of
   Exact numBytes -> modifyMVarMasked_ bufVar $ \bufData -> do

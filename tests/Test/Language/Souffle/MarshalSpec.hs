@@ -1,4 +1,3 @@
-
 {-# LANGUAGE DeriveGeneric, TypeFamilies, DataKinds, RankNTypes #-}
 {-# LANGUAGE FlexibleInstances, FlexibleContexts #-}
 module Test.Language.Souffle.MarshalSpec
@@ -69,6 +68,14 @@ data LargeRecord
   = LargeRecord Int32 Int32 Int32 Int32
   deriving stock (Eq, Show, Generic)
 
+newtype NestedNewtype = NestedNewtype LargeRecord
+  deriving stock (Eq, Show, Generic)
+
+data Pair = Pair Int32 Int32
+  deriving stock (Eq, Show, Generic)
+
+data NestedRecord = NestedRecord Pair Pair
+  deriving stock (Eq, Show, Generic)
 
 instance Marshal Edge
 instance Marshal EdgeUInt
@@ -81,7 +88,9 @@ instance Marshal EdgeMixed
 instance Marshal EdgeRecord
 instance Marshal IntsAndStrings
 instance Marshal LargeRecord
-
+instance Marshal Pair
+instance Marshal NestedNewtype
+instance Marshal NestedRecord
 
 data RoundTrip = RoundTrip
 
@@ -134,6 +143,14 @@ instance Souffle.Fact FloatFact where
   type FactDirection FloatFact = 'Souffle.InputOutput
   factName = const "float_fact"
 
+instance Souffle.Fact NestedNewtype where
+  type FactDirection NestedNewtype = 'Souffle.InputOutput
+  factName = const "large_record"
+
+instance Souffle.Fact NestedRecord where
+  type FactDirection NestedRecord = 'Souffle.InputOutput
+  factName = const "large_record"
+
 instance Souffle.Marshal StringFact
 instance Souffle.Marshal TextFact
 instance Souffle.Marshal LazyTextFact
@@ -144,7 +161,7 @@ instance Souffle.Marshal FloatFact
 
 instance Souffle.Program RoundTrip where
   type ProgramFacts RoundTrip =
-    [StringFact, TextFact, LazyTextFact, ShortTextFact, Int32Fact, Word32Fact, FloatFact]
+    [StringFact, TextFact, LazyTextFact, ShortTextFact, Int32Fact, Word32Fact, FloatFact, NestedNewtype, NestedRecord]
   programName = const "round_trip"
 
 type RoundTripAction
@@ -285,6 +302,25 @@ roundTripSpecs = describe "data transfer between Haskell and Souffle" $ parallel
           let fact = FloatFact x
           FloatFact x' <- run fact
           (abs (x' - x) < epsilon) === True
+
+        it "can serialize and deserialize newtypes" $ hedgehog $ do
+          a <- forAll $ Gen.int32 (Range.linear minBound maxBound)
+          b <- forAll $ Gen.int32 (Range.linear minBound maxBound)
+          c <- forAll $ Gen.int32 (Range.linear minBound maxBound)
+          d <- forAll $ Gen.int32 (Range.linear minBound maxBound)
+          let fact = NestedNewtype $ LargeRecord a b c d
+          fact' <- run fact
+          fact === fact'
+
+        it "can serialize and deserialize nested product types" $ hedgehog $ do
+          a <- forAll $ Gen.int32 (Range.linear minBound maxBound)
+          b <- forAll $ Gen.int32 (Range.linear minBound maxBound)
+          c <- forAll $ Gen.int32 (Range.linear minBound maxBound)
+          d <- forAll $ Gen.int32 (Range.linear minBound maxBound)
+          let fact = NestedRecord (Pair a b) (Pair c d)
+          fact' <- run fact
+          fact === fact'
+
 
   describe "interpreted mode" $ parallel $
     roundTripTests $ \fact -> liftIO $ Interpreted.runSouffle RoundTrip $ \handle -> do
