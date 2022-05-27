@@ -100,6 +100,8 @@ install-includes:
   - souffle/utility/EvaluatorUtil.h
   - souffle/utility/EvaluatorUtil.h
 
+system-build-tools: souffle
+
 library:
   source-dirs: lib
   cxx-sources: cbits/*.cpp
@@ -161,4 +163,4 @@ benchmarks:
       - -std=c++17
       - -march=native
     ghc-options:
-      - +RTS -N1 -RTS  # Run benchmarks sequentially (parallel is not safe!)
+      - +RTS -N1 -RTS # Run benchmarks sequentially (parallel is not safe!)
