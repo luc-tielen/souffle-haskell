@@ -114,14 +114,10 @@ public:
         other.genAllDisjointSetLists();
 
         // iterate over partitions at a time
-        for (typename StatesMap::chunk it : other.equivalencePartition.getChunks(MAX_THREADS)) {
-            for (auto& p : it) {
-                value_type rep = p.first;
-                StatesList& pl = *p.second;
-                const std::size_t ksize = pl.size();
-                for (std::size_t i = 0; i < ksize; ++i) {
-                    this->sds.unionNodes(rep, pl.get(i));
-                }
+        for (auto&& [rep, pl] : other.equivalencePartition) {
+            const std::size_t ksize = pl->size();
+            for (std::size_t i = 0; i < ksize; ++i) {
+                this->sds.unionNodes(rep, pl->get(i));
             }
         }
         // invalidate iterators unconditionally

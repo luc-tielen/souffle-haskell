@@ -32,6 +32,8 @@ extra-source-files:
     cbits/souffle/datastructure/EquivalenceRelation.h
     cbits/souffle/datastructure/LambdaBTree.h
     cbits/souffle/datastructure/PiggyList.h
+    cbits/souffle/datastructure/RecordTableImpl.h
+    cbits/souffle/datastructure/SymbolTableImpl.h
     cbits/souffle/datastructure/Table.h
     cbits/souffle/datastructure/UnionFind.h
     cbits/souffle/io/gzfstream.h
@@ -102,9 +104,6 @@ library
       souffle/CompiledSouffle.h
       souffle/RamTypes.h
       souffle/RecordTable.h
-      souffle/datastructure/ConcurrentFlyweight.h
-      souffle/datastructure/ConcurrentInsertOnlyHashMap.h
-      souffle/utility/ParallelUtil.h
       souffle/utility/span.h
       souffle/SignalHandler.h
       souffle/SouffleInterface.h
@@ -114,18 +113,23 @@ library
       souffle/utility/Iteration.h
       souffle/utility/Types.h
       souffle/utility/tinyformat.h
-      souffle/utility/StreamUtil.h
-      souffle/utility/ContainerUtil.h
-      souffle/utility/DynamicCasting.h
       souffle/datastructure/BTreeDelete.h
       souffle/datastructure/BTreeUtil.h
       souffle/utility/CacheUtil.h
+      souffle/utility/ContainerUtil.h
+      souffle/utility/DynamicCasting.h
+      souffle/utility/ParallelUtil.h
       souffle/datastructure/Brie.h
+      souffle/utility/StreamUtil.h
       souffle/datastructure/EquivalenceRelation.h
       souffle/datastructure/LambdaBTree.h
       souffle/datastructure/BTree.h
       souffle/datastructure/PiggyList.h
       souffle/datastructure/UnionFind.h
+      souffle/datastructure/RecordTableImpl.h
+      souffle/datastructure/ConcurrentFlyweight.h
+      souffle/datastructure/ConcurrentInsertOnlyHashMap.h
+      souffle/datastructure/SymbolTableImpl.h
       souffle/datastructure/Table.h
       souffle/io/IOSystem.h
       souffle/io/ReadStream.h
@@ -196,9 +200,6 @@ test-suite souffle-haskell-test
       souffle/CompiledSouffle.h
       souffle/RamTypes.h
       souffle/RecordTable.h
-      souffle/datastructure/ConcurrentFlyweight.h
-      souffle/datastructure/ConcurrentInsertOnlyHashMap.h
-      souffle/utility/ParallelUtil.h
       souffle/utility/span.h
       souffle/SignalHandler.h
       souffle/SouffleInterface.h
@@ -208,18 +209,23 @@ test-suite souffle-haskell-test
       souffle/utility/Iteration.h
       souffle/utility/Types.h
       souffle/utility/tinyformat.h
-      souffle/utility/StreamUtil.h
-      souffle/utility/ContainerUtil.h
-      souffle/utility/DynamicCasting.h
       souffle/datastructure/BTreeDelete.h
       souffle/datastructure/BTreeUtil.h
       souffle/utility/CacheUtil.h
+      souffle/utility/ContainerUtil.h
+      souffle/utility/DynamicCasting.h
+      souffle/utility/ParallelUtil.h
       souffle/datastructure/Brie.h
+      souffle/utility/StreamUtil.h
       souffle/datastructure/EquivalenceRelation.h
       souffle/datastructure/LambdaBTree.h
       souffle/datastructure/BTree.h
       souffle/datastructure/PiggyList.h
       souffle/datastructure/UnionFind.h
+      souffle/datastructure/RecordTableImpl.h
+      souffle/datastructure/ConcurrentFlyweight.h
+      souffle/datastructure/ConcurrentInsertOnlyHashMap.h
+      souffle/datastructure/SymbolTableImpl.h
       souffle/datastructure/Table.h
       souffle/io/IOSystem.h
       souffle/io/ReadStream.h
@@ -285,9 +291,6 @@ benchmark souffle-haskell-benchmarks
       souffle/CompiledSouffle.h
       souffle/RamTypes.h
       souffle/RecordTable.h
-      souffle/datastructure/ConcurrentFlyweight.h
-      souffle/datastructure/ConcurrentInsertOnlyHashMap.h
-      souffle/utility/ParallelUtil.h
       souffle/utility/span.h
       souffle/SignalHandler.h
       souffle/SouffleInterface.h
@@ -297,18 +300,23 @@ benchmark souffle-haskell-benchmarks
       souffle/utility/Iteration.h
       souffle/utility/Types.h
       souffle/utility/tinyformat.h
-      souffle/utility/StreamUtil.h
-      souffle/utility/ContainerUtil.h
-      souffle/utility/DynamicCasting.h
       souffle/datastructure/BTreeDelete.h
       souffle/datastructure/BTreeUtil.h
       souffle/utility/CacheUtil.h
+      souffle/utility/ContainerUtil.h
+      souffle/utility/DynamicCasting.h
+      souffle/utility/ParallelUtil.h
       souffle/datastructure/Brie.h
+      souffle/utility/StreamUtil.h
       souffle/datastructure/EquivalenceRelation.h
       souffle/datastructure/LambdaBTree.h
       souffle/datastructure/BTree.h
       souffle/datastructure/PiggyList.h
       souffle/datastructure/UnionFind.h
+      souffle/datastructure/RecordTableImpl.h
+      souffle/datastructure/ConcurrentFlyweight.h
+      souffle/datastructure/ConcurrentInsertOnlyHashMap.h
+      souffle/datastructure/SymbolTableImpl.h
       souffle/datastructure/Table.h
       souffle/io/IOSystem.h
       souffle/io/ReadStream.h
