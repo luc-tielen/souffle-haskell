@@ -14,7 +14,10 @@ else
       rev = version;
       sha256 = "sha256-wdTBSmyA2I+gaSV577NNKA2oY2fdVTGmvV7h15NY1tU=";
     };
-    patches = [ ../patches/1-souffle-macosx.patch ];
+    patches = [
+      ../patches/1-souffle-macosx.patch
+      ../patches/2-souffle-macosx.patch
+    ];
     cmakeFlags = [ "-DSOUFFLE_GIT=OFF" "-DSOUFFLE_BASH_COMPLETION=OFF" ];
     ninjaFlags = [ "-v" ];
     # LLVM uses -Werror but also runs clang on assembly files, which
