@@ -103,8 +103,6 @@ install-includes:
   - souffle/utility/EvaluatorUtil.h
   - souffle/utility/EvaluatorUtil.h
 
-system-build-tools: souffle
-
 library:
   source-dirs: lib
   cxx-sources: cbits/*.cpp

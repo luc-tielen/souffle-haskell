@@ -27,7 +27,9 @@
                 souffle-haskell = with final.haskell.lib;
                   with hself;
                   (overrideCabal
-                    (callCabal2nix "souffle-haskell" ./. { }) (o: {
+                    (addBuildTools (callCabal2nix "souffle-haskell" ./. { }) [
+                      souffle
+                    ]) (o: {
                       version = "${o.version}.${version}";
                       # NOTE: next line needs to be changed to "doCheck = false;"
                       # when upgrading Souffle, so the test fixtures can be

@@ -149,8 +149,6 @@ library
       souffle/utility/EvaluatorUtil.h
   cxx-sources:
       cbits/souffle.cpp
-  build-tools:
-      souffle
   build-depends:
       array <=1.0
     , base >=4.12 && <5
@@ -247,8 +245,6 @@ test-suite souffle-haskell-test
       tests/fixtures/edge_cases.cpp
       tests/fixtures/path.cpp
       tests/fixtures/round_trip.cpp
-  build-tools:
-      souffle
   build-depends:
       array <=1.0
     , base >=4.12 && <5
@@ -336,8 +332,6 @@ benchmark souffle-haskell-benchmarks
       souffle/utility/EvaluatorUtil.h
   cxx-sources:
       benchmarks/fixtures/bench.cpp
-  build-tools:
-      souffle
   build-depends:
       base >=4.12 && <5
     , criterion
