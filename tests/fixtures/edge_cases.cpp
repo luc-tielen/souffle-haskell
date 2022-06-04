@@ -1,7 +1,9 @@
 
 #include "souffle/CompiledSouffle.h"
 
-extern "C" {
+namespace functors {
+ extern "C" {
+}
 }
 
 namespace souffle {
@@ -14,7 +16,7 @@ struct t_comparator_0{
   return (ramBitCast<RamSigned>(a[0]) < ramBitCast<RamSigned>(b[0])) ? -1 : (ramBitCast<RamSigned>(a[0]) > ramBitCast<RamSigned>(b[0])) ? 1 :((ramBitCast<RamSigned>(a[1]) < ramBitCast<RamSigned>(b[1])) ? -1 : (ramBitCast<RamSigned>(a[1]) > ramBitCast<RamSigned>(b[1])) ? 1 :((ramBitCast<RamSigned>(a[2]) < ramBitCast<RamSigned>(b[2])) ? -1 : (ramBitCast<RamSigned>(a[2]) > ramBitCast<RamSigned>(b[2])) ? 1 :(0)));
  }
 bool less(const t_tuple& a, const t_tuple& b) const {
-  return (ramBitCast<RamSigned>(a[0]) < ramBitCast<RamSigned>(b[0]))|| (ramBitCast<RamSigned>(a[0]) == ramBitCast<RamSigned>(b[0])) && ((ramBitCast<RamSigned>(a[1]) < ramBitCast<RamSigned>(b[1]))|| (ramBitCast<RamSigned>(a[1]) == ramBitCast<RamSigned>(b[1])) && ((ramBitCast<RamSigned>(a[2]) < ramBitCast<RamSigned>(b[2]))));
+  return (ramBitCast<RamSigned>(a[0]) < ramBitCast<RamSigned>(b[0]))|| ((ramBitCast<RamSigned>(a[0]) == ramBitCast<RamSigned>(b[0])) && ((ramBitCast<RamSigned>(a[1]) < ramBitCast<RamSigned>(b[1]))|| ((ramBitCast<RamSigned>(a[1]) == ramBitCast<RamSigned>(b[1])) && ((ramBitCast<RamSigned>(a[2]) < ramBitCast<RamSigned>(b[2]))))));
  }
 bool equal(const t_tuple& a, const t_tuple& b) const {
 return (ramBitCast<RamSigned>(a[0]) == ramBitCast<RamSigned>(b[0]))&&(ramBitCast<RamSigned>(a[1]) == ramBitCast<RamSigned>(b[1]))&&(ramBitCast<RamSigned>(a[2]) == ramBitCast<RamSigned>(b[2]));
@@ -220,7 +222,7 @@ struct t_comparator_0{
   return (ramBitCast<RamUnsigned>(a[0]) < ramBitCast<RamUnsigned>(b[0])) ? -1 : (ramBitCast<RamUnsigned>(a[0]) > ramBitCast<RamUnsigned>(b[0])) ? 1 :((ramBitCast<RamSigned>(a[1]) < ramBitCast<RamSigned>(b[1])) ? -1 : (ramBitCast<RamSigned>(a[1]) > ramBitCast<RamSigned>(b[1])) ? 1 :((ramBitCast<RamFloat>(a[2]) < ramBitCast<RamFloat>(b[2])) ? -1 : (ramBitCast<RamFloat>(a[2]) > ramBitCast<RamFloat>(b[2])) ? 1 :(0)));
  }
 bool less(const t_tuple& a, const t_tuple& b) const {
-  return (ramBitCast<RamUnsigned>(a[0]) < ramBitCast<RamUnsigned>(b[0]))|| (ramBitCast<RamUnsigned>(a[0]) == ramBitCast<RamUnsigned>(b[0])) && ((ramBitCast<RamSigned>(a[1]) < ramBitCast<RamSigned>(b[1]))|| (ramBitCast<RamSigned>(a[1]) == ramBitCast<RamSigned>(b[1])) && ((ramBitCast<RamFloat>(a[2]) < ramBitCast<RamFloat>(b[2]))));
+  return (ramBitCast<RamUnsigned>(a[0]) < ramBitCast<RamUnsigned>(b[0]))|| ((ramBitCast<RamUnsigned>(a[0]) == ramBitCast<RamUnsigned>(b[0])) && ((ramBitCast<RamSigned>(a[1]) < ramBitCast<RamSigned>(b[1]))|| ((ramBitCast<RamSigned>(a[1]) == ramBitCast<RamSigned>(b[1])) && ((ramBitCast<RamFloat>(a[2]) < ramBitCast<RamFloat>(b[2]))))));
  }
 bool equal(const t_tuple& a, const t_tuple& b) const {
 return (ramBitCast<RamUnsigned>(a[0]) == ramBitCast<RamUnsigned>(b[0]))&&(ramBitCast<RamSigned>(a[1]) == ramBitCast<RamSigned>(b[1]))&&(ramBitCast<RamFloat>(a[2]) == ramBitCast<RamFloat>(b[2]));
@@ -327,7 +329,7 @@ static inline std::string substr_wrapper(const std::string& str, std::size_t idx
 }
 public:
 // -- initialize symbol table --
-SymbolTable symTable{
+SymbolTableImpl symTable{
 	R"_()_",
 	R"_(abc)_",
 	R"_(long_string_from_DL:...............................................................................................................................................................................................................................................................................................end)_",
@@ -381,7 +383,7 @@ void runFunction(std::string  inputDirectoryArg,
     // set default threads (in embedded mode)
     // if this is not set, and omp is used, the default omp setting of number of cores is used.
 #if defined(_OPENMP)
-    if (0 < getNumThreads()) { omp_set_num_threads(getNumThreads()); }
+    if (0 < getNumThreads()) { omp_set_num_threads(static_cast<int>(getNumThreads())); }
 #endif
 
     signalHandler->set();
@@ -413,29 +415,25 @@ void runAll(std::string inputDirectoryArg = "", std::string outputDirectoryArg =
 }
 public:
 void printAll(std::string outputDirectoryArg = "") override {
-try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","s\ts2\tn"},{"auxArity","0"},{"name","empty_strings"},{"operation","output"},{"output-dir","."},{"params","{\"records\": {}, \"relation\": {\"arity\": 3, \"params\": [\"s\", \"s2\", \"n\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 3, \"types\": [\"s:symbol\", \"s:symbol\", \"i:number\"]}}"}});
-if (!outputDirectoryArg.empty()) {directiveMap["output-dir"] = outputDirectoryArg;}
-IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll(*rel_1_empty_strings);
-} catch (std::exception& e) {std::cerr << e.what();exit(1);}
 try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","s"},{"auxArity","0"},{"name","long_strings"},{"operation","output"},{"output-dir","."},{"params","{\"records\": {}, \"relation\": {\"arity\": 1, \"params\": [\"s\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 1, \"types\": [\"s:symbol\"]}}"}});
 if (!outputDirectoryArg.empty()) {directiveMap["output-dir"] = outputDirectoryArg;}
 IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll(*rel_2_long_strings);
-} catch (std::exception& e) {std::cerr << e.what();exit(1);}
-try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","u\tn\tf"},{"auxArity","0"},{"name","no_strings"},{"operation","output"},{"output-dir","."},{"params","{\"records\": {}, \"relation\": {\"arity\": 3, \"params\": [\"u\", \"n\", \"f\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 3, \"types\": [\"u:unsigned\", \"i:number\", \"f:float\"]}}"}});
-if (!outputDirectoryArg.empty()) {directiveMap["output-dir"] = outputDirectoryArg;}
-IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll(*rel_3_no_strings);
 } catch (std::exception& e) {std::cerr << e.what();exit(1);}
 try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","s"},{"auxArity","0"},{"name","unicode"},{"operation","output"},{"output-dir","."},{"params","{\"records\": {}, \"relation\": {\"arity\": 1, \"params\": [\"s\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 1, \"types\": [\"s:symbol\"]}}"}});
 if (!outputDirectoryArg.empty()) {directiveMap["output-dir"] = outputDirectoryArg;}
 IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll(*rel_4_unicode);
 } catch (std::exception& e) {std::cerr << e.what();exit(1);}
+try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","s\ts2\tn"},{"auxArity","0"},{"name","empty_strings"},{"operation","output"},{"output-dir","."},{"params","{\"records\": {}, \"relation\": {\"arity\": 3, \"params\": [\"s\", \"s2\", \"n\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 3, \"types\": [\"s:symbol\", \"s:symbol\", \"i:number\"]}}"}});
+if (!outputDirectoryArg.empty()) {directiveMap["output-dir"] = outputDirectoryArg;}
+IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll(*rel_1_empty_strings);
+} catch (std::exception& e) {std::cerr << e.what();exit(1);}
+try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","u\tn\tf"},{"auxArity","0"},{"name","no_strings"},{"operation","output"},{"output-dir","."},{"params","{\"records\": {}, \"relation\": {\"arity\": 3, \"params\": [\"u\", \"n\", \"f\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 3, \"types\": [\"u:unsigned\", \"i:number\", \"f:float\"]}}"}});
+if (!outputDirectoryArg.empty()) {directiveMap["output-dir"] = outputDirectoryArg;}
+IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll(*rel_3_no_strings);
+} catch (std::exception& e) {std::cerr << e.what();exit(1);}
 }
 public:
 void loadAll(std::string inputDirectoryArg = "") override {
-try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","s"},{"auxArity","0"},{"fact-dir","."},{"name","long_strings"},{"operation","input"},{"params","{\"records\": {}, \"relation\": {\"arity\": 1, \"params\": [\"s\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 1, \"types\": [\"s:symbol\"]}}"}});
-if (!inputDirectoryArg.empty()) {directiveMap["fact-dir"] = inputDirectoryArg;}
-IOSystem::getInstance().getReader(directiveMap, symTable, recordTable)->readAll(*rel_2_long_strings);
-} catch (std::exception& e) {std::cerr << "Error loading long_strings data: " << e.what() << '\n';}
 try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","u\tn\tf"},{"auxArity","0"},{"fact-dir","."},{"name","no_strings"},{"operation","input"},{"params","{\"records\": {}, \"relation\": {\"arity\": 3, \"params\": [\"u\", \"n\", \"f\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 3, \"types\": [\"u:unsigned\", \"i:number\", \"f:float\"]}}"}});
 if (!inputDirectoryArg.empty()) {directiveMap["fact-dir"] = inputDirectoryArg;}
 IOSystem::getInstance().getReader(directiveMap, symTable, recordTable)->readAll(*rel_3_no_strings);
@@ -448,15 +446,13 @@ try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeN
 if (!inputDirectoryArg.empty()) {directiveMap["fact-dir"] = inputDirectoryArg;}
 IOSystem::getInstance().getReader(directiveMap, symTable, recordTable)->readAll(*rel_4_unicode);
 } catch (std::exception& e) {std::cerr << "Error loading unicode data: " << e.what() << '\n';}
+try {std::map<std::string, std::string> directiveMap({{"IO","file"},{"attributeNames","s"},{"auxArity","0"},{"fact-dir","."},{"name","long_strings"},{"operation","input"},{"params","{\"records\": {}, \"relation\": {\"arity\": 1, \"params\": [\"s\"]}}"},{"types","{\"ADTs\": {}, \"records\": {}, \"relation\": {\"arity\": 1, \"types\": [\"s:symbol\"]}}"}});
+if (!inputDirectoryArg.empty()) {directiveMap["fact-dir"] = inputDirectoryArg;}
+IOSystem::getInstance().getReader(directiveMap, symTable, recordTable)->readAll(*rel_2_long_strings);
+} catch (std::exception& e) {std::cerr << "Error loading long_strings data: " << e.what() << '\n';}
 }
 public:
 void dumpInputs() override {
-try {std::map<std::string, std::string> rwOperation;
-rwOperation["IO"] = "stdout";
-rwOperation["name"] = "long_strings";
-rwOperation["types"] = "{\"relation\": {\"arity\": 1, \"auxArity\": 0, \"types\": [\"s:symbol\"]}}";
-IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(*rel_2_long_strings);
-} catch (std::exception& e) {std::cerr << e.what();exit(1);}
 try {std::map<std::string, std::string> rwOperation;
 rwOperation["IO"] = "stdout";
 rwOperation["name"] = "no_strings";
@@ -474,33 +470,39 @@ rwOperation["IO"] = "stdout";
 rwOperation["name"] = "unicode";
 rwOperation["types"] = "{\"relation\": {\"arity\": 1, \"auxArity\": 0, \"types\": [\"s:symbol\"]}}";
 IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(*rel_4_unicode);
+} catch (std::exception& e) {std::cerr << e.what();exit(1);}
+try {std::map<std::string, std::string> rwOperation;
+rwOperation["IO"] = "stdout";
+rwOperation["name"] = "long_strings";
+rwOperation["types"] = "{\"relation\": {\"arity\": 1, \"auxArity\": 0, \"types\": [\"s:symbol\"]}}";
+IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(*rel_2_long_strings);
 } catch (std::exception& e) {std::cerr << e.what();exit(1);}
 }
 public:
 void dumpOutputs() override {
 try {std::map<std::string, std::string> rwOperation;
 rwOperation["IO"] = "stdout";
-rwOperation["name"] = "empty_strings";
-rwOperation["types"] = "{\"relation\": {\"arity\": 3, \"auxArity\": 0, \"types\": [\"s:symbol\", \"s:symbol\", \"i:number\"]}}";
-IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(*rel_1_empty_strings);
-} catch (std::exception& e) {std::cerr << e.what();exit(1);}
-try {std::map<std::string, std::string> rwOperation;
-rwOperation["IO"] = "stdout";
 rwOperation["name"] = "long_strings";
 rwOperation["types"] = "{\"relation\": {\"arity\": 1, \"auxArity\": 0, \"types\": [\"s:symbol\"]}}";
 IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(*rel_2_long_strings);
 } catch (std::exception& e) {std::cerr << e.what();exit(1);}
 try {std::map<std::string, std::string> rwOperation;
 rwOperation["IO"] = "stdout";
-rwOperation["name"] = "no_strings";
-rwOperation["types"] = "{\"relation\": {\"arity\": 3, \"auxArity\": 0, \"types\": [\"u:unsigned\", \"i:number\", \"f:float\"]}}";
-IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(*rel_3_no_strings);
-} catch (std::exception& e) {std::cerr << e.what();exit(1);}
-try {std::map<std::string, std::string> rwOperation;
-rwOperation["IO"] = "stdout";
 rwOperation["name"] = "unicode";
 rwOperation["types"] = "{\"relation\": {\"arity\": 1, \"auxArity\": 0, \"types\": [\"s:symbol\"]}}";
 IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(*rel_4_unicode);
+} catch (std::exception& e) {std::cerr << e.what();exit(1);}
+try {std::map<std::string, std::string> rwOperation;
+rwOperation["IO"] = "stdout";
+rwOperation["name"] = "empty_strings";
+rwOperation["types"] = "{\"relation\": {\"arity\": 3, \"auxArity\": 0, \"types\": [\"s:symbol\", \"s:symbol\", \"i:number\"]}}";
+IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(*rel_1_empty_strings);
+} catch (std::exception& e) {std::cerr << e.what();exit(1);}
+try {std::map<std::string, std::string> rwOperation;
+rwOperation["IO"] = "stdout";
+rwOperation["name"] = "no_strings";
+rwOperation["types"] = "{\"relation\": {\"arity\": 3, \"auxArity\": 0, \"types\": [\"u:unsigned\", \"i:number\", \"f:float\"]}}";
+IOSystem::getInstance().getWriter(rwOperation, symTable, recordTable)->writeAll(*rel_3_no_strings);
 } catch (std::exception& e) {std::cerr << e.what();exit(1);}
 }
 public:
@@ -541,21 +543,21 @@ IOSystem::getInstance().getReader(directiveMap, symTable, recordTable)->readAll(
 } catch (std::exception& e) {std::cerr << "Error loading empty_strings data: " << e.what() << '\n';}
 }
 signalHandler->setMsg(R"_(empty_strings("","",42).
-in file /home/luc/personal/souffle-haskell/tests/fixtures/edge_cases.dl [20:1-20:27])_");
+in file edge_cases.dl [20:1-20:27])_");
 [&](){
 CREATE_OP_CONTEXT(rel_1_empty_strings_op_ctxt,rel_1_empty_strings->createContext());
 Tuple<RamDomain,3> tuple{{ramBitCast(RamSigned(0)),ramBitCast(RamSigned(0)),ramBitCast(RamSigned(42))}};
 rel_1_empty_strings->insert(tuple,READ_OP_CONTEXT(rel_1_empty_strings_op_ctxt));
 }
 ();signalHandler->setMsg(R"_(empty_strings("","abc",42).
-in file /home/luc/personal/souffle-haskell/tests/fixtures/edge_cases.dl [21:1-21:30])_");
+in file edge_cases.dl [21:1-21:30])_");
 [&](){
 CREATE_OP_CONTEXT(rel_1_empty_strings_op_ctxt,rel_1_empty_strings->createContext());
 Tuple<RamDomain,3> tuple{{ramBitCast(RamSigned(0)),ramBitCast(RamSigned(1)),ramBitCast(RamSigned(42))}};
 rel_1_empty_strings->insert(tuple,READ_OP_CONTEXT(rel_1_empty_strings_op_ctxt));
 }
 ();signalHandler->setMsg(R"_(empty_strings("abc","",42).
-in file /home/luc/personal/souffle-haskell/tests/fixtures/edge_cases.dl [22:1-22:30])_");
+in file edge_cases.dl [22:1-22:30])_");
 [&](){
 CREATE_OP_CONTEXT(rel_1_empty_strings_op_ctxt,rel_1_empty_strings->createContext());
 Tuple<RamDomain,3> tuple{{ramBitCast(RamSigned(1)),ramBitCast(RamSigned(0)),ramBitCast(RamSigned(42))}};
@@ -582,7 +584,7 @@ IOSystem::getInstance().getReader(directiveMap, symTable, recordTable)->readAll(
 } catch (std::exception& e) {std::cerr << "Error loading long_strings data: " << e.what() << '\n';}
 }
 signalHandler->setMsg(R"_(long_strings("long_string_from_DL:...............................................................................................................................................................................................................................................................................................end").
-in file /home/luc/personal/souffle-haskell/tests/fixtures/edge_cases.dl [25:1-25:328])_");
+in file edge_cases.dl [25:1-25:328])_");
 [&](){
 CREATE_OP_CONTEXT(rel_2_long_strings_op_ctxt,rel_2_long_strings->createContext());
 Tuple<RamDomain,1> tuple{{ramBitCast(RamSigned(2))}};
@@ -609,14 +611,14 @@ IOSystem::getInstance().getReader(directiveMap, symTable, recordTable)->readAll(
 } catch (std::exception& e) {std::cerr << "Error loading no_strings data: " << e.what() << '\n';}
 }
 signalHandler->setMsg(R"_(no_strings(42,-100,1.5).
-in file /home/luc/personal/souffle-haskell/tests/fixtures/edge_cases.dl [33:1-33:27])_");
+in file edge_cases.dl [33:1-33:27])_");
 [&](){
 CREATE_OP_CONTEXT(rel_3_no_strings_op_ctxt,rel_3_no_strings->createContext());
 Tuple<RamDomain,3> tuple{{ramBitCast(RamUnsigned(42)),ramBitCast(RamSigned(-100)),ramBitCast(RamFloat(1.5))}};
 rel_3_no_strings->insert(tuple,READ_OP_CONTEXT(rel_3_no_strings_op_ctxt));
 }
 ();signalHandler->setMsg(R"_(no_strings(123,-456,3.14).
-in file /home/luc/personal/souffle-haskell/tests/fixtures/edge_cases.dl [34:1-34:29])_");
+in file edge_cases.dl [34:1-34:29])_");
 [&](){
 CREATE_OP_CONTEXT(rel_3_no_strings_op_ctxt,rel_3_no_strings->createContext());
 Tuple<RamDomain,3> tuple{{ramBitCast(RamUnsigned(123)),ramBitCast(RamSigned(-456)),ramBitCast(RamFloat(3.1400001))}};
@@ -643,14 +645,14 @@ IOSystem::getInstance().getReader(directiveMap, symTable, recordTable)->readAll(
 } catch (std::exception& e) {std::cerr << "Error loading unicode data: " << e.what() << '\n';}
 }
 signalHandler->setMsg(R"_(unicode("∀").
-in file /home/luc/personal/souffle-haskell/tests/fixtures/edge_cases.dl [30:1-30:16])_");
+in file edge_cases.dl [30:1-30:16])_");
 [&](){
 CREATE_OP_CONTEXT(rel_4_unicode_op_ctxt,rel_4_unicode->createContext());
 Tuple<RamDomain,1> tuple{{ramBitCast(RamSigned(3))}};
 rel_4_unicode->insert(tuple,READ_OP_CONTEXT(rel_4_unicode_op_ctxt));
 }
 ();signalHandler->setMsg(R"_(unicode("∀∀").
-in file /home/luc/personal/souffle-haskell/tests/fixtures/edge_cases.dl [31:1-31:19])_");
+in file edge_cases.dl [31:1-31:19])_");
 [&](){
 CREATE_OP_CONTEXT(rel_4_unicode_op_ctxt,rel_4_unicode->createContext());
 Tuple<RamDomain,1> tuple{{ramBitCast(RamSigned(4))}};

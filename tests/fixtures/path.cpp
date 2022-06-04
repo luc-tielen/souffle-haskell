@@ -1,7 +1,9 @@
 
 #include "souffle/CompiledSouffle.h"
 
-extern "C" {
+namespace functors {
+ extern "C" {
+}
 }
 
 namespace souffle {
@@ -14,7 +16,7 @@ struct t_comparator_0{
   return (ramBitCast<RamSigned>(a[0]) < ramBitCast<RamSigned>(b[0])) ? -1 : (ramBitCast<RamSigned>(a[0]) > ramBitCast<RamSigned>(b[0])) ? 1 :((ramBitCast<RamSigned>(a[1]) < ramBitCast<RamSigned>(b[1])) ? -1 : (ramBitCast<RamSigned>(a[1]) > ramBitCast<RamSigned>(b[1])) ? 1 :(0));
  }
 bool less(const t_tuple& a, const t_tuple& b) const {
-  return (ramBitCast<RamSigned>(a[0]) < ramBitCast<RamSigned>(b[0]))|| (ramBitCast<RamSigned>(a[0]) == ramBitCast<RamSigned>(b[0])) && ((ramBitCast<RamSigned>(a[1]) < ramBitCast<RamSigned>(b[1])));
+  return (ramBitCast<RamSigned>(a[0]) < ramBitCast<RamSigned>(b[0]))|| ((ramBitCast<RamSigned>(a[0]) == ramBitCast<RamSigned>(b[0])) && ((ramBitCast<RamSigned>(a[1]) < ramBitCast<RamSigned>(b[1]))));
  }
 bool equal(const t_tuple& a, const t_tuple& b) const {
 return (ramBitCast<RamSigned>(a[0]) == ramBitCast<RamSigned>(b[0]))&&(ramBitCast<RamSigned>(a[1]) == ramBitCast<RamSigned>(b[1]));
@@ -117,7 +119,7 @@ struct t_comparator_0{
   return (ramBitCast<RamSigned>(a[0]) < ramBitCast<RamSigned>(b[0])) ? -1 : (ramBitCast<RamSigned>(a[0]) > ramBitCast<RamSigned>(b[0])) ? 1 :((ramBitCast<RamSigned>(a[1]) < ramBitCast<RamSigned>(b[1])) ? -1 : (ramBitCast<RamSigned>(a[1]) > ramBitCast<RamSigned>(b[1])) ? 1 :(0));
  }
 bool less(const t_tuple& a, const t_tuple& b) const {
-  return (ramBitCast<RamSigned>(a[0]) < ramBitCast<RamSigned>(b[0]))|| (ramBitCast<RamSigned>(a[0]) == ramBitCast<RamSigned>(b[0])) && ((ramBitCast<RamSigned>(a[1]) < ramBitCast<RamSigned>(b[1])));
+  return (ramBitCast<RamSigned>(a[0]) < ramBitCast<RamSigned>(b[0]))|| ((ramBitCast<RamSigned>(a[0]) == ramBitCast<RamSigned>(b[0])) && ((ramBitCast<RamSigned>(a[1]) < ramBitCast<RamSigned>(b[1]))));
  }
 bool equal(const t_tuple& a, const t_tuple& b) const {
 return (ramBitCast<RamSigned>(a[0]) == ramBitCast<RamSigned>(b[0]))&&(ramBitCast<RamSigned>(a[1]) == ramBitCast<RamSigned>(b[1]));
@@ -236,7 +238,7 @@ static inline std::string substr_wrapper(const std::string& str, std::size_t idx
 }
 public:
 // -- initialize symbol table --
-SymbolTable symTable{
+SymbolTableImpl symTable{
 	R"_(a)_",
 	R"_(b)_",
 	R"_(c)_",
@@ -282,7 +284,7 @@ void runFunction(std::string  inputDirectoryArg,
     // set default threads (in embedded mode)
     // if this is not set, and omp is used, the default omp setting of number of cores is used.
 #if defined(_OPENMP)
-    if (0 < getNumThreads()) { omp_set_num_threads(getNumThreads()); }
+    if (0 < getNumThreads()) { omp_set_num_threads(static_cast<int>(getNumThreads())); }
 #endif
 
     signalHandler->set();
@@ -378,14 +380,14 @@ IOSystem::getInstance().getReader(directiveMap, symTable, recordTable)->readAll(
 } catch (std::exception& e) {std::cerr << "Error loading edge data: " << e.what() << '\n';}
 }
 signalHandler->setMsg(R"_(edge("a","b").
-in file /home/luc/personal/souffle-haskell/tests/fixtures/path.dl [11:1-11:16])_");
+in file path.dl [11:1-11:16])_");
 [&](){
 CREATE_OP_CONTEXT(rel_1_edge_op_ctxt,rel_1_edge->createContext());
 Tuple<RamDomain,2> tuple{{ramBitCast(RamSigned(0)),ramBitCast(RamSigned(1))}};
 rel_1_edge->insert(tuple,READ_OP_CONTEXT(rel_1_edge_op_ctxt));
 }
 ();signalHandler->setMsg(R"_(edge("b","c").
-in file /home/luc/personal/souffle-haskell/tests/fixtures/path.dl [12:1-12:16])_");
+in file path.dl [12:1-12:16])_");
 [&](){
 CREATE_OP_CONTEXT(rel_1_edge_op_ctxt,rel_1_edge->createContext());
 Tuple<RamDomain,2> tuple{{ramBitCast(RamSigned(1)),ramBitCast(RamSigned(2))}};
@@ -407,11 +409,11 @@ IOSystem::getInstance().getWriter(directiveMap, symTable, recordTable)->writeAll
 void subroutine_1(const std::vector<RamDomain>& args, std::vector<RamDomain>& ret) {
 signalHandler->setMsg(R"_(reachable(x,y) :- 
    edge(x,y).
-in file /home/luc/personal/souffle-haskell/tests/fixtures/path.dl [14:1-14:31])_");
+in file path.dl [14:1-14:31])_");
 if(!(rel_1_edge->empty())) {
 [&](){
-CREATE_OP_CONTEXT(rel_2_reachable_op_ctxt,rel_2_reachable->createContext());
 CREATE_OP_CONTEXT(rel_1_edge_op_ctxt,rel_1_edge->createContext());
+CREATE_OP_CONTEXT(rel_2_reachable_op_ctxt,rel_2_reachable->createContext());
 for(const auto& env0 : *rel_1_edge) {
 Tuple<RamDomain,2> tuple{{ramBitCast(env0[0]),ramBitCast(env0[1])}};
 rel_2_reachable->insert(tuple,READ_OP_CONTEXT(rel_2_reachable_op_ctxt));
@@ -431,12 +433,12 @@ for(;;) {
 signalHandler->setMsg(R"_(reachable(x,z) :- 
    edge(x,y),
    reachable(y,z).
-in file /home/luc/personal/souffle-haskell/tests/fixtures/path.dl [15:1-15:48])_");
+in file path.dl [15:1-15:48])_");
 if(!(rel_1_edge->empty()) && !(rel_3_delta_reachable->empty())) {
 [&](){
-CREATE_OP_CONTEXT(rel_2_reachable_op_ctxt,rel_2_reachable->createContext());
-CREATE_OP_CONTEXT(rel_4_new_reachable_op_ctxt,rel_4_new_reachable->createContext());
 CREATE_OP_CONTEXT(rel_1_edge_op_ctxt,rel_1_edge->createContext());
+CREATE_OP_CONTEXT(rel_4_new_reachable_op_ctxt,rel_4_new_reachable->createContext());
+CREATE_OP_CONTEXT(rel_2_reachable_op_ctxt,rel_2_reachable->createContext());
 CREATE_OP_CONTEXT(rel_3_delta_reachable_op_ctxt,rel_3_delta_reachable->createContext());
 for(const auto& env0 : *rel_1_edge) {
 auto range = rel_3_delta_reachable->lowerUpperRange_10(Tuple<RamDomain,2>{{ramBitCast(env0[1]), ramBitCast<RamDomain>(MIN_RAM_SIGNED)}},Tuple<RamDomain,2>{{ramBitCast(env0[1]), ramBitCast<RamDomain>(MAX_RAM_SIGNED)}},READ_OP_CONTEXT(rel_3_delta_reachable_op_ctxt));
@@ -451,8 +453,8 @@ rel_4_new_reachable->insert(tuple,READ_OP_CONTEXT(rel_4_new_reachable_op_ctxt));
 ();}
 if(rel_4_new_reachable->empty()) break;
 [&](){
-CREATE_OP_CONTEXT(rel_2_reachable_op_ctxt,rel_2_reachable->createContext());
 CREATE_OP_CONTEXT(rel_4_new_reachable_op_ctxt,rel_4_new_reachable->createContext());
+CREATE_OP_CONTEXT(rel_2_reachable_op_ctxt,rel_2_reachable->createContext());
 for(const auto& env0 : *rel_4_new_reachable) {
 Tuple<RamDomain,2> tuple{{ramBitCast(env0[0]),ramBitCast(env0[1])}};
 rel_2_reachable->insert(tuple,READ_OP_CONTEXT(rel_2_reachable_op_ctxt));

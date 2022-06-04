@@ -7,14 +7,17 @@ else
   pkgs."gcc${toString cc}Stdenv") }:
   stdenv.mkDerivation rec {
     pname = "souffle";
-    version = "2.2";
+    version = "2.3";
     src = fetchFromGitHub {
       owner = "souffle-lang";
       repo = "souffle";
       rev = version;
-      sha256 = "15c8wnv0i2sbzys8m4f6k74d59ahf50xl7wcfc5v8pgx6bwc46y2";
+      sha256 = "sha256-wdTBSmyA2I+gaSV577NNKA2oY2fdVTGmvV7h15NY1tU=";
     };
-    patches = [ ../patches/1-souffle-2.1-macosx.patch ];
+    patches = [
+      ../patches/1-souffle-macosx.patch
+      ../patches/2-souffle-macosx.patch
+    ];
     cmakeFlags = [ "-DSOUFFLE_GIT=OFF" "-DSOUFFLE_BASH_COMPLETION=OFF" ];
     ninjaFlags = [ "-v" ];
     # LLVM uses -Werror but also runs clang on assembly files, which
