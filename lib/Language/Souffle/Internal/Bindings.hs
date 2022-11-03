@@ -20,6 +20,7 @@ module Language.Souffle.Internal.Bindings
   ) where
 
 import Prelude hiding ( init )
+import Data.Kind (Type)
 import Foreign.C.String
 import Foreign.C.Types
 import Foreign.Ptr
@@ -27,12 +28,15 @@ import Foreign.Ptr
 
 -- | A void type, used for tagging a pointer that points to an embedded
 --   Souffle program.
+type Souffle :: Type
 data Souffle
 
 -- | A void type, used for tagging a pointer that points to a relation.
+type Relation :: Type
 data Relation
 
 -- | A void type, used for tagging a pointer that points to a raw bytearray.
+type ByteBuf :: Type
 data ByteBuf
 
 

@@ -17,6 +17,7 @@ module Language.Souffle.Analysis
   ) where
 
 import Prelude hiding (id, (.))
+import Data.Kind (Type)
 import Control.Category
 import Control.Monad
 import Control.Arrow
@@ -31,6 +32,7 @@ import Data.Profunctor
 --   "Language.Souffle.Compiled" or "Language.Souffle.Interpreted".
 --   The @a@ and @b@ type-variables represent respectively the input and output
 --   types of the analysis.
+type Analysis :: (Type -> Type) -> Type -> Type -> Type
 data Analysis m a b
   = Analysis (a -> m ()) (m ()) (a -> m b)
 

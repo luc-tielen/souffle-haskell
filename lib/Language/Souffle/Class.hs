@@ -39,42 +39,46 @@ import Data.Kind
 import Data.Word
 import GHC.TypeLits
 import qualified Language.Souffle.Marshal as Marshal
-import Type.Errors.Pretty
 
 
 -- | A helper type family for checking if a specific Souffle `Program` contains
 --   a certain `Fact`. Additionally, it also checks if the fact is marked as
 --   either `Input` or `InputOutput`. This constraint will generate a
 --   user-friendly type error if these conditions are not met.
-type family ContainsInputFact prog fact :: Constraint where
+type ContainsInputFact :: Type -> Type -> Constraint
+type family ContainsInputFact prog fact where
   ContainsInputFact prog fact = (ContainsFact prog fact, IsInput fact (FactDirection fact))
 
 -- | A helper type family for checking if a specific Souffle `Program` contains
 --   a certain `Fact`. Additionally, it also checks if the fact is marked as
 --   either `Output` or `InputOutput`. This constraint will generate a
 --   user-friendly type error if these conditions are not met.
-type family ContainsOutputFact prog fact :: Constraint where
+type ContainsOutputFact :: Type -> Type -> Constraint
+type family ContainsOutputFact prog fact where
   ContainsOutputFact prog fact = (ContainsFact prog fact, IsOutput fact (FactDirection fact))
 
-type family IsInput (fact :: Type) (dir :: Direction) :: Constraint where
+type IsInput :: Type -> Direction -> Constraint
+type family IsInput fact dir where
   IsInput _ 'Input = ()
   IsInput _ 'InputOutput = ()
   IsInput fact dir = TypeError
-    ( "You tried to use an " <> FormatDirection dir <> " fact of type " <> fact <> " as an input."
-    % "Possible solution: change the FactDirection of " <> fact
-      <> " to either 'Input' or 'InputOutput'."
+    ( 'Text "You tried to use an " ':<>: 'ShowType (FormatDirection dir) ':<>: 'Text " fact of type " ':<>: 'ShowType fact ':<>: 'Text " as an input."
+    ':$$: 'Text "Possible solution: change the FactDirection of " ':<>: 'ShowType fact
+      ':<>: 'Text " to either 'Input' or 'InputOutput'."
     )
 
-type family IsOutput (fact :: Type) (dir :: Direction) :: Constraint where
+type IsOutput :: Type -> Direction -> Constraint
+type family IsOutput fact dir where
   IsOutput _ 'Output = ()
   IsOutput _ 'InputOutput = ()
   IsOutput fact dir = TypeError
-    ( "You tried to use an " <> FormatDirection dir <> " fact of type " <> fact <> " as an output."
-    % "Possible solution: change the FactDirection of " <> fact
-      <> " to either 'Output' or 'InputOutput'."
+    ( 'Text "You tried to use an " ':<>: 'ShowType (FormatDirection dir) ':<>: 'Text " fact of type " ':<>: 'ShowType fact ':<>: 'Text " as an output."
+    ':$$: 'Text "Possible solution: change the FactDirection of " ':<>: 'ShowType fact
+      ':<>: 'Text " to either 'Output' or 'InputOutput'."
     )
 
-type family FormatDirection (dir :: Direction) where
+type FormatDirection :: Direction -> Symbol
+type family FormatDirection dir where
   FormatDirection 'Output = "output"
   FormatDirection 'Input = "input"
   FormatDirection 'Internal = "internal"
@@ -82,18 +86,20 @@ type family FormatDirection (dir :: Direction) where
 -- | A helper type family for checking if a specific Souffle `Program` contains
 --   a certain `Fact`. This constraint will generate a user-friendly type error
 --   if this is not the case.
-type family ContainsFact prog fact :: Constraint where
+type ContainsFact :: Type -> Type -> Constraint
+type family ContainsFact prog fact where
   ContainsFact prog fact =
     CheckContains prog (ProgramFacts prog) fact
 
+type CheckContains :: Type -> [Type] -> Type -> Constraint
 type family CheckContains prog facts fact :: Constraint where
   CheckContains prog '[] fact =
-    TypeError ("You tried to perform an action with a fact of type '" <> fact
-    <> "' for program '" <> prog <> "'."
-    % "The program contains the following facts: " <> ProgramFacts prog <> "."
-    % "It does not contain fact: " <> fact <> "."
-    % "You can fix this error by adding the type '" <> fact
-    <> "' to the ProgramFacts type in the Program instance for " <> prog <> ".")
+    TypeError ('Text "You tried to perform an action with a fact of type '" ':<>: 'ShowType fact
+    ':<>: 'Text "' for program '" ':<>: 'ShowType prog ':<>: 'Text "'."
+    ':$$: 'Text "The program contains the following facts: " ':<>: 'ShowType (ProgramFacts prog) ':<>: 'Text "."
+    ':$$: 'Text "It does not contain fact: " ':<>: 'ShowType fact ':<>: 'Text "."
+    ':$$: 'Text "You can fix this error by adding the type '" ':<>: 'ShowType fact
+    ':<>: 'Text "' to the ProgramFacts type in the Program instance for " ':<>: 'ShowType prog ':<>: 'Text ".")
   CheckContains _ (a ': _) a = ()
   CheckContains prog (_ ': as) b = CheckContains prog as b
 
@@ -109,6 +115,7 @@ type family CheckContains prog facts fact :: Constraint where
 --   type ProgramFacts Path = '[Edge, Reachable]
 --   programName = const "path"
 -- @
+type Program :: Type -> Constraint
 class Program a where
   -- | A type level list of facts that belong to this program.
   --   This list is used to check that only known facts are added to a program.
@@ -132,7 +139,8 @@ class Program a where
 -- @
 --
 -- See also: 'FactOptions'.
-newtype ProgramOptions (prog :: Type) (progName :: Symbol) (facts :: [Type])
+type ProgramOptions :: Type -> Symbol -> [Type] -> Type
+newtype ProgramOptions prog progName facts
   = ProgramOptions prog
 
 instance KnownSymbol progName => Program (ProgramOptions prog progName facts) where
@@ -150,6 +158,7 @@ instance KnownSymbol progName => Program (ProgramOptions prog progName facts) wh
 --   type FactDirection Edge = 'Input
 --   factName = const "edge"
 -- @
+type Fact :: Type -> Constraint
 class Marshal.Marshal a => Fact a where
   -- | The direction or "mode" a fact can be used in.
   --   This is used to perform compile-time checks that a fact is only used
@@ -179,7 +188,8 @@ class Marshal.Marshal a => Fact a where
 -- @
 --
 -- See also: 'ProgramOptions'.
-newtype FactOptions (fact :: Type) (factName :: Symbol) (dir :: Direction)
+type FactOptions :: Type -> Symbol -> Direction -> Type
+newtype FactOptions fact factName dir
   = FactOptions fact
 
 instance Marshal.Marshal fact => Marshal.Marshal (FactOptions fact name dir) where
@@ -200,6 +210,7 @@ instance ( Marshal.Marshal fact
 -- | A datatype describing which operations a certain fact supports.
 --   The direction is from the datalog perspective, so that it
 --   aligns with ".decl" statements in Souffle.
+type Direction :: Type
 data Direction
   = Input
   -- ^ Fact can only be stored in Datalog (using `addFact`/`addFacts`).
@@ -212,6 +223,7 @@ data Direction
   --   facts that are only visible inside Datalog itself.
 
 -- | A mtl-style typeclass for Souffle-related actions.
+type MonadSouffle :: (Type -> Type) -> Constraint
 class Monad m => MonadSouffle m where
   -- | Represents a handle for interacting with a Souffle program.
   --
@@ -358,6 +370,7 @@ instance MonadSouffle m => MonadSouffle (ExceptT e m) where
   {-# INLINABLE addFacts #-}
 
 -- | A mtl-style typeclass for Souffle-related actions that involve file IO.
+type MonadSouffleFileIO :: (Type -> Type) -> Constraint
 class MonadSouffle m => MonadSouffleFileIO m where
   -- | Load all facts from files in a certain directory.
   loadFiles :: Handler m prog -> FilePath -> m ()

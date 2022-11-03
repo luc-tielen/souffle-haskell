@@ -63,9 +63,12 @@ import Language.Souffle.Marshal
 import Control.Concurrent
 
 
+type ByteCount :: Type
 type ByteCount = Int
+type ByteBuf :: Type
 type ByteBuf = Internal.ByteBuf
 
+type BufData :: Type
 data BufData
   = BufData
   { bufPtr :: {-# UNPACK #-} !(ForeignPtr ByteBuf)
@@ -75,12 +78,14 @@ data BufData
 -- | A datatype representing a handle to a datalog program.
 --   The type parameter is used for keeping track of which program
 --   type the handle belongs to for additional type safety.
+type Handle :: Type -> Type
 data Handle prog
   = Handle {-# UNPACK #-} !(ForeignPtr Internal.Souffle)
            {-# UNPACK #-} !(MVar BufData)
 type role Handle nominal
 
 -- | A monad for executing Souffle-related actions in.
+type SouffleM :: Type -> Type
 newtype SouffleM a = SouffleM (IO a)
   deriving (Functor, Applicative, Monad, MonadIO) via IO
   deriving (Semigroup, Monoid) via (IO a)
@@ -114,6 +119,7 @@ runSouffle prog action =
 --   marshalling from Haskell to C++ and the exact size of a datastructure
 --   is statically known (read: data type contains no string-like types),
 --   or when marshalling from C++ to Haskell (pointer is then managed by C++).
+type CMarshalFast :: Type -> Type
 newtype CMarshalFast a = CMarshalFast (StateT (Ptr ByteBuf) IO a)
   deriving (Functor, Applicative, Monad, MonadIO, MonadState (Ptr ByteBuf))
   via (StateT (Ptr ByteBuf) IO)
@@ -181,6 +187,7 @@ instance MonadPop CMarshalFast where
   {-# INLINABLE popText #-}
 
 
+type MarshalState :: Type
 data MarshalState
   = MarshalState
   { _buf :: {-# UNPACK #-} !BufData
@@ -191,6 +198,7 @@ data MarshalState
 -- | A monad used solely for marshalling from Haskell to Souffle Datalog (C++).
 --   This slow variant is used when the exact size of a datastructure is *not*
 --   statically known (read: data type contains string-like types).
+type CMarshalSlow :: Type -> Type
 newtype CMarshalSlow a = CMarshalSlow (StateT MarshalState IO a)
   deriving (Functor, Applicative, Monad, MonadIO, MonadState MarshalState)
   via (StateT MarshalState IO)
@@ -275,6 +283,7 @@ writeAsBytesSlow a = do
 {-# INLINABLE writeAsBytesSlow #-}
 
 
+type Collect :: (Type -> Type) -> Constraint
 class Collect c where
   collect :: Marshal a => Word32 -> CMarshalFast (c a)
 
@@ -318,6 +327,7 @@ instance Collect (A.Array Int) where
 
 -- | A helper typeclass constraint, needed to serialize Datalog facts from
 --   Haskell to C++.
+type Submit :: Type -> Constraint
 type Submit a = ToByteSize (GetFields (Rep a))
 
 instance MonadSouffle SouffleM where
@@ -394,6 +404,7 @@ instance MonadSouffleFileIO SouffleM where
   {-# INLINABLE writeFiles #-}
 
 
+type ByteSize :: Type
 data ByteSize
   = Exact {-# UNPACK #-} !ByteCount
   | Estimated {-# UNPACK #-} !ByteCount
@@ -405,7 +416,8 @@ instance Semigroup ByteSize where
   Estimated s1 <> Estimated s2 = Estimated (s1 + s2)
   {-# INLINABLE (<>) #-}
 
-class ToByteSize (a :: k) where
+type ToByteSize :: k -> Constraint
+class ToByteSize a where
   toByteSize :: Proxy a -> ByteSize
 
 instance ToByteSize Int32 where
@@ -450,12 +462,14 @@ instance (ToByteSize a, ToByteSize as) => ToByteSize (a ': as) where
   {-# INLINABLE toByteSize #-}
 
 -- | A helper type family, for getting all directly marshallable fields of a type.
-type family GetFields (a :: k) :: [Type] where
+type GetFields :: k -> [Type]
+type family GetFields a where
   GetFields (K1 _ a) = DoGetFields a
   GetFields (M1 _ _ a) = GetFields a
   GetFields (f :*: g) = GetFields f ++ GetFields g
 
-type family DoGetFields (a :: Type) :: [Type] where
+type DoGetFields :: Type -> [Type]
+type family DoGetFields a where
   DoGetFields Int32 = '[Int32]
   DoGetFields Word32 = '[Word32]
   DoGetFields Float = '[Float]
@@ -465,6 +479,7 @@ type family DoGetFields (a :: Type) :: [Type] where
   DoGetFields TS.ShortText = '[TS.ShortText]
   DoGetFields a = GetFields (Rep a)
 
+type (++) :: [Type] -> [Type] -> [Type]
 type family a ++ b where
   '[] ++ b = b
   (a ': as) ++ bs = a ': as ++ bs

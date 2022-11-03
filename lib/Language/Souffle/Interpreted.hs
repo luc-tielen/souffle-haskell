@@ -31,6 +31,7 @@ module Language.Souffle.Interpreted
   ) where
 
 import Prelude hiding (init)
+import Data.Kind (Type, Constraint)
 
 import Control.DeepSeq (deepseq)
 import Control.Exception (ErrorCall(..), throwIO, bracket)
@@ -59,6 +60,7 @@ import Text.Printf
 
 
 -- | A monad for executing Souffle-related actions in.
+type SouffleM :: Type -> Type
 newtype SouffleM a = SouffleM (IO a)
   deriving (Functor, Applicative, Monad, MonadIO) via IO
   deriving (Semigroup, Monoid) via (IO a)
@@ -75,6 +77,7 @@ newtype SouffleM a = SouffleM (IO a)
 --   souffle session.
 --   - __cfgOutputDir__: The directory where the output fact file(s) are created.
 --   If Nothing, it will be part of the temporary directory.
+type Config :: Type
 data Config
   = Config
   { cfgDatalogDir   :: FilePath
@@ -168,6 +171,7 @@ runSouffleWith cfg program f = bracket initialize maybeCleanup $ \handle -> do
 -- | A datatype representing a handle to a datalog program.
 --   The type parameter is used for keeping track of which program
 --   type the handle belongs to for additional type safety.
+type Handle :: Type -> Type
 data Handle prog = Handle
   { handleData   :: IORef HandleData
   , stdoutResult :: IORef (Maybe T.Text)
@@ -178,6 +182,7 @@ type role Handle nominal
 -- | The data needed for the interpreter is the path where the souffle
 --   executable can be found, and a template directory where the program
 --   is stored.
+type HandleData :: Type
 data HandleData = HandleData
   { soufflePath :: FilePath
   , tmpDirPath  :: FilePath
@@ -187,6 +192,7 @@ data HandleData = HandleData
   , noOfThreads :: Word64
   }
 
+type IMarshal :: Type -> Type
 newtype IMarshal a = IMarshal (State [String] a)
   deriving (Functor, Applicative, Monad, MonadState [String])
   via (State [String])
@@ -253,6 +259,7 @@ pushMarshalT :: IMarshal a -> [String]
 pushMarshalT (IMarshal m) = reverse $ execState m []
 {-# INLINABLE pushMarshalT #-}
 
+type Collect :: (Type -> Type) -> Constraint
 class Collect c where
   collect :: Marshal a => FilePath -> IO (c a)
 

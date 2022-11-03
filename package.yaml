@@ -28,6 +28,7 @@ default-extensions:
   - LambdaCase
   - OverloadedStrings
   - ScopedTypeVariables
+  - StandaloneKindSignatures
 
 ghc-options:
   - -Wall
@@ -115,7 +116,6 @@ library:
     - Paths_souffle_haskell
   dependencies:
     - mtl >= 2.0 && < 3
-    - type-errors-pretty >= 0.0.1.0 && < 1
     - deepseq >= 1.4.4 && < 2
     - filepath  >= 1.4.2 && < 2
     - process >= 1.6 && < 2
@@ -146,6 +146,9 @@ tests:
       - souffle-haskell
     cxx-options:
       - -D__EMBEDDED_SOUFFLE__
+    ghc-options:
+      - -Wno-missing-kind-signatures
+      - -Wno-operator-whitespace
 
 benchmarks:
   souffle-haskell-benchmarks:

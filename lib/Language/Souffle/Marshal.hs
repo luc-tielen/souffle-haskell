@@ -14,7 +14,7 @@ module Language.Souffle.Marshal
   , SimpleProduct
   ) where
 
-import Type.Errors.Pretty
+import GHC.TypeLits
 import GHC.Generics
 import Data.Int
 import Data.Word
@@ -29,6 +29,7 @@ This typeclass is only used internally and subject to change.
 
 See also: 'MonadPop', 'Marshal'.
 -}
+type MonadPush :: (Type -> Type) -> Constraint
 class Monad m => MonadPush m where
   -- | Marshals a signed 32 bit integer to the datalog side.
   pushInt32 :: Int32 -> m ()
@@ -49,6 +50,7 @@ This typeclass is only used internally and subject to change.
 
 See also: 'MonadPush', 'Marshal'.
 -}
+type MonadPop :: (Type -> Type) -> Constraint
 class Monad m => MonadPop m where
   -- | Unmarshals a signed 32 bit integer from the datalog side.
   popInt32 :: m Int32
@@ -84,6 +86,7 @@ data Edge = Edge String String deriving Generic
 instance Marshal Edge
 @
 -}
+type Marshal :: Type -> Constraint
 class Marshal a where
   -- | Marshals a value to the datalog side.
   push :: MonadPush m => a -> m ()
@@ -143,6 +146,7 @@ instance Marshal TL.Text where
   pop = TL.fromStrict <$> pop
   {-# INLINABLE pop #-}
 
+type GMarshal :: (Type -> Type) -> Constraint
 class GMarshal f where
   gpush :: MonadPush m => f a -> m ()
   gpop  :: MonadPop m => m (f a)
@@ -176,24 +180,27 @@ instance GMarshal a => GMarshal (M1 i c a) where
 --
 --   A type error is returned if the passed in type is not a simple product type
 --   consisting of only types that implement 'Marshal'.
-type family SimpleProduct (a :: Type) :: Constraint where
+type SimpleProduct :: Type -> Constraint
+type family SimpleProduct a where
   SimpleProduct a = (ProductLike a (Rep a), OnlyMarshallableFields (Rep a))
 
-type family ProductLike (t :: Type) (f :: Type -> Type) :: Constraint where
+type ProductLike :: Type -> (Type -> Type) -> Constraint
+type family ProductLike t f where
   ProductLike t (a :*: b) = (ProductLike t a, ProductLike t b)
   ProductLike t (M1 _ _ a) = ProductLike t a
   ProductLike _ (K1 _ _) = ()
   ProductLike t (_ :+: _) =
-    TypeError ( "Error while deriving marshalling code for type " <> t <> ":"
-              % "Cannot derive sum type, only product types are supported.")
+    TypeError ( 'Text "Error while deriving marshalling code for type " ':<>: 'ShowType t ':<>: 'Text ":"
+              ':$$: 'Text "Cannot derive sum type, only product types are supported.")
   ProductLike t U1 =
-    TypeError ( "Error while deriving marshalling code for type " <> t <> ":"
-              % "Cannot automatically derive code for 0 argument constructor.")
+    TypeError ( 'Text "Error while deriving marshalling code for type " ':<>: 'ShowType t ':<>: 'Text ":"
+              ':$$: 'Text "Cannot automatically derive code for 0 argument constructor.")
   ProductLike t V1 =
-    TypeError ( "Error while deriving marshalling code for type " <> t <> ":"
-              % "Cannot derive void type.")
+    TypeError ( 'Text "Error while deriving marshalling code for type " ':<>: 'ShowType t ':<>: 'Text ":"
+              ':$$: 'Text "Cannot derive void type.")
 
-type family OnlyMarshallableFields (f :: Type -> Type) :: Constraint where
+type OnlyMarshallableFields :: (Type -> Type) -> Constraint
+type family OnlyMarshallableFields f where
   OnlyMarshallableFields (a :*: b) = (OnlyMarshallableFields a, OnlyMarshallableFields b)
   OnlyMarshallableFields (a :+: b) = (OnlyMarshallableFields a, OnlyMarshallableFields b)
   OnlyMarshallableFields (M1 _ _ a) = OnlyMarshallableFields a
@@ -201,6 +208,7 @@ type family OnlyMarshallableFields (f :: Type -> Type) :: Constraint where
   OnlyMarshallableFields V1 = ()
   OnlyMarshallableFields k = OnlyMarshallableField k
 
-type family OnlyMarshallableField (f :: Type -> Type) :: Constraint where
+type OnlyMarshallableField :: (Type -> Type) -> Constraint
+type family OnlyMarshallableField f where
   OnlyMarshallableField (M1 _ _ a) = OnlyMarshallableField a
   OnlyMarshallableField (K1 _ a) = Marshal a
