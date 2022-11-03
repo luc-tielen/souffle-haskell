@@ -3,6 +3,12 @@
 All notable changes to this project (as seen by library users) will be documented in this file.
 The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-haskell.git/CHANGELOG.md).
 
+## [3.5.1] - 2022-11-03
+
+### Changed
+
+- Added support for GHC 9.2
+
 ## [3.5.0] - 2022-06-04
 
 ### Changed
