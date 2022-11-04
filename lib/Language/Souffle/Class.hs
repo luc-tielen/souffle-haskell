@@ -30,10 +30,12 @@ module Language.Souffle.Class
 import Prelude hiding ( init )
 
 import Control.Monad.Except
-import Control.Monad.RWS.Strict
 import Control.Monad.Reader
-import Control.Monad.State
 import Control.Monad.Writer
+import qualified Control.Monad.RWS.Strict as StrictRWS
+import qualified Control.Monad.RWS.Lazy as LazyRWS
+import qualified Control.Monad.State.Strict as StrictState
+import qualified Control.Monad.State.Lazy as LazyState
 import Data.Proxy
 import Data.Kind
 import Data.Word
@@ -309,10 +311,10 @@ instance (Monoid w, MonadSouffle m) => MonadSouffle (WriterT w m) where
   addFacts facts = lift . addFacts facts
   {-# INLINABLE addFacts #-}
 
-instance MonadSouffle m => MonadSouffle (StateT s m) where
-  type Handler (StateT s m) = Handler m
-  type CollectFacts (StateT s m) c = CollectFacts m c
-  type SubmitFacts (StateT s m) a = SubmitFacts m a
+instance MonadSouffle m => MonadSouffle (LazyState.StateT s m) where
+  type Handler (LazyState.StateT s m) = Handler m
+  type CollectFacts (LazyState.StateT s m) c = CollectFacts m c
+  type SubmitFacts (LazyState.StateT s m) a = SubmitFacts m a
 
   run = lift . run
   {-# INLINABLE run #-}
@@ -329,10 +331,50 @@ instance MonadSouffle m => MonadSouffle (StateT s m) where
   addFacts facts = lift . addFacts facts
   {-# INLINABLE addFacts #-}
 
-instance (MonadSouffle m, Monoid w) => MonadSouffle (RWST r w s m) where
-  type Handler (RWST r w s m) = Handler m
-  type CollectFacts (RWST r w s m) c = CollectFacts m c
-  type SubmitFacts (RWST r w s m) a = SubmitFacts m a
+instance MonadSouffle m => MonadSouffle (StrictState.StateT s m) where
+  type Handler (StrictState.StateT s m) = Handler m
+  type CollectFacts (StrictState.StateT s m) c = CollectFacts m c
+  type SubmitFacts (StrictState.StateT s m) a = SubmitFacts m a
+
+  run = lift . run
+  {-# INLINABLE run #-}
+  setNumThreads prog = lift . setNumThreads prog
+  {-# INLINABLE setNumThreads #-}
+  getNumThreads = lift . getNumThreads
+  {-# INLINABLE getNumThreads #-}
+  getFacts = lift . getFacts
+  {-# INLINABLE getFacts #-}
+  findFact prog = lift . findFact prog
+  {-# INLINABLE findFact #-}
+  addFact fact = lift . addFact fact
+  {-# INLINABLE addFact #-}
+  addFacts facts = lift . addFacts facts
+  {-# INLINABLE addFacts #-}
+
+instance (MonadSouffle m, Monoid w) => MonadSouffle (LazyRWS.RWST r w s m) where
+  type Handler (LazyRWS.RWST r w s m) = Handler m
+  type CollectFacts (LazyRWS.RWST r w s m) c = CollectFacts m c
+  type SubmitFacts (LazyRWS.RWST r w s m) a = SubmitFacts m a
+
+  run = lift . run
+  {-# INLINABLE run #-}
+  setNumThreads prog = lift . setNumThreads prog
+  {-# INLINABLE setNumThreads #-}
+  getNumThreads = lift . getNumThreads
+  {-# INLINABLE getNumThreads #-}
+  getFacts = lift . getFacts
+  {-# INLINABLE getFacts #-}
+  findFact prog = lift . findFact prog
+  {-# INLINABLE findFact #-}
+  addFact fact = lift . addFact fact
+  {-# INLINABLE addFact #-}
+  addFacts facts = lift . addFacts facts
+  {-# INLINABLE addFacts #-}
+
+instance (MonadSouffle m, Monoid w) => MonadSouffle (StrictRWS.RWST r w s m) where
+  type Handler (StrictRWS.RWST r w s m) = Handler m
+  type CollectFacts (StrictRWS.RWST r w s m) c = CollectFacts m c
+  type SubmitFacts (StrictRWS.RWST r w s m) a = SubmitFacts m a
 
   run = lift . run
   {-# INLINABLE run #-}
@@ -391,13 +433,25 @@ instance (Monoid w, MonadSouffleFileIO m) => MonadSouffleFileIO (WriterT w m) wh
   writeFiles prog = lift . writeFiles prog
   {-# INLINABLE writeFiles #-}
 
-instance MonadSouffleFileIO m => MonadSouffleFileIO (StateT s m) where
+instance MonadSouffleFileIO m => MonadSouffleFileIO (StrictState.StateT s m) where
   loadFiles prog = lift . loadFiles prog
   {-# INLINABLE loadFiles #-}
   writeFiles prog = lift . writeFiles prog
   {-# INLINABLE writeFiles #-}
 
-instance (MonadSouffleFileIO m, Monoid w) => MonadSouffleFileIO (RWST r w s m) where
+instance MonadSouffleFileIO m => MonadSouffleFileIO (LazyState.StateT s m) where
+  loadFiles prog = lift . loadFiles prog
+  {-# INLINABLE loadFiles #-}
+  writeFiles prog = lift . writeFiles prog
+  {-# INLINABLE writeFiles #-}
+
+instance (MonadSouffleFileIO m, Monoid w) => MonadSouffleFileIO (LazyRWS.RWST r w s m) where
+  loadFiles prog = lift . loadFiles prog
+  {-# INLINABLE loadFiles #-}
+  writeFiles prog = lift . writeFiles prog
+  {-# INLINABLE writeFiles #-}
+
+instance (MonadSouffleFileIO m, Monoid w) => MonadSouffleFileIO (StrictRWS.RWST r w s m) where
   loadFiles prog = lift . loadFiles prog
   {-# INLINABLE loadFiles #-}
   writeFiles prog = lift . writeFiles prog

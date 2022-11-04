@@ -5,6 +5,10 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
 
 ## [3.5.1] - 2022-11-03
 
+### Added
+
+- Instances for strict `State` and `RWS` monads for `MonadSouffle`.
+
 ### Changed
 
 - Added support for GHC 9.2
