@@ -3,6 +3,13 @@
 All notable changes to this project (as seen by library users) will be documented in this file.
 The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-haskell.git/CHANGELOG.md).
 
+## [4.0.0] - Unreleased
+
+### Removed
+
+- Support for marshalling of Text.Short values. Only UTF8 Text values are
+  supported.
+
 ## [3.5.1] - 2022-11-07
 
 ### Added
