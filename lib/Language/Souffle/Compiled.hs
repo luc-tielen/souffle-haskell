@@ -41,11 +41,10 @@ import qualified Data.Array as A
 import qualified Data.Array.IO as A
 import qualified Data.Array.Unsafe as A
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Short as BSS
 import qualified Data.ByteString.Unsafe as BSU
 import qualified Data.Text as T
-import qualified Data.Text.Short as TS
-import qualified Data.Text.Short.Unsafe as TSU
+import qualified Data.Text.Encoding as TE
+import qualified Data.Text.Internal.StrictBuilder as TB
 import qualified Data.Text.Lazy as TL
 import qualified Data.Vector as V
 import qualified Data.Vector.Mutable as MV
@@ -154,10 +153,8 @@ instance MonadPush CMarshalFast where
   {-# INLINABLE pushUInt32 #-}
   pushFloat = writeAsBytes
   {-# INLINABLE pushFloat #-}
-  pushString str = pushText $ TS.pack str
+  pushString str = pushText $ T.pack str
   {-# INLINABLE pushString #-}
-  pushTextUtf16 str = pushText $ TS.fromText str
-  {-# INLINABLE pushTextUtf16 #-}
   pushText _ =
     error "Fast marshalling does not support serializing string-like values."
   {-# INLINABLE pushText #-}
@@ -169,21 +166,19 @@ instance MonadPop CMarshalFast where
   {-# INLINABLE popUInt32 #-}
   popFloat = readAsBytes
   {-# INLINABLE popFloat #-}
-  popString = TS.unpack <$> popText
+  popString = T.unpack <$> popText
   {-# INLINABLE popString #-}
-  popTextUtf16 = TS.toText <$> popText
-  {-# INLINABLE popTextUtf16 #-}
   popText = do
     byteCount <- popUInt32
     if byteCount == 0
-      then pure TS.empty
+      then pure T.empty
       else do
         ptr <- gets castPtr
         bs <- liftIO $ BSU.unsafePackCStringLen (ptr, fromIntegral byteCount)
         put $ ptr `plusPtr` fromIntegral byteCount
         -- NOTE: $! is needed here to force the text value. A copy needs to
         -- be made (using toShort), before the bytearray is overwritten.
-        pure $! TSU.fromShortByteStringUnsafe $ BSS.toShort bs
+        pure $! TB.toText $ TB.unsafeFromByteString bs
   {-# INLINABLE popText #-}
 
 
@@ -257,12 +252,10 @@ instance MonadPush CMarshalSlow where
   {-# INLINABLE pushUInt32 #-}
   pushFloat = writeAsBytesSlow
   {-# INLINABLE pushFloat #-}
-  pushString str = pushText $ TS.pack str
+  pushString str = pushText $ T.pack str
   {-# INLINABLE pushString #-}
-  pushTextUtf16 str = pushText $ TS.fromText str
-  {-# INLINABLE pushTextUtf16 #-}
   pushText txt = do
-    let bs = TS.toByteString txt  -- TODO: is it possible to get rid of this copy?
+    let bs = TE.encodeUtf8 txt  -- TODO: is it possible to get rid of this copy?
         len = BS.length bs
     resizeBufWhenNeeded (ramDomainSize + len)
     pushUInt32 (fromIntegral len)
@@ -447,11 +440,6 @@ instance ToByteSize TL.Text where
   toByteSize = const $ Estimated 36
   {-# INLINABLE toByteSize #-}
 
-instance ToByteSize TS.ShortText where
-  -- 4 for length prefix + 32 for actual string
-  toByteSize = const $ Estimated 36
-  {-# INLINABLE toByteSize #-}
-
 instance ToByteSize '[] where
   toByteSize = const $ Exact 0
   {-# INLINABLE toByteSize #-}
@@ -476,7 +464,6 @@ type family DoGetFields a where
   DoGetFields String = '[String]
   DoGetFields T.Text = '[T.Text]
   DoGetFields TL.Text = '[TL.Text]
-  DoGetFields TS.ShortText = '[TS.ShortText]
   DoGetFields a = GetFields (Rep a)
 
 type (++) :: [Type] -> [Type] -> [Type]
