@@ -1,7 +1,7 @@
 
 # NOTE: these all assume cabal v3
 
-build:
+build: configure
 		@cabal build
 
 configure:
@@ -16,7 +16,7 @@ lint:
 hoogle:
 		hoogle server --local -p 8080
 
-tests:
+tests: configure
 		DATALOG_DIR=tests/fixtures/ cabal run souffle-haskell-test
 
 docs:
