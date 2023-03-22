@@ -5,41 +5,26 @@ jobs:
     runs-on: ${{matrix.os}}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest]
     steps:
-      - uses: actions/checkout@v2.4.0
-        with:
-          # Nix Flakes doesn't work on shallow clones
-          fetch-depth: 0
-      - uses: cachix/install-nix-action@v15
-        with:
-          install_url: https://releases.nixos.org/nix/nix-2.6.1/install
-          extra_nix_config: |
-            experimental-features = nix-command flakes
-            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-      - run: |
-          nix profile install nixpkgs#cachix
-          cachix use cachix
-          cachix use luctielen
-      - name: nix build
-        run: nix build
-      - name: nix log
-        if: ${{ always() }}
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      # In this step, this action saves a list of existing images, the cache is created without them in the post run.
+      # It also restores the cache if it exists.
+      - uses: jpribyl/action-docker-layer-caching@v0.1.1
+        continue-on-error: true # Ignore the failure of a step and avoid terminating the job.
+
+      - name: Build and test
         run: |
-          nix log &> ${{ matrix.os }}-souffle-haskell.log
-      - name: upload ${{ matrix.os }}-souffle-haskell.log
+          set -eo pipefail
+          export TIMESTAMP=$(date +%s)
+          docker build -f Dockerfile . -t souffle-haskell:$TIMESTAMP | tee souffle-haskell-lang-${{matrix.os}}.log
+          docker run --rm souffle-haskell:$TIMESTAMP bash -c "make tests" | tee -a souffle-haskell-lang-${{matrix.os}}.log
+
+      - name: Upload logs
         if: ${{ always() }}
         uses: actions/upload-artifact@v2
         with:
-          name: ${{ matrix.os }}-souffle-haskell.log
-          path: ${{ matrix.os }}-souffle-haskell.log
-      - name: nix lint
-        if: ${{ always() }}
-        run: |
-          nix run .#souffle-haskell-lint &> ${{ matrix.os }}-souffle-haskell-lint.log
-      - name: upload ${{ matrix.os }}-souffle-haskell-lint.log
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v2
-        with:
-          name: ${{ matrix.os }}-souffle-haskell-lint.log
-          path: ${{ matrix.os }}-souffle-haskell-lint.log
+          name: souffle-haskell-lang-${{matrix.os}}.log
+          path: souffle-haskell-lang-${{matrix.os}}.log

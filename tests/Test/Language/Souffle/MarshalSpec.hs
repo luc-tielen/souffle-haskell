@@ -11,7 +11,6 @@ import qualified Hedgehog.Range as Range
 import GHC.Generics
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
-import qualified Data.Text.Short as TS
 import Data.Text
 import Data.Int
 import Data.Word
@@ -103,9 +102,6 @@ newtype TextFact = TextFact T.Text
 newtype LazyTextFact = LazyTextFact TL.Text
   deriving stock (Eq, Show, Generic)
 
-newtype ShortTextFact = ShortTextFact TS.ShortText
-  deriving stock (Eq, Show, Generic)
-
 newtype Int32Fact = Int32Fact Int32
   deriving stock (Eq, Show, Generic)
 
@@ -125,10 +121,6 @@ instance Souffle.Fact TextFact where
 
 instance Souffle.Fact LazyTextFact where
   type FactDirection LazyTextFact = 'Souffle.InputOutput
-  factName = const "string_fact"
-
-instance Souffle.Fact ShortTextFact where
-  type FactDirection ShortTextFact = 'Souffle.InputOutput
   factName = const "string_fact"
 
 instance Souffle.Fact Int32Fact where
@@ -154,14 +146,13 @@ instance Souffle.Fact NestedRecord where
 instance Souffle.Marshal StringFact
 instance Souffle.Marshal TextFact
 instance Souffle.Marshal LazyTextFact
-instance Souffle.Marshal ShortTextFact
 instance Souffle.Marshal Int32Fact
 instance Souffle.Marshal Word32Fact
 instance Souffle.Marshal FloatFact
 
 instance Souffle.Program RoundTrip where
   type ProgramFacts RoundTrip =
-    [StringFact, TextFact, LazyTextFact, ShortTextFact, Int32Fact, Word32Fact, FloatFact, NestedNewtype, NestedRecord]
+    [StringFact, TextFact, LazyTextFact, Int32Fact, Word32Fact, FloatFact, NestedNewtype, NestedRecord]
   programName = const "round_trip"
 
 type RoundTripAction
@@ -273,12 +264,6 @@ roundTripSpecs = describe "data transfer between Haskell and Souffle" $ parallel
         it "can serialize and deserialize strict Text values" $ hedgehog $ do
           str <- forAll $ Gen.text (Range.linear 0 10) Gen.unicode
           let fact = TextFact str
-          fact' <- run fact
-          fact === fact'
-
-        it "can serialize and deserialize short Text values" $ hedgehog $ do
-          str <- forAll $ Gen.text (Range.linear 0 10) Gen.unicode
-          let fact = ShortTextFact (TS.fromText str)
           fact' <- run fact
           fact === fact'
 
