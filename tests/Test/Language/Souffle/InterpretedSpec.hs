@@ -40,15 +40,15 @@ instance Souffle.Marshal Edge
 instance Souffle.Marshal Reachable
 
 instance Souffle.Program Path where
-  type ProgramFacts Path = [Edge, Reachable]
+  type ProgramFacts Path = '[Edge, Reachable]
   programName = const "path"
 
 instance Souffle.Program PathNoInput where
-  type ProgramFacts PathNoInput = [Edge, Reachable]
+  type ProgramFacts PathNoInput = '[Edge, Reachable]
   programName = const "path_no_input"
 
 instance Souffle.Program BadPath where
-  type ProgramFacts BadPath = [Edge, Reachable]
+  type ProgramFacts BadPath = '[Edge, Reachable]
   programName = const "bad_path"
 
 getTestTemporaryDirectory :: IO FilePath

@@ -19,7 +19,7 @@ extra-source-files:
 
 dependencies:
   - base >= 4.12 && < 5
-  - text == 2.*
+  - text >= 2.0.2 && < 3
   - vector <= 1.0
 
 default-extensions:
