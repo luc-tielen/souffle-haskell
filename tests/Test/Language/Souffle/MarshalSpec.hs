@@ -152,7 +152,7 @@ instance Souffle.Marshal FloatFact
 
 instance Souffle.Program RoundTrip where
   type ProgramFacts RoundTrip =
-    [StringFact, TextFact, LazyTextFact, Int32Fact, Word32Fact, FloatFact, NestedNewtype, NestedRecord]
+    '[StringFact, TextFact, LazyTextFact, Int32Fact, Word32Fact, FloatFact, NestedNewtype, NestedRecord]
   programName = const "round_trip"
 
 type RoundTripAction
@@ -182,7 +182,7 @@ data NoStrings a = NoStrings Word32 Int32 Float
 
 instance Souffle.Program EdgeCases where
   type ProgramFacts EdgeCases =
-    [ EmptyStrings String, EmptyStrings T.Text, EmptyStrings TL.Text
+    '[ EmptyStrings String, EmptyStrings T.Text, EmptyStrings TL.Text
     , LongStrings String, LongStrings T.Text, LongStrings TL.Text
     , Unicode String, Unicode T.Text, Unicode TL.Text
     , NoStrings Void

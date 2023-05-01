@@ -38,7 +38,7 @@ instance Souffle.Marshal Reachable
 data BadPath = BadPath
 
 instance Souffle.Program BadPath where
-  type ProgramFacts BadPath = [Edge, Reachable]
+  type ProgramFacts BadPath = '[Edge, Reachable]
   programName = const "bad_path"
 
 
