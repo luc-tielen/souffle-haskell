@@ -10,9 +10,9 @@ ENV LANGUAGE en_US:en
 RUN apt-get update \
     && apt-get install -y build-essential curl libffi-dev  libgmp-dev libgmp10 libncurses-dev libncurses5 libtinfo5 locales \
     && echo "source /root/.ghcup/env" >> ~/.bashrc \
-    # install ghcup, ghc-9.2.5 and cabal-3.6.2.0
+    # install ghcup, ghc-9.4.4 and cabal-3.8.1.0
     && curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | \
-    BOOTSTRAP_HASKELL_NONINTERACTIVE=1 BOOTSTRAP_HASKELL_GHC_VERSION=9.2.5 BOOTSTRAP_HASKELL_CABAL_VERSION=3.6.2.0 \
+    BOOTSTRAP_HASKELL_NONINTERACTIVE=1 BOOTSTRAP_HASKELL_GHC_VERSION=9.4.4 BOOTSTRAP_HASKELL_CABAL_VERSION=3.8.1.0 \
     BOOTSTRAP_HASKELL_INSTALL_STACK=1 BOOTSTRAP_HASKELL_INSTALL_HLS=1 BOOTSTRAP_HASKELL_ADJUST_BASHRC=P sh \
     && source /root/.ghcup/env \
     && cabal install hpack \
