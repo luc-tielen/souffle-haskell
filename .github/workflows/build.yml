@@ -16,7 +16,6 @@ jobs:
           sudo swapoff -a
           sudo rm -f /swapfile
           sudo apt clean
-          docker rmi $(docker image ls -aq) || true
           df -h
 
       # In this step, this action saves a list of existing images, the cache is created without them in the post run.
