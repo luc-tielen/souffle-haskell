@@ -31,7 +31,7 @@ module Language.Souffle.Compiled
   ) where
 
 import Prelude hiding ( init )
-import Control.Monad.Except
+import Control.Monad ( when )
 import Control.Monad.State.Strict
 import Data.Foldable ( traverse_ )
 import Data.Functor.Identity
@@ -497,4 +497,3 @@ writeBytes bufVar relation fa = case estimateNumBytes (Proxy @a) of
         pure bufData'
   where objCount = length fa
 {-# INLINABLE writeBytes #-}
-
