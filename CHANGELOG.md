@@ -5,6 +5,10 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
 
 ## [4.0.0] - Unreleased
 
+### Added
+
+- Support for GHC 9.6
+
 ### Removed
 
 - Support for marshalling of Text.Short values. Only UTF8 Text values are
