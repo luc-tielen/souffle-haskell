@@ -34,8 +34,8 @@ ENTRYPOINT [ "/app/build/entrypoint.sh" ]
 
 COPY . .
 
-RUN PATH=$PATH:/root/.local/bin \
-    && source /root/.ghcup/env \
+RUN source /root/.ghcup/env \
+    && export PATH=$PATH:/root/.local/bin \
     && cabal update \
     && make configure \
     && make build
