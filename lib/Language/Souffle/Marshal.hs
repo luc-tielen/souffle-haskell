@@ -179,14 +179,14 @@ type family ProductLike t f where
   ProductLike t (M1 _ _ a) = ProductLike t a
   ProductLike _ (K1 _ _) = ()
   ProductLike t (_ :+: _) =
-    TypeError ( 'Text "Error while deriving marshalling code for type " ':<>: 'ShowType t ':<>: 'Text ":"
-              ':$$: 'Text "Cannot derive sum type, only product types are supported.")
+    TypeError ( 'Text "Error while deriving marshalling code for type " ' :<>: 'ShowType t ' :<>: 'Text ":"
+              ' :$$: 'Text "Cannot derive sum type, only product types are supported.")
   ProductLike t U1 =
-    TypeError ( 'Text "Error while deriving marshalling code for type " ':<>: 'ShowType t ':<>: 'Text ":"
-              ':$$: 'Text "Cannot automatically derive code for 0 argument constructor.")
+    TypeError ( 'Text "Error while deriving marshalling code for type " ' :<>: 'ShowType t ' :<>: 'Text ":"
+              ' :$$: 'Text "Cannot automatically derive code for 0 argument constructor.")
   ProductLike t V1 =
-    TypeError ( 'Text "Error while deriving marshalling code for type " ':<>: 'ShowType t ':<>: 'Text ":"
-              ':$$: 'Text "Cannot derive void type.")
+    TypeError ( 'Text "Error while deriving marshalling code for type " ' :<>: 'ShowType t ' :<>: 'Text ":"
+              ' :$$: 'Text "Cannot derive void type.")
 
 type OnlyMarshallableFields :: (Type -> Type) -> Constraint
 type family OnlyMarshallableFields f where
