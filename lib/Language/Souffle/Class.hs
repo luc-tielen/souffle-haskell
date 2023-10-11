@@ -64,9 +64,9 @@ type family IsInput fact dir where
   IsInput _ 'Input = ()
   IsInput _ 'InputOutput = ()
   IsInput fact dir = TypeError
-    ( 'Text "You tried to use an " ' :<>: 'ShowType (FormatDirection dir) ' :<>: 'Text " fact of type " ' :<>: 'ShowType fact ' :<>: 'Text " as an input."
-    ' :$$: 'Text "Possible solution: change the FactDirection of " ' :<>: 'ShowType fact
-      ' :<>: 'Text " to either 'Input' or 'InputOutput'."
+    ( 'Text "You tried to use an " ':<>: 'ShowType (FormatDirection dir) ':<>: 'Text " fact of type " ':<>: 'ShowType fact ':<>: 'Text " as an input."
+    ':$$: 'Text "Possible solution: change the FactDirection of " ':<>: 'ShowType fact
+      ':<>: 'Text " to either 'Input' or 'InputOutput'."
     )
 
 type IsOutput :: Type -> Direction -> Constraint
@@ -74,9 +74,9 @@ type family IsOutput fact dir where
   IsOutput _ 'Output = ()
   IsOutput _ 'InputOutput = ()
   IsOutput fact dir = TypeError
-    ( 'Text "You tried to use an " ' :<>: 'ShowType (FormatDirection dir) ' :<>: 'Text " fact of type " ' :<>: 'ShowType fact ' :<>: 'Text " as an output."
-    ' :$$: 'Text "Possible solution: change the FactDirection of " ' :<>: 'ShowType fact
-      ' :<>: 'Text " to either 'Output' or 'InputOutput'."
+    ( 'Text "You tried to use an " ':<>: 'ShowType (FormatDirection dir) ':<>: 'Text " fact of type " ':<>: 'ShowType fact ':<>: 'Text " as an output."
+    ':$$: 'Text "Possible solution: change the FactDirection of " ':<>: 'ShowType fact
+      ':<>: 'Text " to either 'Output' or 'InputOutput'."
     )
 
 type FormatDirection :: Direction -> Symbol
@@ -96,12 +96,12 @@ type family ContainsFact prog fact where
 type CheckContains :: Type -> [Type] -> Type -> Constraint
 type family CheckContains prog facts fact :: Constraint where
   CheckContains prog '[] fact =
-    TypeError ('Text "You tried to perform an action with a fact of type '" ' :<>: 'ShowType fact
-    ' :<>: 'Text "' for program '" ' :<>: 'ShowType prog ' :<>: 'Text "'."
-    ' :$$: 'Text "The program contains the following facts: " ' :<>: 'ShowType (ProgramFacts prog) ' :<>: 'Text "."
-    ' :$$: 'Text "It does not contain fact: " ' :<>: 'ShowType fact ' :<>: 'Text "."
-    ' :$$: 'Text "You can fix this error by adding the type '" ' :<>: 'ShowType fact
-    ' :<>: 'Text "' to the ProgramFacts type in the Program instance for " ' :<>: 'ShowType prog ' :<>: 'Text ".")
+    TypeError ('Text "You tried to perform an action with a fact of type '" ':<>: 'ShowType fact
+    ':<>: 'Text "' for program '" ':<>: 'ShowType prog ':<>: 'Text "'."
+    ':$$: 'Text "The program contains the following facts: " ':<>: 'ShowType (ProgramFacts prog) ':<>: 'Text "."
+    ':$$: 'Text "It does not contain fact: " ':<>: 'ShowType fact ':<>: 'Text "."
+    ':$$: 'Text "You can fix this error by adding the type '" ':<>: 'ShowType fact
+    ':<>: 'Text "' to the ProgramFacts type in the Program instance for " ':<>: 'ShowType prog ':<>: 'Text ".")
   CheckContains _ (a ': _) a = ()
   CheckContains prog (_ ': as) b = CheckContains prog as b
 
