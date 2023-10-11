@@ -13,6 +13,7 @@ jobs:
       # Workaround for 'No space left on device' error
       - name: free disk space
         run: |
+          sudo docker rmi $(docker image ls -aq) >/dev/null 2>&1 || true
           sudo swapoff -a
           sudo rm -f /swapfile
           sudo apt clean

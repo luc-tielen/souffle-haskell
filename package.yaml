@@ -44,6 +44,7 @@ ghc-options:
   - -Wno-monomorphism-restriction
   - -Wno-prepositive-qualified-module
   - -Wno-missing-safe-haskell-mode
+  - -Wno-operator-whitespace
   - -optP-Wno-nonportable-include-path
   - -fhide-source-paths
   - -fno-show-valid-hole-fits
