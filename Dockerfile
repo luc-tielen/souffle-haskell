@@ -5,6 +5,8 @@ SHELL [ "/bin/bash", "-c" ]
 ENV LC_ALL en_US.UTF-8
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
+# Set the PATH variable to include a custom directory
+ENV PATH="${PATH}:/root/.local/bin"
 
 # install packages
 RUN apt-get update \
@@ -35,7 +37,6 @@ ENTRYPOINT [ "/app/build/entrypoint.sh" ]
 COPY . .
 
 RUN source /root/.ghcup/env \
-    && export PATH=$PATH:/root/.local/bin \
     && cabal update \
     && make configure \
     && make build
