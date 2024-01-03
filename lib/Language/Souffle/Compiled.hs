@@ -31,7 +31,6 @@ module Language.Souffle.Compiled
   ) where
 
 import Prelude hiding ( init )
-import Control.Monad ( when )
 import Control.Monad.State.Strict
 import Data.Foldable ( traverse_ )
 import Data.Functor.Identity

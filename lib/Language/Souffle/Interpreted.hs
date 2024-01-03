@@ -35,7 +35,6 @@ import Data.Kind (Type, Constraint)
 
 import Control.DeepSeq (deepseq)
 import Control.Exception (ErrorCall(..), throwIO, bracket)
-import Control.Monad (forM, forM_, (<$!>))
 import Control.Monad.State.Strict
 import Data.IORef
 import Data.Foldable (traverse_)
