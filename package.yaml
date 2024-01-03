@@ -9,10 +9,11 @@ maintainer: luc.tielen@gmail.com
 copyright: 2022 Luc Tielen
 category: Logic Programming, Foreign Binding, Bindings
 github: luc-tielen/souffle-haskell
-extra-source-files:
+extra-doc-files:
   - README.md
   - CHANGELOG.md
   - LICENSE
+extra-source-files:
   - cbits/**/*.h
   - cbits/*.cpp
   - cbits/souffle/LICENSE
@@ -159,7 +160,7 @@ benchmarks:
         extra-libraries: c++
     dependencies:
       - souffle-haskell
-      - criterion
+      - criterion == 1.*
       - deepseq >= 1.4.4 && < 2
     cxx-options:
       - -D__EMBEDDED_SOUFFLE__

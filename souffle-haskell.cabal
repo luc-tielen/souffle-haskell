@@ -18,9 +18,6 @@ license:        MIT
 license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
-    README.md
-    CHANGELOG.md
-    LICENSE
     cbits/souffle.h
     cbits/souffle/CompiledSouffle.h
     cbits/souffle/datastructure/Brie.h
@@ -69,6 +66,10 @@ extra-source-files:
     cbits/souffle/utility/Types.h
     cbits/souffle.cpp
     cbits/souffle/LICENSE
+extra-doc-files:
+    README.md
+    CHANGELOG.md
+    LICENSE
 
 source-repository head
   type: git
@@ -334,7 +335,7 @@ benchmark souffle-haskell-benchmarks
       benchmarks/fixtures/bench.cpp
   build-depends:
       base >=4.12 && <5
-    , criterion
+    , criterion ==1.*
     , deepseq >=1.4.4 && <2
     , souffle-haskell
     , text >=2.0.2 && <3
