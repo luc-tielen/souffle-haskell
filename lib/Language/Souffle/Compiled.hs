@@ -59,6 +59,7 @@ import Language.Souffle.Class
 import qualified Language.Souffle.Internal as Internal
 import Language.Souffle.Marshal
 import Control.Concurrent
+import Control.Monad (when)
 
 
 type ByteCount :: Type

@@ -35,7 +35,7 @@ import Data.Kind (Type, Constraint)
 
 import Control.DeepSeq (deepseq)
 import Control.Exception (ErrorCall(..), throwIO, bracket)
-import Control.Monad.State.Strict
+import Control.Monad.State.Strict (State, MonadState (state), modify, evalState, execState)
 import Data.IORef
 import Data.Foldable (traverse_)
 import qualified Data.List as List hiding (init)
@@ -46,8 +46,6 @@ import qualified Data.Array as A
 import qualified Data.Text as T
 import qualified Data.Vector as V
 import Data.Word
-import Language.Souffle.Class
-import Language.Souffle.Marshal
 import System.Directory
 import System.Environment
 import System.Exit
@@ -56,6 +54,11 @@ import System.IO (hGetContents, hClose)
 import System.IO.Temp
 import System.Process
 import Text.Printf
+
+import Language.Souffle.Class
+import Language.Souffle.Marshal
+import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad (forM, (<$!>), forM_)
 
 
 -- | A monad for executing Souffle-related actions in.
