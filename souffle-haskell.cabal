@@ -105,7 +105,7 @@ library
     -Wno-missing-import-lists -Wno-type-defaults
     -Wno-missing-local-signatures -Wno-monomorphism-restriction
     -Wno-prepositive-qualified-module -Wno-missing-safe-haskell-mode
-    -Wno-operator-whitespace -optP-Wno-nonportable-include-path
+    -Wno-operator-whitespace
     -fhide-source-paths -fno-show-valid-hole-fits
     -fno-sort-valid-hole-fits
 
@@ -205,7 +205,7 @@ test-suite souffle-haskell-test
     -Wno-missing-import-lists -Wno-type-defaults
     -Wno-missing-local-signatures -Wno-monomorphism-restriction
     -Wno-prepositive-qualified-module -Wno-missing-safe-haskell-mode
-    -Wno-operator-whitespace -optP-Wno-nonportable-include-path
+    -Wno-operator-whitespace
     -fhide-source-paths -fno-show-valid-hole-fits
     -fno-sort-valid-hole-fits -Wno-missing-kind-signatures
     -Wno-operator-whitespace
@@ -302,7 +302,7 @@ benchmark souffle-haskell-benchmarks
     -Wno-missing-import-lists -Wno-type-defaults
     -Wno-missing-local-signatures -Wno-monomorphism-restriction
     -Wno-prepositive-qualified-module -Wno-missing-safe-haskell-mode
-    -Wno-operator-whitespace -optP-Wno-nonportable-include-path
+    -Wno-operator-whitespace
     -fhide-source-paths -fno-show-valid-hole-fits
     -fno-sort-valid-hole-fits +RTS -N1 -RTS
 
