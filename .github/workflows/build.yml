@@ -40,6 +40,8 @@ jobs:
           path: ${{ steps.setup-haskell.outputs.cabal-store }}
           key: ${{ runner.os }}-ghc-${{ matrix.ghc }}-cabal-${{ hashFiles('**/plan.json') }}
           restore-keys: ${{ runner.os }}-ghc-${{ matrix.ghc }}-
+      - name: Configure
+        run: cabal configure --enable-tests
       - name: Build
         run: cabal build
       - name: Test
