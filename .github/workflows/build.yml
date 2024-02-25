@@ -1,39 +1,50 @@
 name: "Build"
 on: [push, pull_request]
 jobs:
-  build:
-    runs-on: ${{matrix.os}}
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
+  generate-matrix:
+    name: "Generate matrix from cabal"
+    outputs: 
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      # Workaround for 'No space left on device' error
-      - name: free disk space
-        run: |
-          sudo docker rmi $(docker image ls -aq) >/dev/null 2>&1 || true
-          sudo swapoff -a
-          sudo rm -f /swapfile
-          sudo apt clean
-          df -h
-
-      # In this step, this action saves a list of existing images, the cache is created without them in the post run.
-      # It also restores the cache if it exists.
-      - uses: jpribyl/action-docker-layer-caching@v0.1.1
-        continue-on-error: true # Ignore the failure of a step and avoid terminating the job.
-
-      - name: Build and test
-        run: |
-          set -eo pipefail
-          export TIMESTAMP=$(date +%s)
-          docker build -f Dockerfile . -t souffle-haskell:$TIMESTAMP | tee souffle-haskell-lang-${{matrix.os}}.log
-          docker run --rm souffle-haskell:$TIMESTAMP bash -c "make tests" | tee -a souffle-haskell-lang-${{matrix.os}}.log
-
-      - name: Upload logs
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v2
+      - name: Extract the tested GHC versions
+        id: set-matrix
+        uses: kleidukos/get-tested@v0.1.6.0
         with:
-          name: souffle-haskell-lang-${{matrix.os}}.log
-          path: souffle-haskell-lang-${{matrix.os}}.log
+          cabal-file: souffle-haskell.cabal
+          ubuntu: true
+          version: 0.1.6.0
+  test:
+    name: ${{ matrix.ghc }} on ${{ matrix.os }}
+    needs: generate-matrix
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix: ${{ fromJSON(needs.generate-matrix.outputs.matrix) }}
+    steps:
+      - name: Checkout base repo
+        uses: actions/checkout@v4
+      - name: Set up Haskell
+        id: setup-haskell
+        uses: haskell-actions/setup@v2
+        with:
+          ghc-version: ${{ matrix.ghc }}
+          cabal-version: 'latest'
+      - name: Install Souffle
+        run: |
+          wget https://github.com/souffle-lang/souffle/releases/download/2.3/x86_64-ubuntu-2004-souffle-2.3-Linux.deb
+          sudo apt install mcpp libffi7
+          sudo dpkg -i ./x86_64-ubuntu-2004-souffle-2.3-Linux.deb
+      - name: Cache
+        uses: actions/cache@v4.0.0
+        with:
+          path: ${{ steps.setup-haskell.outputs.cabal-store }}
+          key: ${{ runner.os }}-ghc-${{ matrix.ghc }}-cabal-${{ hashFiles('**/plan.json') }}
+          restore-keys: ${{ runner.os }}-ghc-${{ matrix.ghc }}-
+      - name: Configure
+        run: cabal configure --enable-tests
+      - name: Build
+        run: cabal build
+      - name: Test
+        run: |
+          cabal install hspec-discover
+          cabal test
