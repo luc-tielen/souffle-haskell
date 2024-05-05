@@ -72,7 +72,7 @@ extra-doc-files:
   LICENSE
   README.md
 
-tested-with:        GHC ==9.2.8 || ==9.4.8 || ==9.6.4
+tested-with:        GHC ==9.4.8 || ==9.6.4
 
 source-repository head
   type:     git

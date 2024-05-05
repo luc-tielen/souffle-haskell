@@ -3,7 +3,7 @@ on: [push, pull_request]
 jobs:
   generate-matrix:
     name: "Generate matrix from cabal"
-    outputs: 
+    outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     runs-on: ubuntu-latest
     steps:
@@ -41,10 +41,10 @@ jobs:
           key: ${{ runner.os }}-ghc-${{ matrix.ghc }}-cabal-${{ hashFiles('**/plan.json') }}
           restore-keys: ${{ runner.os }}-ghc-${{ matrix.ghc }}-
       - name: Configure
-        run: cabal configure --enable-tests
+        run: make configure
       - name: Build
-        run: cabal build
+        run: make build
       - name: Test
         run: |
           cabal install hspec-discover
-          cabal test
+          make tests
