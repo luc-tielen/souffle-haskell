@@ -105,9 +105,8 @@ library
     -Wno-missing-import-lists -Wno-type-defaults
     -Wno-missing-local-signatures -Wno-monomorphism-restriction
     -Wno-prepositive-qualified-module -Wno-missing-safe-haskell-mode
-    -Wno-operator-whitespace
-    -fhide-source-paths -fno-show-valid-hole-fits
-    -fno-sort-valid-hole-fits
+    -Wno-operator-whitespace -fhide-source-paths
+    -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
 
   cxx-options:        -std=c++17 -Wall
   include-dirs:       cbits cbits/souffle
@@ -205,10 +204,9 @@ test-suite souffle-haskell-test
     -Wno-missing-import-lists -Wno-type-defaults
     -Wno-missing-local-signatures -Wno-monomorphism-restriction
     -Wno-prepositive-qualified-module -Wno-missing-safe-haskell-mode
-    -Wno-operator-whitespace
-    -fhide-source-paths -fno-show-valid-hole-fits
-    -fno-sort-valid-hole-fits -Wno-missing-kind-signatures
-    -Wno-operator-whitespace
+    -Wno-operator-whitespace -fhide-source-paths
+    -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
+    -Wno-missing-kind-signatures -Wno-operator-whitespace
 
   cxx-options:        -std=c++17 -D__EMBEDDED_SOUFFLE__
   include-dirs:       cbits cbits/souffle
@@ -302,9 +300,8 @@ benchmark souffle-haskell-benchmarks
     -Wno-missing-import-lists -Wno-type-defaults
     -Wno-missing-local-signatures -Wno-monomorphism-restriction
     -Wno-prepositive-qualified-module -Wno-missing-safe-haskell-mode
-    -Wno-operator-whitespace
-    -fhide-source-paths -fno-show-valid-hole-fits
-    -fno-sort-valid-hole-fits +RTS -N1 -RTS
+    -Wno-operator-whitespace -fhide-source-paths
+    -fno-show-valid-hole-fits -fno-sort-valid-hole-fits +RTS -N1 -RTS
 
   cxx-options:
     -std=c++17 -D__EMBEDDED_SOUFFLE__ -std=c++17 -march=native
