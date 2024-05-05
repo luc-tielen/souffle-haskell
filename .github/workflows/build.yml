@@ -43,8 +43,9 @@ jobs:
       - name: Configure
         run: make configure
       - name: Build
-        run: make build
-      - name: Test
         run: |
           cabal install hspec-discover
+          make build
+      - name: Test
+        run: |
           make tests
