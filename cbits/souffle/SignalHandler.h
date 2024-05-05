@@ -26,12 +26,12 @@
 #include <mutex>
 #include <string>
 
-#ifndef _MSC_VER
-#include <unistd.h>
-#else
+#ifdef _WIN32
 #include <io.h>
-#define STDERR_FILENO 2
-#endif
+#define STDERR_FILENO 2 /* Standard error output.  */
+#else
+#include <unistd.h>
+#endif  //_WIN32
 
 namespace souffle {
 
@@ -180,13 +180,7 @@ private:
                 // assign to variable to suppress ignored-return-value error.
                 // I don't think we care enough to handle this fringe failure mode.
                 // Worse case we don't get an error message.
-#ifdef _MSC_VER
-                [[maybe_unused]] auto _ =
-                        ::_write(STDERR_FILENO, msg, static_cast<unsigned int>(::strlen(msg)));
-#else
-                [[maybe_unused]] auto _ =
-                        ::write(STDERR_FILENO, msg, static_cast<unsigned int>(::strlen(msg)));
-#endif
+                [[maybe_unused]] auto _ = ::write(STDERR_FILENO, msg, ::strlen(msg));
             }
         };
 

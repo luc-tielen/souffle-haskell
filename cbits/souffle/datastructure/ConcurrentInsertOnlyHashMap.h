@@ -46,7 +46,7 @@ static uint64_t GreaterOrEqualPrime(const uint64_t LowerBound) {
     for (std::size_t I = 0; I < ToPrime.size(); ++I) {
         const uint64_t N = ToPrime[I].first;
         const uint64_t K = ToPrime[I].second;
-        const uint64_t Prime = (1ULL << N) - K;
+        const uint64_t Prime = (1UL << N) - K;
         if (Prime >= LowerBound) {
             return Prime;
         }
@@ -145,7 +145,7 @@ public:
         }
         LoadFactor = 1.0;
         Buckets = std::make_unique<std::atomic<BucketList*>[]>(BucketCount);
-        MaxSizeBeforeGrow = static_cast<std::size_t>(std::ceil(LoadFactor * (double)BucketCount));
+        MaxSizeBeforeGrow = std::ceil(LoadFactor * (double)BucketCount);
     }
 
     ConcurrentInsertOnlyHashMap(const Hash& hash = Hash(), const KeyEqual& key_equal = KeyEqual(),
@@ -412,14 +412,12 @@ private:
             // Chose a prime number of buckets that ensures the desired load factor
             // given the current number of elements in the map.
             const std::size_t CurrentSize = Size;
-            assert(LoadFactor > 0);
-            const std::size_t NeededBucketCount =
-                    static_cast<std::size_t>(std::ceil(static_cast<double>(CurrentSize) / LoadFactor));
+            const std::size_t NeededBucketCount = std::ceil((double)CurrentSize / LoadFactor);
             std::size_t NewBucketCount = NeededBucketCount;
             for (std::size_t I = 0; I < details::ToPrime.size(); ++I) {
                 const uint64_t N = details::ToPrime[I].first;
                 const uint64_t K = details::ToPrime[I].second;
-                const uint64_t Prime = (1ULL << N) - K;
+                const uint64_t Prime = (1UL << N) - K;
                 if (Prime >= NeededBucketCount) {
                     NewBucketCount = Prime;
                     break;
@@ -453,8 +451,7 @@ private:
 
             Buckets = std::move(NewBuckets);
             BucketCount = NewBucketCount;
-            MaxSizeBeforeGrow =
-                    static_cast<std::size_t>(std::ceil(static_cast<double>(NewBucketCount) * LoadFactor));
+            MaxSizeBeforeGrow = ((double)NewBucketCount * LoadFactor);
         }
 
         Lanes.beforeUnlockAllBut(H);

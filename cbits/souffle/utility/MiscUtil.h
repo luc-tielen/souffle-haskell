@@ -30,12 +30,17 @@
 #include <utility>
 
 #ifdef _WIN32
-#define NOMINMAX
-#define NOGDI
 #include <fcntl.h>
 #include <io.h>
 #include <stdlib.h>
 #include <windows.h>
+
+/**
+ * Windows headers define these and they interfere with the standard library
+ * functions.
+ */
+#undef min
+#undef max
 
 /**
  * On windows, the following gcc builtins are missing.
@@ -49,34 +54,21 @@
 #define __builtin_popcountll __popcnt64
 
 #if defined(_MSC_VER)
-// return the number of trailing zeroes in value, or 32 if value is zero.
-inline constexpr unsigned long __builtin_ctz(unsigned long value) {
+constexpr unsigned long __builtin_ctz(unsigned long value) {
     unsigned long trailing_zeroes = 0;
-    if (value == 0) return 32;
     while ((value = value >> 1) ^ 1) {
         ++trailing_zeroes;
     }
     return trailing_zeroes;
 }
 
-// return the number of trailing zeroes in value, or 64 if value is zero.
-inline constexpr int __builtin_ctzll_constexpr(unsigned long long value) {
-    int trailing_zeroes = 0;
+inline unsigned long __builtin_ctzll(unsigned long long value) {
+    unsigned long trailing_zero = 0;
 
-    if (value == 0) return 64;
-    while ((value = value >> 1) ^ 1) {
-        ++trailing_zeroes;
-    }
-    return trailing_zeroes;
-}
-
-inline int __builtin_ctzll(unsigned long long value) {
-    unsigned long trailing_zeroes = 0;
-
-    if (_BitScanForward64(&trailing_zeroes, value)) {
-        return static_cast<int>(trailing_zeroes);
+    if (_BitScanForward64(&trailing_zero, value)) {
+        return trailing_zero;
     } else {
-        return 64;  // return 64 like GCC would when value == 0
+        return 64;
     }
 }
 #endif  // _MSC_VER

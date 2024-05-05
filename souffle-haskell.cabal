@@ -1,4 +1,4 @@
-cabal-version:      2.2
+cabal-version: 2.2
 
 -- This file has been generated from package.yaml by hpack version 0.35.2.
 --
@@ -18,352 +18,318 @@ license:            MIT
 license-file:       LICENSE
 build-type:         Simple
 extra-source-files:
-  cbits/souffle/CompiledSouffle.h
-  cbits/souffle/datastructure/Brie.h
-  cbits/souffle/datastructure/BTree.h
-  cbits/souffle/datastructure/BTreeDelete.h
-  cbits/souffle/datastructure/BTreeUtil.h
-  cbits/souffle/datastructure/ConcurrentFlyweight.h
-  cbits/souffle/datastructure/ConcurrentInsertOnlyHashMap.h
-  cbits/souffle/datastructure/EquivalenceRelation.h
-  cbits/souffle/datastructure/LambdaBTree.h
-  cbits/souffle/datastructure/PiggyList.h
-  cbits/souffle/datastructure/RecordTableImpl.h
-  cbits/souffle/datastructure/SymbolTableImpl.h
-  cbits/souffle/datastructure/Table.h
-  cbits/souffle/datastructure/UnionFind.h
-  cbits/souffle/io/gzfstream.h
-  cbits/souffle/io/IOSystem.h
-  cbits/souffle/io/ReadStream.h
-  cbits/souffle/io/ReadStreamCSV.h
-  cbits/souffle/io/ReadStreamJSON.h
-  cbits/souffle/io/ReadStreamSQLite.h
-  cbits/souffle/io/SerialisationStream.h
-  cbits/souffle/io/WriteStream.h
-  cbits/souffle/io/WriteStreamCSV.h
-  cbits/souffle/io/WriteStreamJSON.h
-  cbits/souffle/io/WriteStreamSQLite.h
-  cbits/souffle/LICENSE
-  cbits/souffle/RamTypes.h
-  cbits/souffle/RecordTable.h
-  cbits/souffle/SignalHandler.h
-  cbits/souffle/SouffleInterface.h
-  cbits/souffle/SymbolTable.h
-  cbits/souffle/utility/CacheUtil.h
-  cbits/souffle/utility/ContainerUtil.h
-  cbits/souffle/utility/DynamicCasting.h
-  cbits/souffle/utility/EvaluatorUtil.h
-  cbits/souffle/utility/FileUtil.h
-  cbits/souffle/utility/General.h
-  cbits/souffle/utility/Iteration.h
-  cbits/souffle/utility/json11.h
-  cbits/souffle/utility/MiscUtil.h
-  cbits/souffle/utility/ParallelUtil.h
-  cbits/souffle/utility/span.h
-  cbits/souffle/utility/StreamUtil.h
-  cbits/souffle/utility/StringUtil.h
-  cbits/souffle/utility/tinyformat.h
-  cbits/souffle/utility/Types.h
-  cbits/souffle.cpp
-  cbits/souffle.h
-
+    cbits/souffle.h
+    cbits/souffle/CompiledSouffle.h
+    cbits/souffle/datastructure/Brie.h
+    cbits/souffle/datastructure/BTree.h
+    cbits/souffle/datastructure/BTreeDelete.h
+    cbits/souffle/datastructure/BTreeUtil.h
+    cbits/souffle/datastructure/ConcurrentFlyweight.h
+    cbits/souffle/datastructure/ConcurrentInsertOnlyHashMap.h
+    cbits/souffle/datastructure/EquivalenceRelation.h
+    cbits/souffle/datastructure/LambdaBTree.h
+    cbits/souffle/datastructure/PiggyList.h
+    cbits/souffle/datastructure/Table.h
+    cbits/souffle/datastructure/UnionFind.h
+    cbits/souffle/io/gzfstream.h
+    cbits/souffle/io/IOSystem.h
+    cbits/souffle/io/ReadStream.h
+    cbits/souffle/io/ReadStreamCSV.h
+    cbits/souffle/io/ReadStreamJSON.h
+    cbits/souffle/io/ReadStreamSQLite.h
+    cbits/souffle/io/SerialisationStream.h
+    cbits/souffle/io/WriteStream.h
+    cbits/souffle/io/WriteStreamCSV.h
+    cbits/souffle/io/WriteStreamJSON.h
+    cbits/souffle/io/WriteStreamSQLite.h
+    cbits/souffle/RamTypes.h
+    cbits/souffle/RecordTable.h
+    cbits/souffle/SignalHandler.h
+    cbits/souffle/SouffleInterface.h
+    cbits/souffle/SymbolTable.h
+    cbits/souffle/utility/CacheUtil.h
+    cbits/souffle/utility/ContainerUtil.h
+    cbits/souffle/utility/DynamicCasting.h
+    cbits/souffle/utility/EvaluatorUtil.h
+    cbits/souffle/utility/FileUtil.h
+    cbits/souffle/utility/General.h
+    cbits/souffle/utility/Iteration.h
+    cbits/souffle/utility/json11.h
+    cbits/souffle/utility/MiscUtil.h
+    cbits/souffle/utility/ParallelUtil.h
+    cbits/souffle/utility/span.h
+    cbits/souffle/utility/StreamUtil.h
+    cbits/souffle/utility/StringUtil.h
+    cbits/souffle/utility/tinyformat.h
+    cbits/souffle/utility/Types.h
+    cbits/souffle.cpp
+    cbits/souffle/LICENSE
 extra-doc-files:
-  CHANGELOG.md
-  LICENSE
-  README.md
-
-tested-with:        GHC ==9.4.8 || ==9.6.4
+    README.md
+    CHANGELOG.md
+    LICENSE
 
 source-repository head
-  type:     git
+  type: git
   location: https://github.com/luc-tielen/souffle-haskell
 
 library
   exposed-modules:
-    Language.Souffle.Analysis
-    Language.Souffle.Class
-    Language.Souffle.Compiled
-    Language.Souffle.Internal
-    Language.Souffle.Internal.Bindings
-    Language.Souffle.Interpreted
-    Language.Souffle.Marshal
-
-  other-modules:      Paths_souffle_haskell
-  autogen-modules:    Paths_souffle_haskell
-  hs-source-dirs:     lib
+      Language.Souffle.Analysis
+      Language.Souffle.Class
+      Language.Souffle.Compiled
+      Language.Souffle.Internal
+      Language.Souffle.Internal.Bindings
+      Language.Souffle.Interpreted
+      Language.Souffle.Marshal
+  other-modules:
+      Paths_souffle_haskell
+  autogen-modules:
+      Paths_souffle_haskell
+  hs-source-dirs:
+      lib
   default-extensions:
-    DerivingStrategies
-    FlexibleContexts
-    LambdaCase
-    OverloadedStrings
-    ScopedTypeVariables
-    StandaloneKindSignatures
-
-  ghc-options:
-    -Wall -Weverything -Wno-safe -Wno-unsafe -Wno-implicit-prelude
-    -Wno-missed-specializations -Wno-all-missed-specializations
-    -Wno-missing-import-lists -Wno-type-defaults
-    -Wno-missing-local-signatures -Wno-monomorphism-restriction
-    -Wno-prepositive-qualified-module -Wno-missing-safe-haskell-mode
-    -Wno-operator-whitespace -fhide-source-paths
-    -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
-
-  cxx-options:        -std=c++17 -Wall
-  include-dirs:       cbits cbits/souffle
+      DerivingStrategies
+      FlexibleContexts
+      LambdaCase
+      OverloadedStrings
+      ScopedTypeVariables
+      StandaloneKindSignatures
+  ghc-options: -Wall -Weverything -Wno-safe -Wno-unsafe -Wno-implicit-prelude -Wno-missed-specializations -Wno-all-missed-specializations -Wno-missing-import-lists -Wno-type-defaults -Wno-missing-local-signatures -Wno-monomorphism-restriction -Wno-prepositive-qualified-module -Wno-missing-safe-haskell-mode -Wno-operator-whitespace -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
+  cxx-options: -std=c++17 -Wall
+  include-dirs:
+      cbits
+      cbits/souffle
   install-includes:
-    souffle/CompiledSouffle.h
-    souffle/datastructure/Brie.h
-    souffle/datastructure/BTree.h
-    souffle/datastructure/BTreeDelete.h
-    souffle/datastructure/BTreeUtil.h
-    souffle/datastructure/ConcurrentFlyweight.h
-    souffle/datastructure/ConcurrentInsertOnlyHashMap.h
-    souffle/datastructure/EquivalenceRelation.h
-    souffle/datastructure/LambdaBTree.h
-    souffle/datastructure/PiggyList.h
-    souffle/datastructure/RecordTableImpl.h
-    souffle/datastructure/SymbolTableImpl.h
-    souffle/datastructure/Table.h
-    souffle/datastructure/UnionFind.h
-    souffle/io/gzfstream.h
-    souffle/io/IOSystem.h
-    souffle/io/ReadStream.h
-    souffle/io/ReadStreamCSV.h
-    souffle/io/ReadStreamJSON.h
-    souffle/io/ReadStreamSQLite.h
-    souffle/io/SerialisationStream.h
-    souffle/io/WriteStream.h
-    souffle/io/WriteStreamCSV.h
-    souffle/io/WriteStreamJSON.h
-    souffle/io/WriteStreamSQLite.h
-    souffle/RamTypes.h
-    souffle/RecordTable.h
-    souffle/SignalHandler.h
-    souffle/SouffleInterface.h
-    souffle/SymbolTable.h
-    souffle/utility/CacheUtil.h
-    souffle/utility/ContainerUtil.h
-    souffle/utility/DynamicCasting.h
-    souffle/utility/EvaluatorUtil.h
-    souffle/utility/FileUtil.h
-    souffle/utility/General.h
-    souffle/utility/Iteration.h
-    souffle/utility/json11.h
-    souffle/utility/MiscUtil.h
-    souffle/utility/ParallelUtil.h
-    souffle/utility/span.h
-    souffle/utility/StreamUtil.h
-    souffle/utility/StringUtil.h
-    souffle/utility/tinyformat.h
-    souffle/utility/Types.h
-
-  cxx-sources:        cbits/souffle.cpp
+      souffle/CompiledSouffle.h
+      souffle/RamTypes.h
+      souffle/RecordTable.h
+      souffle/datastructure/ConcurrentFlyweight.h
+      souffle/datastructure/ConcurrentInsertOnlyHashMap.h
+      souffle/utility/ParallelUtil.h
+      souffle/utility/span.h
+      souffle/SignalHandler.h
+      souffle/SouffleInterface.h
+      souffle/SymbolTable.h
+      souffle/utility/MiscUtil.h
+      souffle/utility/General.h
+      souffle/utility/Iteration.h
+      souffle/utility/Types.h
+      souffle/utility/tinyformat.h
+      souffle/utility/StreamUtil.h
+      souffle/utility/ContainerUtil.h
+      souffle/utility/DynamicCasting.h
+      souffle/datastructure/BTreeDelete.h
+      souffle/datastructure/BTreeUtil.h
+      souffle/utility/CacheUtil.h
+      souffle/datastructure/Brie.h
+      souffle/datastructure/EquivalenceRelation.h
+      souffle/datastructure/LambdaBTree.h
+      souffle/datastructure/BTree.h
+      souffle/datastructure/PiggyList.h
+      souffle/datastructure/UnionFind.h
+      souffle/datastructure/Table.h
+      souffle/io/IOSystem.h
+      souffle/io/ReadStream.h
+      souffle/io/SerialisationStream.h
+      souffle/utility/StringUtil.h
+      souffle/utility/json11.h
+      souffle/io/ReadStreamCSV.h
+      souffle/utility/FileUtil.h
+      souffle/io/gzfstream.h
+      souffle/io/ReadStreamJSON.h
+      souffle/io/WriteStream.h
+      souffle/io/WriteStreamCSV.h
+      souffle/io/WriteStreamJSON.h
+      souffle/io/ReadStreamSQLite.h
+      souffle/io/WriteStreamSQLite.h
+      souffle/utility/EvaluatorUtil.h
+  cxx-sources:
+      cbits/souffle.cpp
   build-depends:
-    , array        <1.0.0
-    , base         >=4.12    && <5
-    , bytestring   >=0.10.10 && <1
-    , deepseq      >=1.4.4   && <2
-    , directory    >=1.3.3   && <2
-    , filepath     >=1.4.2   && <2
-    , mtl          >=2.0     && <3
-    , process      >=1.6     && <2
-    , profunctors  >=5.6.2   && <6
-    , temporary    >=1.3     && <2
-    , text         >=2.0.2   && <3
-    , vector       <1.0.0
-
-  default-language:   Haskell2010
-
+      array <=1.0
+    , base >=4.12 && <5
+    , bytestring >=0.10.10 && <1
+    , deepseq >=1.4.4 && <2
+    , directory >=1.3.3 && <2
+    , filepath >=1.4.2 && <2
+    , mtl >=2.0 && <3
+    , process >=1.6 && <2
+    , profunctors >=5.6.2 && <6
+    , temporary >=1.3 && <2
+    , text >=2.0.2 && <3
+    , vector <=1.0
+  default-language: Haskell2010
   if os(linux)
-    extra-libraries: stdc++
+    extra-libraries:
+        stdc++
 
 test-suite souffle-haskell-test
-  type:               exitcode-stdio-1.0
-  main-is:            test.hs
+  type: exitcode-stdio-1.0
+  main-is: test.hs
   other-modules:
-    Paths_souffle_haskell
-    Test.Language.Souffle.AnalysisSpec
-    Test.Language.Souffle.CompiledSpec
-    Test.Language.Souffle.DerivingViaSpec
-    Test.Language.Souffle.InterpretedSpec
-    Test.Language.Souffle.MarshalSpec
-
-  autogen-modules:    Paths_souffle_haskell
-  hs-source-dirs:     tests
+      Test.Language.Souffle.AnalysisSpec
+      Test.Language.Souffle.CompiledSpec
+      Test.Language.Souffle.DerivingViaSpec
+      Test.Language.Souffle.InterpretedSpec
+      Test.Language.Souffle.MarshalSpec
+      Paths_souffle_haskell
+  autogen-modules:
+      Paths_souffle_haskell
+  hs-source-dirs:
+      tests
   default-extensions:
-    DerivingStrategies
-    FlexibleContexts
-    LambdaCase
-    OverloadedStrings
-    ScopedTypeVariables
-    StandaloneKindSignatures
-
-  ghc-options:
-    -Wall -Weverything -Wno-safe -Wno-unsafe -Wno-implicit-prelude
-    -Wno-missed-specializations -Wno-all-missed-specializations
-    -Wno-missing-import-lists -Wno-type-defaults
-    -Wno-missing-local-signatures -Wno-monomorphism-restriction
-    -Wno-prepositive-qualified-module -Wno-missing-safe-haskell-mode
-    -Wno-operator-whitespace -fhide-source-paths
-    -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
-    -Wno-missing-kind-signatures -Wno-operator-whitespace
-
-  cxx-options:        -std=c++17 -D__EMBEDDED_SOUFFLE__
-  include-dirs:       cbits cbits/souffle
+      DerivingStrategies
+      FlexibleContexts
+      LambdaCase
+      OverloadedStrings
+      ScopedTypeVariables
+      StandaloneKindSignatures
+  ghc-options: -Wall -Weverything -Wno-safe -Wno-unsafe -Wno-implicit-prelude -Wno-missed-specializations -Wno-all-missed-specializations -Wno-missing-import-lists -Wno-type-defaults -Wno-missing-local-signatures -Wno-monomorphism-restriction -Wno-prepositive-qualified-module -Wno-missing-safe-haskell-mode -Wno-operator-whitespace -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits -Wno-missing-kind-signatures -Wno-operator-whitespace
+  cxx-options: -std=c++17 -D__EMBEDDED_SOUFFLE__
+  include-dirs:
+      cbits
+      cbits/souffle
   install-includes:
-    souffle/CompiledSouffle.h
-    souffle/datastructure/Brie.h
-    souffle/datastructure/BTree.h
-    souffle/datastructure/BTreeDelete.h
-    souffle/datastructure/BTreeUtil.h
-    souffle/datastructure/ConcurrentFlyweight.h
-    souffle/datastructure/ConcurrentInsertOnlyHashMap.h
-    souffle/datastructure/EquivalenceRelation.h
-    souffle/datastructure/LambdaBTree.h
-    souffle/datastructure/PiggyList.h
-    souffle/datastructure/RecordTableImpl.h
-    souffle/datastructure/SymbolTableImpl.h
-    souffle/datastructure/Table.h
-    souffle/datastructure/UnionFind.h
-    souffle/io/gzfstream.h
-    souffle/io/IOSystem.h
-    souffle/io/ReadStream.h
-    souffle/io/ReadStreamCSV.h
-    souffle/io/ReadStreamJSON.h
-    souffle/io/ReadStreamSQLite.h
-    souffle/io/SerialisationStream.h
-    souffle/io/WriteStream.h
-    souffle/io/WriteStreamCSV.h
-    souffle/io/WriteStreamJSON.h
-    souffle/io/WriteStreamSQLite.h
-    souffle/RamTypes.h
-    souffle/RecordTable.h
-    souffle/SignalHandler.h
-    souffle/SouffleInterface.h
-    souffle/SymbolTable.h
-    souffle/utility/CacheUtil.h
-    souffle/utility/ContainerUtil.h
-    souffle/utility/DynamicCasting.h
-    souffle/utility/EvaluatorUtil.h
-    souffle/utility/FileUtil.h
-    souffle/utility/General.h
-    souffle/utility/Iteration.h
-    souffle/utility/json11.h
-    souffle/utility/MiscUtil.h
-    souffle/utility/ParallelUtil.h
-    souffle/utility/span.h
-    souffle/utility/StreamUtil.h
-    souffle/utility/StringUtil.h
-    souffle/utility/tinyformat.h
-    souffle/utility/Types.h
-
+      souffle/CompiledSouffle.h
+      souffle/RamTypes.h
+      souffle/RecordTable.h
+      souffle/datastructure/ConcurrentFlyweight.h
+      souffle/datastructure/ConcurrentInsertOnlyHashMap.h
+      souffle/utility/ParallelUtil.h
+      souffle/utility/span.h
+      souffle/SignalHandler.h
+      souffle/SouffleInterface.h
+      souffle/SymbolTable.h
+      souffle/utility/MiscUtil.h
+      souffle/utility/General.h
+      souffle/utility/Iteration.h
+      souffle/utility/Types.h
+      souffle/utility/tinyformat.h
+      souffle/utility/StreamUtil.h
+      souffle/utility/ContainerUtil.h
+      souffle/utility/DynamicCasting.h
+      souffle/datastructure/BTreeDelete.h
+      souffle/datastructure/BTreeUtil.h
+      souffle/utility/CacheUtil.h
+      souffle/datastructure/Brie.h
+      souffle/datastructure/EquivalenceRelation.h
+      souffle/datastructure/LambdaBTree.h
+      souffle/datastructure/BTree.h
+      souffle/datastructure/PiggyList.h
+      souffle/datastructure/UnionFind.h
+      souffle/datastructure/Table.h
+      souffle/io/IOSystem.h
+      souffle/io/ReadStream.h
+      souffle/io/SerialisationStream.h
+      souffle/utility/StringUtil.h
+      souffle/utility/json11.h
+      souffle/io/ReadStreamCSV.h
+      souffle/utility/FileUtil.h
+      souffle/io/gzfstream.h
+      souffle/io/ReadStreamJSON.h
+      souffle/io/WriteStream.h
+      souffle/io/WriteStreamCSV.h
+      souffle/io/WriteStreamJSON.h
+      souffle/io/ReadStreamSQLite.h
+      souffle/io/WriteStreamSQLite.h
+      souffle/utility/EvaluatorUtil.h
   cxx-sources:
-    tests/fixtures/edge_cases.cpp
-    tests/fixtures/path.cpp
-    tests/fixtures/round_trip.cpp
-
+      tests/fixtures/edge_cases.cpp
+      tests/fixtures/path.cpp
+      tests/fixtures/round_trip.cpp
   build-depends:
-    , array            <1.0.0
-    , base             >=4.12  && <5
-    , directory        >=1.3.3 && <2
-    , hedgehog         >=1     && <2
-    , hspec            >=2.6.1 && <3.0.0
-    , hspec-hedgehog   <1
-    , profunctors      >=5.6.2 && <6
+      array <=1.0
+    , base >=4.12 && <5
+    , directory >=1.3.3 && <2
+    , hedgehog ==1.*
+    , hspec >=2.6.1 && <3.0.0
+    , hspec-hedgehog ==0.*
+    , profunctors >=5.6.2 && <6
     , souffle-haskell
-    , temporary        >=1.3   && <2
-    , text             >=2.0.2 && <3
-    , vector           <1.0.0
-
-  default-language:   Haskell2010
-
-  if os(osx)
-    extra-libraries: c++
+    , temporary >=1.3 && <2
+    , text >=2.0.2 && <3
+    , vector <=1.0
+  default-language: Haskell2010
+  if os(darwin)
+    extra-libraries:
+        c++
 
 benchmark souffle-haskell-benchmarks
-  type:               exitcode-stdio-1.0
-  main-is:            bench.hs
-  other-modules:      Paths_souffle_haskell
-  autogen-modules:    Paths_souffle_haskell
-  hs-source-dirs:     benchmarks
+  type: exitcode-stdio-1.0
+  main-is: bench.hs
+  other-modules:
+      Paths_souffle_haskell
+  autogen-modules:
+      Paths_souffle_haskell
+  hs-source-dirs:
+      benchmarks
   default-extensions:
-    DerivingStrategies
-    FlexibleContexts
-    LambdaCase
-    OverloadedStrings
-    ScopedTypeVariables
-    StandaloneKindSignatures
-
-  ghc-options:
-    -Wall -Weverything -Wno-safe -Wno-unsafe -Wno-implicit-prelude
-    -Wno-missed-specializations -Wno-all-missed-specializations
-    -Wno-missing-import-lists -Wno-type-defaults
-    -Wno-missing-local-signatures -Wno-monomorphism-restriction
-    -Wno-prepositive-qualified-module -Wno-missing-safe-haskell-mode
-    -Wno-operator-whitespace -fhide-source-paths
-    -fno-show-valid-hole-fits -fno-sort-valid-hole-fits +RTS -N1 -RTS
-
-  cxx-options:
-    -std=c++17 -D__EMBEDDED_SOUFFLE__ -std=c++17 -march=native
-
-  include-dirs:       cbits cbits/souffle
+      DerivingStrategies
+      FlexibleContexts
+      LambdaCase
+      OverloadedStrings
+      ScopedTypeVariables
+      StandaloneKindSignatures
+  ghc-options: -Wall -Weverything -Wno-safe -Wno-unsafe -Wno-implicit-prelude -Wno-missed-specializations -Wno-all-missed-specializations -Wno-missing-import-lists -Wno-type-defaults -Wno-missing-local-signatures -Wno-monomorphism-restriction -Wno-prepositive-qualified-module -Wno-missing-safe-haskell-mode -Wno-operator-whitespace -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits +RTS -N1 -RTS
+  cxx-options: -std=c++17 -D__EMBEDDED_SOUFFLE__ -std=c++17 -march=native
+  include-dirs:
+      cbits
+      cbits/souffle
   install-includes:
-    souffle/CompiledSouffle.h
-    souffle/datastructure/Brie.h
-    souffle/datastructure/BTree.h
-    souffle/datastructure/BTreeDelete.h
-    souffle/datastructure/BTreeUtil.h
-    souffle/datastructure/ConcurrentFlyweight.h
-    souffle/datastructure/ConcurrentInsertOnlyHashMap.h
-    souffle/datastructure/EquivalenceRelation.h
-    souffle/datastructure/LambdaBTree.h
-    souffle/datastructure/PiggyList.h
-    souffle/datastructure/RecordTableImpl.h
-    souffle/datastructure/SymbolTableImpl.h
-    souffle/datastructure/Table.h
-    souffle/datastructure/UnionFind.h
-    souffle/io/gzfstream.h
-    souffle/io/IOSystem.h
-    souffle/io/ReadStream.h
-    souffle/io/ReadStreamCSV.h
-    souffle/io/ReadStreamJSON.h
-    souffle/io/ReadStreamSQLite.h
-    souffle/io/SerialisationStream.h
-    souffle/io/WriteStream.h
-    souffle/io/WriteStreamCSV.h
-    souffle/io/WriteStreamJSON.h
-    souffle/io/WriteStreamSQLite.h
-    souffle/RamTypes.h
-    souffle/RecordTable.h
-    souffle/SignalHandler.h
-    souffle/SouffleInterface.h
-    souffle/SymbolTable.h
-    souffle/utility/CacheUtil.h
-    souffle/utility/ContainerUtil.h
-    souffle/utility/DynamicCasting.h
-    souffle/utility/EvaluatorUtil.h
-    souffle/utility/FileUtil.h
-    souffle/utility/General.h
-    souffle/utility/Iteration.h
-    souffle/utility/json11.h
-    souffle/utility/MiscUtil.h
-    souffle/utility/ParallelUtil.h
-    souffle/utility/span.h
-    souffle/utility/StreamUtil.h
-    souffle/utility/StringUtil.h
-    souffle/utility/tinyformat.h
-    souffle/utility/Types.h
-
-  cxx-sources:        benchmarks/fixtures/bench.cpp
+      souffle/CompiledSouffle.h
+      souffle/RamTypes.h
+      souffle/RecordTable.h
+      souffle/datastructure/ConcurrentFlyweight.h
+      souffle/datastructure/ConcurrentInsertOnlyHashMap.h
+      souffle/utility/ParallelUtil.h
+      souffle/utility/span.h
+      souffle/SignalHandler.h
+      souffle/SouffleInterface.h
+      souffle/SymbolTable.h
+      souffle/utility/MiscUtil.h
+      souffle/utility/General.h
+      souffle/utility/Iteration.h
+      souffle/utility/Types.h
+      souffle/utility/tinyformat.h
+      souffle/utility/StreamUtil.h
+      souffle/utility/ContainerUtil.h
+      souffle/utility/DynamicCasting.h
+      souffle/datastructure/BTreeDelete.h
+      souffle/datastructure/BTreeUtil.h
+      souffle/utility/CacheUtil.h
+      souffle/datastructure/Brie.h
+      souffle/datastructure/EquivalenceRelation.h
+      souffle/datastructure/LambdaBTree.h
+      souffle/datastructure/BTree.h
+      souffle/datastructure/PiggyList.h
+      souffle/datastructure/UnionFind.h
+      souffle/datastructure/Table.h
+      souffle/io/IOSystem.h
+      souffle/io/ReadStream.h
+      souffle/io/SerialisationStream.h
+      souffle/utility/StringUtil.h
+      souffle/utility/json11.h
+      souffle/io/ReadStreamCSV.h
+      souffle/utility/FileUtil.h
+      souffle/io/gzfstream.h
+      souffle/io/ReadStreamJSON.h
+      souffle/io/WriteStream.h
+      souffle/io/WriteStreamCSV.h
+      souffle/io/WriteStreamJSON.h
+      souffle/io/ReadStreamSQLite.h
+      souffle/io/WriteStreamSQLite.h
+      souffle/utility/EvaluatorUtil.h
+  cxx-sources:
+      benchmarks/fixtures/bench.cpp
   build-depends:
-    , base             >=4.12  && <5
-    , criterion        >=1     && <2
-    , deepseq          >=1.4.4 && <2
+      base >=4.12 && <5
+    , criterion ==1.*
+    , deepseq >=1.4.4 && <2
     , souffle-haskell
-    , text             >=2.0.2 && <3
-    , vector           <1.0.0
-
-  default-language:   Haskell2010
-
-  if os(osx)
-    extra-libraries: c++
+    , text >=2.0.2 && <3
+    , vector <=1.0
+  default-language: Haskell2010
+  if os(darwin)
+    extra-libraries:
+        c++
