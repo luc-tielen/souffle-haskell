@@ -31,9 +31,9 @@ jobs:
           cabal-version: 'latest'
       - name: Install Souffle
         run: |
-          wget https://github.com/souffle-lang/souffle/releases/download/2.3/x86_64-ubuntu-2004-souffle-2.3-Linux.deb
+          wget https://github.com/souffle-lang/souffle/releases/download/2.2/x86_64-ubuntu-2004-souffle-2.2-Linux.deb
           sudo apt install mcpp libffi7
-          sudo dpkg -i ./x86_64-ubuntu-2004-souffle-2.3-Linux.deb
+          sudo dpkg -i ./x86_64-ubuntu-2004-souffle-2.2-Linux.deb
       - name: Cache
         uses: actions/cache@v4.0.0
         with:

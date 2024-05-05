@@ -1,4 +1,4 @@
-FROM primordus/souffle-ubuntu:2.3
+FROM primordus/souffle-ubuntu:2.2
 
 SHELL [ "/bin/bash", "-c" ]
 
