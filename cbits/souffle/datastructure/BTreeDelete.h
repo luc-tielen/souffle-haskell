@@ -904,10 +904,8 @@ public:
     /**
      * The iterator type to be utilized for scanning through btree instances.
      */
-    class iterator {
-        friend class souffle::detail::btree_delete<Key, Comparator, Allocator, blockSize, SearchStrategy,
-                true, WeakComparator, Updater>;
-
+    class iterator : public std::iterator<std::bidirectional_iterator_tag, Key> {
+    public:
         // a pointer to the node currently referred to
         // node const* cur;
         node* cur;
@@ -915,7 +913,6 @@ public:
         // the index of the element currently addressed within the referenced node
         field_index_type pos = 0;
 
-    public:
         using iterator_category = std::forward_iterator_tag;
         using value_type = Key;
         using difference_type = ptrdiff_t;
@@ -1581,7 +1578,7 @@ public:
         } else {
             auto lower_iter = internal_lower_bound(k);
             if (lower_iter != end() && equal(*lower_iter, k)) {
-                return std::distance(lower_iter, internal_upper_bound(k));
+                return distance(lower_iter, internal_upper_bound(k));
             } else {
                 return 0;
             }
@@ -1608,7 +1605,7 @@ public:
         } else {
             iterator lower_iter = internal_lower_bound(k);
             if (lower_iter != end() && equal(*lower_iter, k)) {
-                size_type count = std::distance(lower_iter, internal_upper_bound(k));
+                size_type count = distance(lower_iter, internal_upper_bound(k));
                 for (size_type i = 0; i < count; i++) {
                     erase(lower_iter);
                 }

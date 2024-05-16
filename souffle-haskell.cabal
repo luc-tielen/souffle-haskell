@@ -4,19 +4,19 @@ cabal-version: 2.2
 --
 -- see: https://github.com/sol/hpack
 
-name:           souffle-haskell
-version:        4.0.0
-synopsis:       Souffle Datalog bindings for Haskell
-description:    Souffle Datalog bindings for Haskell.
-category:       Logic Programming, Foreign Binding, Bindings
-homepage:       https://github.com/luc-tielen/souffle-haskell#README.md
-bug-reports:    https://github.com/luc-tielen/souffle-haskell/issues
-author:         Luc Tielen
-maintainer:     luc.tielen@gmail.com
-copyright:      2022 Luc Tielen
-license:        MIT
-license-file:   LICENSE
-build-type:     Simple
+name:               souffle-haskell
+version:            4.0.0
+synopsis:           Souffle Datalog bindings for Haskell
+description:        Souffle Datalog bindings for Haskell.
+category:           Logic Programming, Foreign Binding, Bindings
+homepage:           https://github.com/luc-tielen/souffle-haskell#README.md
+bug-reports:        https://github.com/luc-tielen/souffle-haskell/issues
+author:             Luc Tielen
+maintainer:         luc.tielen@gmail.com
+copyright:          2022 Luc Tielen
+license:            MIT
+license-file:       LICENSE
+build-type:         Simple
 extra-source-files:
     cbits/souffle.h
     cbits/souffle/CompiledSouffle.h
@@ -29,8 +29,6 @@ extra-source-files:
     cbits/souffle/datastructure/EquivalenceRelation.h
     cbits/souffle/datastructure/LambdaBTree.h
     cbits/souffle/datastructure/PiggyList.h
-    cbits/souffle/datastructure/RecordTableImpl.h
-    cbits/souffle/datastructure/SymbolTableImpl.h
     cbits/souffle/datastructure/Table.h
     cbits/souffle/datastructure/UnionFind.h
     cbits/souffle/io/gzfstream.h
@@ -97,7 +95,7 @@ library
       OverloadedStrings
       ScopedTypeVariables
       StandaloneKindSignatures
-  ghc-options: -Wall -Weverything -Wno-safe -Wno-unsafe -Wno-implicit-prelude -Wno-missed-specializations -Wno-all-missed-specializations -Wno-missing-import-lists -Wno-type-defaults -Wno-missing-local-signatures -Wno-monomorphism-restriction -Wno-prepositive-qualified-module -Wno-missing-safe-haskell-mode -Wno-operator-whitespace -optP-Wno-nonportable-include-path -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
+  ghc-options: -Wall -Weverything -Wno-safe -Wno-unsafe -Wno-implicit-prelude -Wno-missed-specializations -Wno-all-missed-specializations -Wno-missing-import-lists -Wno-type-defaults -Wno-missing-local-signatures -Wno-monomorphism-restriction -Wno-prepositive-qualified-module -Wno-missing-safe-haskell-mode -Wno-operator-whitespace -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++17 -Wall
   include-dirs:
       cbits
@@ -106,6 +104,9 @@ library
       souffle/CompiledSouffle.h
       souffle/RamTypes.h
       souffle/RecordTable.h
+      souffle/datastructure/ConcurrentFlyweight.h
+      souffle/datastructure/ConcurrentInsertOnlyHashMap.h
+      souffle/utility/ParallelUtil.h
       souffle/utility/span.h
       souffle/SignalHandler.h
       souffle/SouffleInterface.h
@@ -115,23 +116,18 @@ library
       souffle/utility/Iteration.h
       souffle/utility/Types.h
       souffle/utility/tinyformat.h
+      souffle/utility/StreamUtil.h
+      souffle/utility/ContainerUtil.h
+      souffle/utility/DynamicCasting.h
       souffle/datastructure/BTreeDelete.h
       souffle/datastructure/BTreeUtil.h
       souffle/utility/CacheUtil.h
-      souffle/utility/ContainerUtil.h
-      souffle/utility/DynamicCasting.h
-      souffle/utility/ParallelUtil.h
       souffle/datastructure/Brie.h
-      souffle/utility/StreamUtil.h
       souffle/datastructure/EquivalenceRelation.h
       souffle/datastructure/LambdaBTree.h
       souffle/datastructure/BTree.h
       souffle/datastructure/PiggyList.h
       souffle/datastructure/UnionFind.h
-      souffle/datastructure/RecordTableImpl.h
-      souffle/datastructure/ConcurrentFlyweight.h
-      souffle/datastructure/ConcurrentInsertOnlyHashMap.h
-      souffle/datastructure/SymbolTableImpl.h
       souffle/datastructure/Table.h
       souffle/io/IOSystem.h
       souffle/io/ReadStream.h
@@ -147,7 +143,6 @@ library
       souffle/io/WriteStreamJSON.h
       souffle/io/ReadStreamSQLite.h
       souffle/io/WriteStreamSQLite.h
-      souffle/utility/EvaluatorUtil.h
       souffle/utility/EvaluatorUtil.h
   cxx-sources:
       cbits/souffle.cpp
@@ -190,7 +185,7 @@ test-suite souffle-haskell-test
       OverloadedStrings
       ScopedTypeVariables
       StandaloneKindSignatures
-  ghc-options: -Wall -Weverything -Wno-safe -Wno-unsafe -Wno-implicit-prelude -Wno-missed-specializations -Wno-all-missed-specializations -Wno-missing-import-lists -Wno-type-defaults -Wno-missing-local-signatures -Wno-monomorphism-restriction -Wno-prepositive-qualified-module -Wno-missing-safe-haskell-mode -Wno-operator-whitespace -optP-Wno-nonportable-include-path -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits -Wno-missing-kind-signatures -Wno-operator-whitespace
+  ghc-options: -Wall -Weverything -Wno-safe -Wno-unsafe -Wno-implicit-prelude -Wno-missed-specializations -Wno-all-missed-specializations -Wno-missing-import-lists -Wno-type-defaults -Wno-missing-local-signatures -Wno-monomorphism-restriction -Wno-prepositive-qualified-module -Wno-missing-safe-haskell-mode -Wno-operator-whitespace -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits -Wno-missing-kind-signatures -Wno-operator-whitespace
   cxx-options: -std=c++17 -D__EMBEDDED_SOUFFLE__
   include-dirs:
       cbits
@@ -199,6 +194,9 @@ test-suite souffle-haskell-test
       souffle/CompiledSouffle.h
       souffle/RamTypes.h
       souffle/RecordTable.h
+      souffle/datastructure/ConcurrentFlyweight.h
+      souffle/datastructure/ConcurrentInsertOnlyHashMap.h
+      souffle/utility/ParallelUtil.h
       souffle/utility/span.h
       souffle/SignalHandler.h
       souffle/SouffleInterface.h
@@ -208,23 +206,18 @@ test-suite souffle-haskell-test
       souffle/utility/Iteration.h
       souffle/utility/Types.h
       souffle/utility/tinyformat.h
+      souffle/utility/StreamUtil.h
+      souffle/utility/ContainerUtil.h
+      souffle/utility/DynamicCasting.h
       souffle/datastructure/BTreeDelete.h
       souffle/datastructure/BTreeUtil.h
       souffle/utility/CacheUtil.h
-      souffle/utility/ContainerUtil.h
-      souffle/utility/DynamicCasting.h
-      souffle/utility/ParallelUtil.h
       souffle/datastructure/Brie.h
-      souffle/utility/StreamUtil.h
       souffle/datastructure/EquivalenceRelation.h
       souffle/datastructure/LambdaBTree.h
       souffle/datastructure/BTree.h
       souffle/datastructure/PiggyList.h
       souffle/datastructure/UnionFind.h
-      souffle/datastructure/RecordTableImpl.h
-      souffle/datastructure/ConcurrentFlyweight.h
-      souffle/datastructure/ConcurrentInsertOnlyHashMap.h
-      souffle/datastructure/SymbolTableImpl.h
       souffle/datastructure/Table.h
       souffle/io/IOSystem.h
       souffle/io/ReadStream.h
@@ -240,7 +233,6 @@ test-suite souffle-haskell-test
       souffle/io/WriteStreamJSON.h
       souffle/io/ReadStreamSQLite.h
       souffle/io/WriteStreamSQLite.h
-      souffle/utility/EvaluatorUtil.h
       souffle/utility/EvaluatorUtil.h
   cxx-sources:
       tests/fixtures/edge_cases.cpp
@@ -279,7 +271,7 @@ benchmark souffle-haskell-benchmarks
       OverloadedStrings
       ScopedTypeVariables
       StandaloneKindSignatures
-  ghc-options: -Wall -Weverything -Wno-safe -Wno-unsafe -Wno-implicit-prelude -Wno-missed-specializations -Wno-all-missed-specializations -Wno-missing-import-lists -Wno-type-defaults -Wno-missing-local-signatures -Wno-monomorphism-restriction -Wno-prepositive-qualified-module -Wno-missing-safe-haskell-mode -Wno-operator-whitespace -optP-Wno-nonportable-include-path -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits +RTS -N1 -RTS
+  ghc-options: -Wall -Weverything -Wno-safe -Wno-unsafe -Wno-implicit-prelude -Wno-missed-specializations -Wno-all-missed-specializations -Wno-missing-import-lists -Wno-type-defaults -Wno-missing-local-signatures -Wno-monomorphism-restriction -Wno-prepositive-qualified-module -Wno-missing-safe-haskell-mode -Wno-operator-whitespace -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits +RTS -N1 -RTS
   cxx-options: -std=c++17 -D__EMBEDDED_SOUFFLE__ -std=c++17 -march=native
   include-dirs:
       cbits
@@ -288,6 +280,9 @@ benchmark souffle-haskell-benchmarks
       souffle/CompiledSouffle.h
       souffle/RamTypes.h
       souffle/RecordTable.h
+      souffle/datastructure/ConcurrentFlyweight.h
+      souffle/datastructure/ConcurrentInsertOnlyHashMap.h
+      souffle/utility/ParallelUtil.h
       souffle/utility/span.h
       souffle/SignalHandler.h
       souffle/SouffleInterface.h
@@ -297,23 +292,18 @@ benchmark souffle-haskell-benchmarks
       souffle/utility/Iteration.h
       souffle/utility/Types.h
       souffle/utility/tinyformat.h
+      souffle/utility/StreamUtil.h
+      souffle/utility/ContainerUtil.h
+      souffle/utility/DynamicCasting.h
       souffle/datastructure/BTreeDelete.h
       souffle/datastructure/BTreeUtil.h
       souffle/utility/CacheUtil.h
-      souffle/utility/ContainerUtil.h
-      souffle/utility/DynamicCasting.h
-      souffle/utility/ParallelUtil.h
       souffle/datastructure/Brie.h
-      souffle/utility/StreamUtil.h
       souffle/datastructure/EquivalenceRelation.h
       souffle/datastructure/LambdaBTree.h
       souffle/datastructure/BTree.h
       souffle/datastructure/PiggyList.h
       souffle/datastructure/UnionFind.h
-      souffle/datastructure/RecordTableImpl.h
-      souffle/datastructure/ConcurrentFlyweight.h
-      souffle/datastructure/ConcurrentInsertOnlyHashMap.h
-      souffle/datastructure/SymbolTableImpl.h
       souffle/datastructure/Table.h
       souffle/io/IOSystem.h
       souffle/io/ReadStream.h
@@ -329,7 +319,6 @@ benchmark souffle-haskell-benchmarks
       souffle/io/WriteStreamJSON.h
       souffle/io/ReadStreamSQLite.h
       souffle/io/WriteStreamSQLite.h
-      souffle/utility/EvaluatorUtil.h
       souffle/utility/EvaluatorUtil.h
   cxx-sources:
       benchmarks/fixtures/bench.cpp

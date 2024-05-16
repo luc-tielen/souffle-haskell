@@ -43,7 +43,7 @@ class tuple;
  */
 class Relation {
 public:
-    using arity_type = std::size_t;
+    using arity_type = uint32_t;
 
 protected:
     /**
@@ -67,15 +67,15 @@ protected:
          *
          * TODO (Honghyw) : Provide a clear documentation of what id is used for.
          */
-        std::size_t id;
+        uint32_t id;
 
     public:
         /**
          * Get the ID of the iterator_base object.
          *
-         * @return ID of the iterator_base object (std::size_t)
+         * @return ID of the iterator_base object (unit32_t)
          */
-        virtual std::size_t getId() const {
+        virtual uint32_t getId() const {
             return id;
         }
 
@@ -84,9 +84,9 @@ protected:
          *
          * Create an instance of iterator_base and set its ID to be arg_id.
          *
-         * @param arg_id ID of an iterator object (std::size_t)
+         * @param arg_id ID of an iterator object (unit32_t)
          */
-        iterator_base(std::size_t arg_id) : id(arg_id) {}
+        iterator_base(uint32_t arg_id) : id(arg_id) {}
 
         /**
          * Destructor.
@@ -332,8 +332,7 @@ public:
     /**
      * Get the attribute type of a relation at the column specified by the parameter.
      * The attribute type is in the form "<primitive type>:<type name>".
-     * <primitive type> can be s, f, u, i, r, or + standing for symbol, float,
-     * unsigned, integer, record, and ADT respectively,
+     * <primitive type> can be s, f, u, or i standing for symbol, float, unsigned, and integer respectively,
      * which are the primitive types in Souffle.
      * <type name> is the name given by the user in the Souffle program
      *
@@ -577,8 +576,7 @@ public:
      */
     tuple& operator<<(RamSigned integer) {
         assert(pos < size() && "exceeded tuple's size");
-        assert((*relation.getAttrType(pos) == 'i' || *relation.getAttrType(pos) == 'r' ||
-                       *relation.getAttrType(pos) == '+') &&
+        assert((*relation.getAttrType(pos) == 'i' || *relation.getAttrType(pos) == 'r') &&
                 "wrong element type");
         array[pos++] = integer;
         return *this;
@@ -635,8 +633,7 @@ public:
      */
     tuple& operator>>(RamSigned& integer) {
         assert(pos < size() && "exceeded tuple's size");
-        assert((*relation.getAttrType(pos) == 'i' || *relation.getAttrType(pos) == 'r' ||
-                       *relation.getAttrType(pos) == '+') &&
+        assert((*relation.getAttrType(pos) == 'i' || *relation.getAttrType(pos) == 'r') &&
                 "wrong element type");
         integer = ramBitCast<RamSigned>(array[pos++]);
         return *this;

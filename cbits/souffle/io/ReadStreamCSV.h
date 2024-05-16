@@ -347,8 +347,8 @@ protected:
      */
     static std::string getFileName(const std::map<std::string, std::string>& rwOperation) {
         auto name = getOr(rwOperation, "filename", rwOperation.at("name") + ".facts");
-        if (!isAbsolute(name)) {
-            name = getOr(rwOperation, "fact-dir", ".") + pathSeparator + name;
+        if (name.front() != '/') {
+            name = getOr(rwOperation, "fact-dir", ".") + "/" + name;
         }
         return name;
     }

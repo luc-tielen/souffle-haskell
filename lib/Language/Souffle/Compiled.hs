@@ -31,7 +31,7 @@ module Language.Souffle.Compiled
   ) where
 
 import Prelude hiding ( init )
-import Control.Monad.State.Strict
+import Control.Monad.State.Strict (StateT, MonadState (..), evalStateT, modify, gets)
 import Data.Foldable ( traverse_ )
 import Data.Functor.Identity
 import Data.Proxy
@@ -59,7 +59,8 @@ import Language.Souffle.Class
 import qualified Language.Souffle.Internal as Internal
 import Language.Souffle.Marshal
 import Control.Concurrent
-
+import Control.Monad (when)
+import Control.Monad.IO.Class (MonadIO (..))
 
 type ByteCount :: Type
 type ByteCount = Int
